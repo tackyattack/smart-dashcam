@@ -500,6 +500,9 @@ int main ()
    cy = state->screen_height/2;
 
    draw_mandelbrot_to_texture(state, cx, cy, 0.003);
+   draw_triangles(state, cx, cy, 0.003, 1, 1);
+   while(1){}
+
    while (!terminate)
    {
       int x, y, b;

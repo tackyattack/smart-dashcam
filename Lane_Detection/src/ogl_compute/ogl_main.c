@@ -304,6 +304,64 @@ static void init_shaders(OBJ_STATE_T *state)
 
 }
 
+static void draw_texture(OBJ_STATE_T *state, GLfloat cx, GLfloat cy, GLfloat scale)
+{
+  // Create a framebuffer and array buffer
+  // FBOs allow you to create your own framebuffer and define how we wish
+  // to use it (for cool post-processing effects)
+  glBindFramebuffer(GL_FRAMEBUFFER,state->tex_fb);
+  check();
+  glBindBuffer(GL_ARRAY_BUFFER, state->buf);
+
+  // installs the program (done after it has been linked)
+  glUseProgram ( state->program2 );
+  check();
+
+  // Create the uniforms (global shader variables)
+  glUniform2f(state->unif_scale2, scale, scale);
+  glUniform2f(state->unif_centre2, cx, cy);
+  check();
+
+  // render the primitive from array data (triangle fan: first vertex is a hub, others fan around it)
+  // 0 -> starting index
+  // 4 -> number of indices to render
+  glDrawArrays ( GL_TRIANGLE_FAN, 0, 4 );
+  check();
+
+  // execute and BLOCK until done (in the future you'll want to check status instead so it doesn't block)
+  glFlush();
+  glFinish();
+  check();
+
+}
+
+static void draw_triangles(OBJ_STATE_T *state)
+{
+  // Now render to the main frame buffer
+  glBindFramebuffer(GL_FRAMEBUFFER,0);
+  // Clear the background (not really necessary I suppose)
+  glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+  check();
+
+  //glBindBuffer(GL_ARRAY_BUFFER, state->buf);
+  //check();
+
+  glDrawArrays ( GL_TRIANGLE_FAN, 0, 4 );
+  check();
+
+  //glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+
+  // maybe not necessary?
+  glFlush();
+  glFinish();
+  check();
+
+  eglSwapBuffers(state->display, state->surface);
+  check();
+
+}
+
 
 int main ()
 {
@@ -319,6 +377,14 @@ int main ()
    init_shaders(state);
    cx = state->screen_width/2;
    cy = state->screen_height/2;
+
+   draw_texture(state, cx, cy, 0.003);
+   draw_triangles(state);
+
+   while(!terminate)
+   {
+
+   }
 
    return 0;
 }
