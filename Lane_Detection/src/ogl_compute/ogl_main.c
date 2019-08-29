@@ -10,6 +10,7 @@ General-Purpose computing on GPU (GPGPU) using OpenGL|ES
 #include <math.h>
 #include <assert.h>
 #include <unistd.h>
+#include <time.h>
 
 #include "bcm_host.h"
 
@@ -35,8 +36,6 @@ typedef struct
    GLuint tex_fb;
    GLuint tex;
    GLuint buf;
-// julia attribs
-   GLuint unif_color, attr_vertex, unif_scale, unif_offset, unif_tex, unif_centre;
 // mandelbrot attribs
    GLuint attr_vertex2, unif_scale2, unif_offset2, unif_centre2;
 
@@ -254,7 +253,7 @@ static void init_shaders(OBJ_STATE_T *state)
   check();
 
   // Specify the clear color for the buffers
-  // Create one buffer
+  // Create one buffer for vertex data
   glClearColor ( 0.0, 1.0, 1.0, 1.0 );
   glGenBuffers(1, &state->buf);
   check();
@@ -281,7 +280,10 @@ static void init_shaders(OBJ_STATE_T *state)
   glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
   check();
 
-  // Prepare a framebuffer for rendering
+  // Prepare a framebuffer
+  // FBOs allow you to create your own framebuffer and define how we wish
+  // to use it (for cool post-processing effects)
+
   glGenFramebuffers(1,&state->tex_fb);
   check();
   glBindFramebuffer(GL_FRAMEBUFFER,state->tex_fb);
@@ -304,12 +306,21 @@ static void init_shaders(OBJ_STATE_T *state)
 
 }
 
+// You could use a texture and tell OGL to double as a texture
+// to simplify things
+// Also, I just realized to copy a framebuffer you could probably render the quad again
+// to the other framebuffer
 static void draw_texture(OBJ_STATE_T *state, GLfloat cx, GLfloat cy, GLfloat scale)
 {
-  // Create a framebuffer and array buffer
-  // FBOs allow you to create your own framebuffer and define how we wish
-  // to use it (for cool post-processing effects)
-  glBindFramebuffer(GL_FRAMEBUFFER,state->tex_fb);
+
+  // render to offscreen fb
+  glBindFramebuffer(GL_FRAMEBUFFER, state->tex_fb);
+
+  // render directly to the main framebuffer
+  //glBindFramebuffer(GL_FRAMEBUFFER,0);
+
+
+  glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
   check();
   glBindBuffer(GL_ARRAY_BUFFER, state->buf);
 
@@ -332,41 +343,50 @@ static void draw_texture(OBJ_STATE_T *state, GLfloat cx, GLfloat cy, GLfloat sca
   glFlush();
   glFinish();
   check();
-
 }
 
-static void draw_triangles(OBJ_STATE_T *state)
+// since you're not allowed to attach the main frame buffer (0) to a texture,
+// this just does it by rendering the given texture to the given framebuffer (which can be main
+// or whatever you choose)
+// Mainly for testing purposes to see what the texture looks like
+static void tex_to_fb(GLuint tex_id, GLuint fb_id)
 {
-  // Now render to the main frame buffer
-  glBindFramebuffer(GL_FRAMEBUFFER,0);
-  // Clear the background (not really necessary I suppose)
-  glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-  check();
-
-  //glBindBuffer(GL_ARRAY_BUFFER, state->buf);
-  //check();
-
+  glBindFramebuffer(GL_FRAMEBUFFER, fb_id);
+  glBindTexture(GL_TEXTURE_2D,state->tex);
+  glBindBuffer(GL_ARRAY_BUFFER, state->buf);
   glDrawArrays ( GL_TRIANGLE_FAN, 0, 4 );
-  check();
-
-  //glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-
-  // maybe not necessary?
   glFlush();
   glFinish();
   check();
-
-  eglSwapBuffers(state->display, state->surface);
-  check();
-
 }
 
+static void get_fb_memory(OBJ_STATE_T *state, GLuint fb_id, void *mem_ptr)
+{
+  glBindFramebuffer(GL_FRAMEBUFFER, fb_id);
+  check();
+
+  // start at the upper left corner
+  glReadPixels(0, 0, state->screen_width, state->screen_height, GL_RGBA, GL_UNSIGNED_BYTE, mem_ptr);
+  check();
+}
+
+long diff_ns(struct timespec start, struct timespec end)
+{
+	struct timespec temp;
+	if ((end.tv_nsec-start.tv_nsec)<0) {
+		temp.tv_nsec = 1000000000+end.tv_nsec-start.tv_nsec;
+	} else {
+		temp.tv_nsec = end.tv_nsec-start.tv_nsec;
+	}
+  return temp.tv_nsec;
+}
 
 int main ()
 {
    int terminate = 0;
    GLfloat cx, cy;
+	 struct timespec start_time, end_time;
+
    bcm_host_init();
 
    // Clear application state
@@ -379,7 +399,28 @@ int main ()
    cy = state->screen_height/2;
 
    draw_texture(state, cx, cy, 0.003);
-   draw_triangles(state);
+   tex_to_fb(state->tex_fb, 0);
+
+  // get the framebuffer back to CPU memory
+   void *image = malloc((state->screen_width)*(state->screen_height)*4); //RGBA (byte*4)
+
+   clock_gettime(CLOCK_REALTIME, &start_time);
+   get_fb_memory(state, 0, image);
+   clock_gettime(CLOCK_REALTIME, &end_time);
+   long read_exec_time_ms = diff_ns(start_time, end_time)/1000000;
+   printf("read time: %ld ms   for a size of %d x %d\r\n", read_exec_time_ms,
+                                                           state->screen_height,
+                                                           state->screen_width);
+  printf("that would give %ld FPS\r\n", 1000/read_exec_time_ms);
+
+   // switch to main frame buffer
+   glBindFramebuffer(GL_FRAMEBUFFER, 0);
+   glFlush(); // these might not be necessary since we're just changing context?
+   glFinish();
+   // swap the buffer to the display
+   eglSwapBuffers(state->display, state->surface);
+
+   free(image);
 
    while(!terminate)
    {
