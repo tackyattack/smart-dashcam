@@ -30,9 +30,7 @@ typedef struct
    GLuint verbose;
    GLuint vshader;
    GLuint fshader;
-   GLuint mshader;
    GLuint program;
-   GLuint program2;
    GLuint tex_fb;
    GLuint tex;
    GLuint buf;
@@ -222,6 +220,21 @@ static void init_shaders(OBJ_STATE_T *state)
   "  gl_FragColor = color2;"
   "}";
 
+  const GLchar *test1_fshader_source =
+  "uniform vec2 scale;"
+  "uniform vec2 centre;"
+  "uniform vec2 offset;"
+  "varying vec2 tcoord;"
+  "void main(void){"
+  //"float x_pos = (gl_FragCoord.x)/1920.0;"
+  "float x_pos = 253.0*0.00392156862;" // test to see if byte value can translate back in the read out
+  "vec4 color2;"
+  "if(x_pos > 1.0) color2 = vec4(0,1,0,1);"
+  "else color2 = vec4(1,0,0,1);"
+  "color2 = vec4(x_pos,1,0,1);"
+  "gl_FragColor = color2;"
+  "}";
+
   // --------- Create and compile shaders ----------
   state->vshader = glCreateShader(GL_VERTEX_SHADER);
   glShaderSource(state->vshader, 1, &vshader_source, 0);
@@ -229,27 +242,28 @@ static void init_shaders(OBJ_STATE_T *state)
   check();
   if (state->verbose) showlog(state->vshader);
 
-  state->mshader = glCreateShader(GL_FRAGMENT_SHADER);
-  glShaderSource(state->mshader, 1, &mandelbrot_fshader_source, 0);
-  glCompileShader(state->mshader);
+  state->fshader = glCreateShader(GL_FRAGMENT_SHADER);
+  //glShaderSource(state->fshader, 1, &mandelbrot_fshader_source, 0);
+  glShaderSource(state->fshader, 1, &test1_fshader_source, 0);
+  glCompileShader(state->fshader);
   check();
-  if (state->verbose) showlog(state->mshader);
+  if (state->verbose) showlog(state->fshader);
   // -----------------------------------
 
 
   // Create the program
-  state->program2 = glCreateProgram();
-  glAttachShader(state->program2, state->vshader);
-  glAttachShader(state->program2, state->mshader);
-  glLinkProgram(state->program2);
+  state->program = glCreateProgram();
+  glAttachShader(state->program, state->vshader);
+  glAttachShader(state->program, state->fshader);
+  glLinkProgram(state->program);
   check();
-  if (state->verbose) showprogramlog(state->program2);
+  if (state->verbose) showprogramlog(state->program);
 
   // Get attribute locations
-  state->attr_vertex2 = glGetAttribLocation(state->program2, "vertex");
-  state->unif_scale2  = glGetUniformLocation(state->program2, "scale");
-  state->unif_offset2 = glGetUniformLocation(state->program2, "offset");
-  state->unif_centre2 = glGetUniformLocation(state->program2, "centre");
+  state->attr_vertex2 = glGetAttribLocation(state->program, "vertex");
+  state->unif_scale2  = glGetUniformLocation(state->program, "scale");
+  state->unif_offset2 = glGetUniformLocation(state->program, "offset");
+  state->unif_centre2 = glGetUniformLocation(state->program, "centre");
   check();
 
   // Specify the clear color for the buffers
@@ -274,7 +288,8 @@ static void init_shaders(OBJ_STATE_T *state)
   // format           -> RGB (must match internal format)
   // type             -> data type of texel (GL_UNSIGNED_SHORT_5_6_5 stands for RGB in a 16b value R=5b, G=6b, B=5b)
   // data             -> pointer to image data (null for now)
-  glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,state->screen_width,state->screen_height,0,GL_RGB,GL_UNSIGNED_SHORT_5_6_5,0);
+  //glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,state->screen_width,state->screen_height,0,GL_RGB,GL_UNSIGNED_SHORT_5_6_5,0);
+  glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,state->screen_width,state->screen_height,0,GL_RGB,GL_UNSIGNED_BYTE,0);
   check();
   glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
   glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -325,7 +340,7 @@ static void draw_texture(OBJ_STATE_T *state, GLfloat cx, GLfloat cy, GLfloat sca
   glBindBuffer(GL_ARRAY_BUFFER, state->buf);
 
   // installs the program (done after it has been linked)
-  glUseProgram ( state->program2 );
+  glUseProgram ( state->program );
   check();
 
   // Create the uniforms (global shader variables)
