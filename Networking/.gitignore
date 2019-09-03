@@ -1,2 +1,6 @@
+# Executables
+exe*
+
+# Directories
 backups/**
 WorkingConfigs/**
