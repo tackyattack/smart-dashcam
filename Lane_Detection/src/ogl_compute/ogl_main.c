@@ -18,6 +18,7 @@ General-Purpose computing on GPU (GPGPU) using OpenGL|ES
 #include "EGL/egl.h"
 #include "EGL/eglext.h"
 
+
 typedef struct
 {
    uint32_t screen_width;
@@ -34,7 +35,6 @@ typedef struct
    GLuint tex_fb;
    GLuint tex;
    GLuint buf;
-// mandelbrot attribs
    GLuint attr_vertex2, unif_scale2, unif_offset2, unif_centre2;
 
 } OBJ_STATE_T;
@@ -164,6 +164,22 @@ static void init_ogl(OBJ_STATE_T *state)
   check();
 }
 
+static char *create_tex_image(void)
+{
+  int tex_size_bytes = 128*128*3;
+  char *tex_ptr = malloc(tex_size_bytes);
+  FILE *tex_file = fopen("sample_texs/Lucca_128_128.raw", "rb");
+  if (tex_file && tex_ptr)
+  {
+     int bytes_read=fread(tex_ptr, 1, tex_size_bytes, tex_file);
+     assert(bytes_read == tex_size_bytes);  // some problem with file?
+     fclose(tex_file);
+  }
+  //for(int i =0; i < tex_size_bytes; i++) tex_ptr[i] = i%255;
+
+  return tex_ptr;
+}
+
 
 static void init_shaders(OBJ_STATE_T *state)
 {
@@ -235,6 +251,22 @@ static void init_shaders(OBJ_STATE_T *state)
   "gl_FragColor = color2;"
   "}";
 
+  const GLchar *test_image_fshader_source =
+  "uniform sampler2D tex;"
+  "void main(void){"
+  "vec4 color_out = vec4(0,0,0,1);"
+  "float x_pos = (gl_FragCoord.x)/1920.0;"
+  "float y_pos = (gl_FragCoord.y)/1080.0;" // doing it this way scales it up to the full screen
+                                           // dividing it by 128 instead would scale it so it's the actual size
+  // "if(gl_FragCoord.x < 128.0 && gl_FragCoord.y < 128.0){"
+  // "vec2 pos = vec2(x_pos,y_pos);"
+  // "color_out = texture2D(tex, pos);"
+  // "}"
+  "vec2 pos = vec2(x_pos,y_pos);"
+  "color_out = texture2D(tex, pos);"
+  "gl_FragColor = color_out;"
+  "}";
+
   // --------- Create and compile shaders ----------
   state->vshader = glCreateShader(GL_VERTEX_SHADER);
   glShaderSource(state->vshader, 1, &vshader_source, 0);
@@ -244,7 +276,7 @@ static void init_shaders(OBJ_STATE_T *state)
 
   state->fshader = glCreateShader(GL_FRAGMENT_SHADER);
   //glShaderSource(state->fshader, 1, &mandelbrot_fshader_source, 0);
-  glShaderSource(state->fshader, 1, &test1_fshader_source, 0);
+  glShaderSource(state->fshader, 1, &test_image_fshader_source, 0);
   glCompileShader(state->fshader);
   check();
   if (state->verbose) showlog(state->fshader);
@@ -272,13 +304,14 @@ static void init_shaders(OBJ_STATE_T *state)
   glGenBuffers(1, &state->buf);
   check();
 
-  // Create a texture and bind it to a 2D target
+  // Create a texture for the output to screen
   glGenTextures(1, &state->tex);
   check();
+  glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D,state->tex);
   check();
 
-  // Setup the 2D texture
+  // Setup the 2D texture (for output)
   // glTexImage2D(target, level, internal format, width, height, border, format, type, data)
   // target           -> 2D texture
   // level            -> 0 is the base detail level
@@ -295,10 +328,9 @@ static void init_shaders(OBJ_STATE_T *state)
   glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
   check();
 
-  // Prepare a framebuffer
+  // Prepare a framebuffer that will be linked to the texture for drawing
   // FBOs allow you to create your own framebuffer and define how we wish
   // to use it (for cool post-processing effects)
-
   glGenFramebuffers(1,&state->tex_fb);
   check();
   glBindFramebuffer(GL_FRAMEBUFFER,state->tex_fb);
@@ -319,6 +351,25 @@ static void init_shaders(OBJ_STATE_T *state)
   glEnableVertexAttribArray(state->attr_vertex2);
   check();
 
+  // ---- create an input texture (image for now) -----
+  char *image_p = create_tex_image(); // this is gonna make a memory leak since you aren't freeing it
+
+  GLuint input_tex;
+  glGenTextures(1, &input_tex);
+  glActiveTexture(GL_TEXTURE1); // use texture unit 1 to store it
+  glBindTexture(GL_TEXTURE_2D, input_tex);
+  glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,128,128,0,GL_RGB,GL_UNSIGNED_BYTE,image_p);
+  glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  check();
+
+
+  // switch back to output texture assigned to 0
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, state->tex);
+  check();
+
+
 }
 
 // You could use a texture and tell OGL to double as a texture
@@ -331,6 +382,8 @@ static void draw_texture(OBJ_STATE_T *state, GLfloat cx, GLfloat cy, GLfloat sca
   // render to offscreen fb
   glBindFramebuffer(GL_FRAMEBUFFER, state->tex_fb);
 
+  // +++++++++++++ Do we need to bind the output texture here too? Or is the fb effectivly the texture?
+
   // render directly to the main framebuffer
   //glBindFramebuffer(GL_FRAMEBUFFER,0);
 
@@ -342,6 +395,12 @@ static void draw_texture(OBJ_STATE_T *state, GLfloat cx, GLfloat cy, GLfloat sca
   // installs the program (done after it has been linked)
   glUseProgram ( state->program );
   check();
+
+  // NOTE: it's really important that you put this AFTER glUseProgram
+  GLuint texLoc = glGetUniformLocation(state->program, "tex");
+  glUniform1i(texLoc, 1); // tell shader that we're putting it in texture 1
+  check();
+
 
   // Create the uniforms (global shader variables)
   glUniform2f(state->unif_scale2, scale, scale);
@@ -359,6 +418,7 @@ static void draw_texture(OBJ_STATE_T *state, GLfloat cx, GLfloat cy, GLfloat sca
   glFinish();
   check();
 }
+
 
 // since you're not allowed to attach the main frame buffer (0) to a texture,
 // this just does it by rendering the given texture to the given framebuffer (which can be main
