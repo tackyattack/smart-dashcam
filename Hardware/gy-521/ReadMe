@@ -1,0 +1,23 @@
+# https://tutorials-raspberrypi.com/measuring-rotation-and-acceleration-raspberry-pi/
+#in raspi-config file: (/boot/config.txt) --edit with raspi-config or nano
+#       dtparam=i2c_arm=on #to turn on I2C interface on the Pi
+    
+# in modules config file: (/etc/modules) --edit with nano
+#       i2c-dev
+#       12c-bcm2708
+
+# reboot
+#       sudo reboot
+
+
+#after reboot
+
+# sudo apt-get install i2c-tools python-smbus   #these are already installed by default
+
+# example python script that pulls gforce and gyro and axis data from I2c gy-521 connected
+#   is located at /Projects/gy-521/gy521_read.py
+#   wiring diagram is:
+#RPi GPIO Pin1=> gy521 Vcc
+#RPi GPIO Pin3=> gy521 SDA
+#RPi GPIO Pin5=> gy521 SCL
+#RPi GPIO Pin6=> gy521 GND
