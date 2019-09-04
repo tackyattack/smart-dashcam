@@ -364,12 +364,6 @@ static void init_shaders(OBJ_STATE_T *state)
   check();
 
 
-  // switch back to output texture assigned to 0
-  glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_2D, state->tex);
-  check();
-
-
 }
 
 // You could use a texture and tell OGL to double as a texture
@@ -378,7 +372,6 @@ static void init_shaders(OBJ_STATE_T *state)
 // to the other framebuffer
 static void draw_texture(OBJ_STATE_T *state, GLfloat cx, GLfloat cy, GLfloat scale)
 {
-
   // render to offscreen fb
   glBindFramebuffer(GL_FRAMEBUFFER, state->tex_fb);
 
