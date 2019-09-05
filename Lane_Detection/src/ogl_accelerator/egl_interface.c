@@ -2,6 +2,8 @@
 #include "egl_interface.h"
 #include "ogl_utils.h"
 #include "EGL/eglext.h"
+#include "EGL/egl.h"
+#include "bcm_host.h"
 
 void egl_interface_create_display(EGL_OBJECT_T *egl_obj)
 {
@@ -56,7 +58,7 @@ void egl_interface_create_display(EGL_OBJECT_T *egl_obj)
 
   // create an EGL rendering context
   egl_obj->context = eglCreateContext(egl_obj->display, config, EGL_NO_CONTEXT, context_attributes);
-  assert(state->context!=EGL_NO_CONTEXT);
+  assert(egl_obj->context!=EGL_NO_CONTEXT);
   check();
 
   // create an EGL window surface

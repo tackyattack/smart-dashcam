@@ -4,11 +4,13 @@
 #define EGL_INTERFACE_H_
 #include "EGL/egl.h"
 
-typedef struct
+typedef struct EGL_OBJECT_T
 {
    EGLDisplay display;
    EGLSurface surface;
    EGLContext context;
+   uint32_t screen_width;
+   uint32_t screen_height;
 
 } EGL_OBJECT_T;
 
