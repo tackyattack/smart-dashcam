@@ -135,18 +135,7 @@ void download_fbo(GLuint fb_id, GLuint width, GLuint height, void *mem_ptr)
   check();
 }
 
-// since you're not allowed to attach the main frame buffer (0) to a texture,
-// this just does it by rendering the given texture to the given framebuffer (which can be main
-// or whatever you choose)
-// Mainly for testing purposes to see what the texture looks like
-void tex_to_fb(GLuint tex_id, GLuint fb_id, GLuint vbuffer)
-{
-  glBindFramebuffer(GL_FRAMEBUFFER, fb_id);
-  glBindTexture(GL_TEXTURE_2D, tex_id);
-  glBindBuffer(GL_ARRAY_BUFFER, vbuffer);
-  glDrawArrays ( GL_TRIANGLE_FAN, 0, 4 );
-  check();
-}
+
 
 void construct_shader_var(OGL_SHADER_VAR_T *shader_var, char *name, char var_type)
 {

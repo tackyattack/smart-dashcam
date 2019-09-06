@@ -22,6 +22,7 @@ General-Purpose computing on GPU (GPGPU) using OpenGL|ES
 #include "ogl_mngr.h"
 #include "ogl_utils.h"
 #include "program_utils.h"
+#include "image_loader.h"
 
 // Flat quad to render to
 static const GLfloat vertex_data[] = {
@@ -31,11 +32,13 @@ static const GLfloat vertex_data[] = {
       -1.0,1.0,1.0,1.0
  };
 
- static void draw_program(OGL_PROGRAM_CONTEXT_T *program_ctx, GLuint fbo, GLuint tex, GLuint vbuffer)
+ static void draw_program(OGL_PROGRAM_CONTEXT_T *program_ctx, GLuint out_tex, GLuint out_fbo, GLuint input_tex_unit, GLuint vbuffer)
  {
+   // note: you only need to set the active texture unit when making a change to the texture
+   //       by binding it
    // render to offscreen fbo
-   glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-   glBindTexture(GL_TEXTURE_2D, tex);
+   glBindFramebuffer(GL_FRAMEBUFFER, out_fbo);
+
 
 
    glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
@@ -48,9 +51,10 @@ static const GLfloat vertex_data[] = {
 
    // NOTE: it's really important that you put this AFTER glUseProgram
 
-   //glUniform1i(glGetUniformLocation(program_ctx, "tex")->location, 1); // tell shader that we're putting it in texture 1
-   glUniform2f(get_program_var(program_ctx, "scale")->location, 0.003, 0.003);
-   glUniform2f(get_program_var(program_ctx, "centre")->location, 1920/2, 1080/2);
+   // tell shader where the input texture is
+   // NOTE: DO NOT USE GL_TEXTURE<i> since that's for setting the active unit
+   //       instead use integers 0, 1, 2, ... etc for whichever GL_TEXTURE<i> you used
+   glUniform1i(get_program_var(program_ctx, "tex")->location, input_tex_unit);
 
    // render the primitive from array data (triangle fan: first vertex is a hub, others fan around it)
    // 0 -> starting index
@@ -64,8 +68,10 @@ static const GLfloat vertex_data[] = {
    check();
  }
 
+
 int main ()
 {
+  int verbose = 1;
   EGL_OBJECT_T egl_device;
   egl_device.screen_width = 1920;
   egl_device.screen_height = 1080;
@@ -73,16 +79,30 @@ int main ()
   init_ogl(&egl_device);
 
   const GLchar *vshader = ogl_load_shader("shaders/flat_vshader.glsl");
-  const GLchar *fshader = ogl_load_shader("shaders/madelbrot_fshader.glsl");
+  const GLchar *fshader = ogl_load_shader("shaders/test_image_shader.glsl");
 
   OGL_PROGRAM_CONTEXT_T programA;
-  OGL_SHADER_VAR_T programA_vars[3];
+  OGL_SHADER_VAR_T programA_vars[2];
   construct_shader_var(&programA_vars[0], "vertex", OGL_ATTRIBUTE_TYPE);
-  construct_shader_var(&programA_vars[1], "scale", OGL_UNIFORM_TYPE);
-  construct_shader_var(&programA_vars[2], "centre", OGL_UNIFORM_TYPE);
+  construct_shader_var(&programA_vars[1], "tex", OGL_UNIFORM_TYPE);
+  check();
   programA.vars = programA_vars;
-  programA.num_vars = 3;
-  create_program_context(&programA, &vshader, &fshader, 0);
+  programA.num_vars = 2;
+  create_program_context(&programA, &vshader, &fshader, verbose);
+  check();
+
+
+  const GLchar *fshader_renderer = ogl_load_shader("shaders/texture_renderer.glsl");
+
+  OGL_PROGRAM_CONTEXT_T render_program;
+  OGL_SHADER_VAR_T render_program_vars[2];
+  construct_shader_var(&render_program_vars[0], "vertex", OGL_ATTRIBUTE_TYPE);
+  construct_shader_var(&render_program_vars[1], "tex", OGL_UNIFORM_TYPE);
+  check();
+  render_program.vars = render_program_vars;
+  render_program.num_vars = 2;
+  create_program_context(&render_program, &vshader, &fshader_renderer, verbose);
+  check();
 
   GLuint vbuffer;
   // Specify the clear color for the buffers
@@ -92,8 +112,19 @@ int main ()
   check();
 
   GLuint input_tex, input_fbo, output_tex, output_fbo;
-  create_fbo_tex_pair(&input_tex, &input_fbo, GL_TEXTURE0, 1920, 1080);
+  create_fbo_tex_pair(&input_tex, &input_fbo, GL_TEXTURE0, 1920, 1280);
   create_fbo_tex_pair(&output_tex, &output_fbo, GL_TEXTURE1, 1920, 1080);
+
+
+
+  unsigned char *img = loadBMP("sample_images/road2.bmp");
+  glActiveTexture(GL_TEXTURE0); // use texture unit x to store it
+  glBindTexture(GL_TEXTURE_2D, input_tex);
+  glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,1920,1280,0,GL_RGB,GL_UNSIGNED_BYTE,img);
+  glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  check();
+
 
 
   // Upload vertex data to a buffer
@@ -103,16 +134,20 @@ int main ()
   glEnableVertexAttribArray(get_program_var(&programA, "vertex")->location);
   check();
 
+
+
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
   // Prepare viewport
   glViewport ( 0, 0, 1920, 1080);
 
   start_profiler_timer();
-  draw_program(&programA, output_tex, output_fbo, vbuffer);
+  draw_program(&programA, output_tex, output_fbo, 0, vbuffer);
   long run_time = stop_profiler_timer();
   printf("time ms: %ld\r\n", run_time);
 
-  tex_to_fb(output_tex, 0, vbuffer);
+  // render to the main framebuffer
+  draw_program(&render_program, output_tex, 0, 1, vbuffer);
+
 
   glFlush(); // these might not be necessary since we're just changing context?
   glFinish();
