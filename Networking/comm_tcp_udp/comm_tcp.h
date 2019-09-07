@@ -12,85 +12,154 @@
 #define COMM_TCP_H
 
 /* Define shortnames */
-#define PROTOCOL_TCP SOCK_STREAM
-#define PROTOCOL_UDP SOCK_DGRAM
+#define SOCKET_TYPE_TCP SOCK_STREAM
+#define SOCKET_TYPE_UDP SOCK_DGRAM
+
+#define IS_SERVER (0)
+#define IS_CLIENT (1)
 
 /* Defaults */
-#define DEFAULT_PORT             5555           /* Port number to use if none are given */
-#define DEFAULT_PROTOCOL         PROTOCOL_TCP   /* See shortnames above. Set default protocol if none are given */
-#define MAX_MSG_SZ               512            /* max size of protocol message */
-#define DEFAULT_CONN_TYPE        AF_INET        /* PF_LOCAL for a local only tcp connection, or AF_INET for IP TCP (these are only 2 of the available options) */
-#define DEFAULT_ADDR             INADDR_ANY     /* If no address was given, we default to this machines address */
+#define DEFAULT_CONN_TYPE        AF_UNSPEC          /* PF_LOCAL for a local only connection, or AF_INET for IP connection or AF_INET6 for ipv6 or AF_UNSPEC for ipv4 or piv6 */
+#define DEFAULT_SOCKET_TYPE      SOCKET_TYPE_TCP  /* */
+#define DEFAULT_PORT             "5555"           /* Port number to use if none are given */
+#define DEFAULT_ADDR             NULL             /* If no address was given, we default to this machines address */
+#define MAX_MSG_SZ               512              /* max size of protocol message */
+#define MAX_PORT_NUM             65535            /* Max value a port can be (2^16) */
 
-
-/* Given a port number, return a socket for the machine this program is running on
-    using INADDR_ANY as the host address. Pass a value of '0' for the isClient parameter 
-    if setting up a Server. Else any value to setup a client.  */
-int make_socket(uint16_t port, uint8_t protocol, const char *addr, uint8_t isCLient)
+/* Returns the server_fd */
+int server_bind(struct addrinfo *address_info_set)
 {
-    int socket_fd;
-    struct sockaddr_in name;
+    int server_fd;
+    struct addrinfo *i;
 
-    /* Create the socket. */
-    socket_fd = socket(PF_INET, protocol, 0);
-    if (socket_fd < 0)
+    for (i = address_info_set; i != NULL; i = i->ai_next)
     {
-        fprintf (stderr, "errno = %d ", errno);
-        perror("socket");
+        server_fd = socket(i->ai_family, i->ai_socktype, i->ai_protocol);
+        if (server_fd == -1)
+        {
+            continue;
+        }
+        if (bind(server_fd, i->ai_addr, i->ai_addrlen) == 0)
+        {
+            break; /* Success */
+        }
+
+        close(server_fd);
+    } /* for loop */
+
+    /* Verify we successfully binded to an address */
+    if (i == NULL)
+    {
+        fprintf(stderr, "Could not bind\n");
         exit(EXIT_FAILURE);
     }
 
+    return server_fd;
+}
+
+/* Returns the client_fd */
+int client_connect(struct addrinfo *address_info_set)
+{
+    int client_fd;
+    struct addrinfo *i;
+
+    for (i = address_info_set; i != NULL; i = i->ai_next)
+    {
+        client_fd = socket(i->ai_family, i->ai_socktype, i->ai_protocol);
+        if (client_fd == -1)
+        {
+            continue;
+        }
+        if (connect(client_fd, i->ai_addr, i->ai_addrlen) != -1)
+        {
+            break; /* Success */
+        }
+
+        close(client_fd);
+    } /* for loop */
+
+    /* Verify we successfully connected to a server */
+    if (i == NULL)
+    {
+        fprintf(stderr, "Could not bind\n");
+        exit(EXIT_FAILURE);
+    }
+
+    return client_fd;
+}
+
+/* Given a port number, return a socket for the machine this program is running on
+    using NULL as the host address. Pass a value of '0' for the type_serv_client parameter 
+    if setting up a Server. Else any value to setup a client.  */
+int make_socket(char* port, uint8_t sock_type, const char *addr, uint8_t type_serv_client)
+{
+    /*----------------------------------
+    |             VARIABLES             |
+    ------------------------------------*/
+    int socket_fd;
+    struct addrinfo hints;
+    struct addrinfo *name;
+
+
+    /*----------------------------------
+    |          INITIALIZATIONS          |
+    ------------------------------------*/
+    memset(&hints, 0, sizeof(struct addrinfo));
+
     /* Set the socket info. */
-    name.sin_family = DEFAULT_CONN_TYPE;    //Connection type
-    name.sin_port = htons(port);            //Port conn operates on
-
-    //Set the address. If NULL, use the DEFAULT_ADDR, else attempt to use the address passed to us in addr.
-    if (addr != NULL)
-    {
-        if (inet_pton(AF_INET, addr, &name.sin_addr) <= 0)
-        {
-            fprintf (stderr, "errno = %d ", errno);
-            perror("ERROR: host/client address not valid");
-            exit(EXIT_FAILURE);
-        }
-    }
-    else
-    {
-        name.sin_addr.s_addr = htonl(DEFAULT_ADDR);
-    }
+    hints.ai_family = DEFAULT_CONN_TYPE;        /* ipv4/ipv6/any/local */
+    hints.ai_socktype = sock_type;              /* TCP/UDP/ETC */
+    hints.ai_protocol = 0;                      /* Any Port number */
+    // hints.ai_protocol = atoi(port);            /* Port number */
+    hints.ai_canonname = NULL;
+    hints.ai_addr = NULL;
+    hints.ai_next = NULL;
     
-    #if 0
-    int opt = 1;
-    // Forcefully attaching socket to the port 8080 
-    if (setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, 
-                                                  &opt, sizeof(opt))) 
+    /* Settings/initializations specific to being a server/client */
+    if ( type_serv_client == IS_SERVER ) /* If we are a server */
     {
-        fprintf (stderr, "errno = %d ", errno);
-        perror("setsockopt"); 
-        exit(EXIT_FAILURE); 
+        /* Set passive flag on server to signify we want to use this machine's IP/addr */
+        hints.ai_flags = AI_PASSIVE;
+        
+        /* If we are a server, use addr NULL */
+        addr = NULL;
+    }
+    else /* We are a client */
+    {
+        hints.ai_flags = 0; /* Flags for clients */
+    }
+
+
+    /*----------------------------------
+    |       GET NETWORK ADDR INFO       |
+    ------------------------------------*/
+    int err = getaddrinfo(addr,port,&hints, &name);
+    if ( err != 0 )
+    {
+        fprintf(stderr, "%s: %s\n", addr, gai_strerror(err));
+        perror("ERROR: host/client address not valid");
+        exit(EXIT_FAILURE);
+    }
+
+
+    /*----------------------------------
+    |   GET SOCKET_FD AND BIND/CONNECT  |
+    ------------------------------------*/
+    
+    /* Get socket file descriptor and bind if server or connect if client */
+    if ( type_serv_client == IS_SERVER ) /* If we are a server wishing to bind */
+    {
+        socket_fd = server_bind( name );
     } 
-    #endif 
-
-    if (isCLient == 0) /* We are a server wishing to bind to a port/address */
+    else /* We are a client wishing to connect to a server */
     {
-        /* Bind the socket */
-        if (bind(socket_fd, (struct sockaddr *)&name, sizeof(name)) < 0)
-        {
-            fprintf (stderr, "errno = %d ", errno);
-            perror("bind");
-            exit(EXIT_FAILURE);
-        }
+        socket_fd = client_connect( name );
     }
-    else /* We are a client and wish to connect to a server */
-    {
-         if (connect(socket_fd, (struct sockaddr *)&name, sizeof(name)) < 0) 
-        { 
-            printf("\nConnection Failed \n"); 
-            return -1; 
-        } 
-    }
-    
 
+    /*----------------------------------
+    |            FREE MEMORY            |
+    ------------------------------------*/
+    freeaddrinfo(name);
 
     return socket_fd;
 } /* make_socket() */
@@ -133,42 +202,52 @@ int receive_data(int socket_fd, char* buffer, const size_t buffer_sz)
 /* Send data. Returns number of bytes send or -1 if there's an error. Sends a string up to 2^16 in size */
 int send_data ( const int socket_fd, const char * data )
 {
-    char buffer[MAX_MSG_SZ];
-    int sent_bytes;
-    uint16_t all_sent_bytes;
-    uint16_t send_str_len;
-    uint16_t all_bytes_to_send;
-    uint16_t bytes_to_send;
-    uint8_t n_msgs;
-    uint8_t send_flags;
+    /*----------------------------------
+    |             VARIABLES             |
+    ------------------------------------*/
+    char buffer[MAX_MSG_SZ];        /* Buffer used to send data */
+    uint16_t total_bytes_to_send;   /* Length of string we are to send */
+    uint16_t all_sent_bytes;        /* Total number of bytes sent */
+    uint16_t bytes_left_to_send;    /* Tally of the number of bytes left to sent */
+    int bytes_sent;                 /* Number of bytes sent for a loop interation */
+    uint16_t bytes_to_send;         /* Bytes to send during a loop */
+    uint8_t n_buffers_to_send;      /* Number of loop interations (number of buffers) needed to send data */
+    uint8_t send_flags;             /* Send Flags */
 
+    /*----------------------------------
+    |          INITIALIZATIONS          |
+    ------------------------------------*/
     send_flags = 0;
     all_sent_bytes = 0;
-    sent_bytes = 0;
-    n_msgs = 0;
+    bytes_sent = 0;
+    n_buffers_to_send = 0;
 
-    send_str_len = strlen ( data );
-    all_bytes_to_send = send_str_len;
-    n_msgs = ( (send_str_len + 1)/MAX_MSG_SZ ); /* +1 for the termination char */
+    total_bytes_to_send = strlen ( data ) + 1; /* Plus 1 to include termination terminal */
+    bytes_left_to_send = total_bytes_to_send;
+    n_buffers_to_send = ( (total_bytes_to_send)/MAX_MSG_SZ );
 
-    if ( (send_str_len + 1) % MAX_MSG_SZ != 0 )
+    if ( (total_bytes_to_send) % MAX_MSG_SZ != 0 )
     {
         /* There are additional bytes leftover, add one message */
-        n_msgs+=1;
+        n_buffers_to_send+=1;
     }
 
-    for (uint8_t i = 0; i < n_msgs; i++)
+
+    /*----------------------------------
+    |             SEND DATA             |
+    ------------------------------------*/
+    for (uint8_t i = 0; i < n_buffers_to_send; i++)
     {
         bzero(buffer, MAX_MSG_SZ);
 
         /* Determine number of bytes to send */
-        if (all_bytes_to_send > MAX_MSG_SZ)
+        if (bytes_left_to_send > MAX_MSG_SZ)
         {
             bytes_to_send = MAX_MSG_SZ;
         }
         else
         {
-            bytes_to_send = all_bytes_to_send;
+            bytes_to_send = bytes_left_to_send;
         }
 
         /* Verify there are bytes to send */
@@ -182,7 +261,7 @@ int send_data ( const int socket_fd, const char * data )
         //TODO does this need null termination?
         
         /* if this is the last message to send */ /* For send flags, see https://linux.die.net/man/2/send */
-        if (i != n_msgs-1 )
+        if (i != n_buffers_to_send-1 )
         {
             send_flags = 0;
         }
@@ -192,25 +271,28 @@ int send_data ( const int socket_fd, const char * data )
         }
         
         /* Send the message */
-        sent_bytes = send ( socket_fd, buffer, bytes_to_send, send_flags );
+        bytes_sent = send ( socket_fd, buffer, bytes_to_send, send_flags );
         
         /* Verify bytes were sent */
-        if ( sent_bytes < 1 )
+        if ( bytes_sent < 1 )
         {
-            perror("ERROR sending bytes");
-            exit(EXIT_FAILURE);
+            perror("ERROR: Failed to send data.");
+            // exit(EXIT_FAILURE);
             return -1;
         }
 
-        all_sent_bytes += sent_bytes;
-        all_bytes_to_send -= sent_bytes;
+        all_sent_bytes += bytes_sent;
+        bytes_left_to_send -= bytes_sent;
         
     } /* For loop */
 
-    /* Verify all bytes were sent */
-    if ( all_sent_bytes != send_str_len )
+    /*----------------------------------
+    |        VERIFY DATA WAS SENT       |
+    ------------------------------------*/
+    if ( all_sent_bytes != total_bytes_to_send )
     {
-        perror("ERROR sending all bytes");
+        printf("ERROR: sent %u of %u bytes\n", all_sent_bytes, total_bytes_to_send);
+        perror("ERROR");
         exit(EXIT_FAILURE);
         return -1;
     }
@@ -220,21 +302,5 @@ int send_data ( const int socket_fd, const char * data )
     
     return all_sent_bytes;
 } /* send_data */
-
-// /* Fill in a sockaddr_in structure given a host name string and a port number */
-// void init_sockaddr(struct sockaddr_in *name, const char *hostname, uint16_t port)
-// {
-//     struct hostent *hostinfo;
-
-//     name->sin_family = AF_INET;
-//     name->sin_port = htons(port);
-//     hostinfo = gethostbyname(hostname);
-//     if (hostinfo == NULL)
-//     {
-//         fprintf(stderr, "Unknown host %s.\n", hostname);
-//         exit(EXIT_FAILURE);
-//     }
-//     name->sin_addr = *(struct in_addr *)hostinfo->h_addr;
-// } /* init_sockaddr */
 
 #endif

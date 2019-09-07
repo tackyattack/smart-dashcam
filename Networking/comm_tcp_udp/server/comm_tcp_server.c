@@ -15,15 +15,14 @@
 #define MAX_PENDING_CONNECTIONS  5      /* 5 is a standard value for the max backlogged connection requests */
 #define SOCKET_ADDR             NULL    /* Set this value to a string of the address (such as "192.168.0.10"), or set to NULL (0) to use this machines address */
 #define BUFFER_SZ               1024    /* Size of the buffer we use to send/receive data */
-#define IS_CLIENT               0       /* a value of 0/false indicates we are a server. Used as a parameter to make_socket function. */
 
 /* Check for value parameters and return port number */
-uint16_t check_parameters(int argc, char *argv[])
+char* check_parameters(int argc, char *argv[])
 {
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
-    uint16_t port;
+    char* port;
 
 
     /*----------------------------------
@@ -34,42 +33,49 @@ uint16_t check_parameters(int argc, char *argv[])
         Note that argc = 1 means no arguments*/
     if (argc < 2)
     {
-        printf("WARNING, no port provided, defaulting to %d\n", DEFAULT_PORT);
+        printf("WARNING, no port provided, defaulting to %s\n", DEFAULT_PORT);
 
         //No port number provided, use default
-        port = DEFAULT_PORT;
+        // strcpy(port, (const char*)DEFAULT_PORT);
+        port = (char*)DEFAULT_PORT;
+        // port = DEFAULT_PORT;
     }
     else if (argc > 2)
     {
         fprintf(stderr, "ERROR, too many arguments!\n 0 or 1 arguments expected. Expected port number!\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     else //1 argument
     {
+        if ( atoi(argv[1]) < 0 || atoi(argv[1]) > 65535 )
+        {
+            printf("ERROR: invalid port number %s!",argv[1]);
+            exit(EXIT_FAILURE);
+        }
         //Get port number of server from the arguments
-        port = atoi(argv[1]);
+        port = argv[1];
     }
 
     return port;
 } /* check_parameters() */
 
 /* Initialize the server and return the server's server_socket_fd */
-int init_server(uint16_t port)
+int init_server(char* port)
 {
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
-    extern int make_socket(uint16_t port, uint8_t protocol, 
+    extern int make_socket(char* port, uint8_t protocol, 
                             const char* addr, uint8_t isServer);      /* external function in comm_tcp.h to create socket for server */
     int server_socket_fd;                              /* generic socket variable */
        
     /* Info print */
-    printf("Creating server on port %d\n", port);
+    printf("Creating server on port %s\n", port);
 
     /*----------------------------------
     |       CREATE SERVER SOCKET        |
     ------------------------------------*/
-    server_socket_fd = make_socket(port, DEFAULT_PROTOCOL, (const char*)SOCKET_ADDR, IS_CLIENT);
+    server_socket_fd = make_socket(port, DEFAULT_SOCKET_TYPE, (const char*)SOCKET_ADDR, IS_SERVER);
     
     /*----------------------------------
     |   BLOCK UNTIL FIRST CONNECTION    |
@@ -82,7 +88,7 @@ int init_server(uint16_t port)
     }
 
     /* Info print */
-    printf("Created server on port %d\n", port);
+    printf("Created server on port %s\n", port);
 
     return server_socket_fd;
 }
@@ -211,7 +217,7 @@ void execute_server(int server_socket_fd)
 
 int main(int argc, char *argv[])
 {
-    uint16_t port;                              /* Port number for socket server */
+    char* port;                              /* Port number for socket server */
     int server_socket_fd;                              /* generic socket variable */
     
     /* Check and parse input parameters */
