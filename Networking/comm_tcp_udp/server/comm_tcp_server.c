@@ -13,7 +13,7 @@
 #include "../comm_tcp.h"
 
 #define MAX_PENDING_CONNECTIONS  5      /* 5 is a standard value for the max backlogged connection requests */
-#define SOCKET_ADDR             NULL    /* Set this value to a string of the address (such as "192.168.0.10"), or set to NULL (0) to use this machines address */
+#define SERVER_ADDR             NULL    /* Set this value to a string that is the IP address, hostname or the server you're creating or set to NULL (0) to use this machines address (NULL recommended) */
 #define BUFFER_SZ               1024    /* Size of the buffer we use to send/receive data */
 
 /* Check for value parameters and return port number */
@@ -65,8 +65,6 @@ int init_server(char* port)
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
-    extern int make_socket(char* port, uint8_t protocol, 
-                            const char* addr, uint8_t isServer);      /* external function in comm_tcp.h to create socket for server */
     int server_socket_fd;                              /* generic socket variable */
        
     /* Info print */
@@ -75,7 +73,7 @@ int init_server(char* port)
     /*----------------------------------
     |       CREATE SERVER SOCKET        |
     ------------------------------------*/
-    server_socket_fd = make_socket(port, DEFAULT_SOCKET_TYPE, (const char*)SOCKET_ADDR, IS_SERVER);
+    server_socket_fd = make_socket(port, DEFAULT_SOCKET_TYPE, (const char*)SERVER_ADDR, IS_SERVER);
     
     /*----------------------------------
     |   BLOCK UNTIL FIRST CONNECTION    |

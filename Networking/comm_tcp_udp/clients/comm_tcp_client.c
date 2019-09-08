@@ -2,7 +2,8 @@
 
 #include <unistd.h> /* Needed for close() */
 
-#define SERVER_ADDR  "192.168.200.1"    /* Address of the server we are conencting to */
+// #define SERVER_ADDR  "192.168.200.1"    /* Address of the server we are conencting to. Note, this can be a IP or hostname */
+#define SERVER_ADDR  "raspberrypi"      /* Address of the server we are conencting to. Note, this can be a IP or hostname */
 
 /* Check for value parameters and return port number */
 char* check_parameters(int argc, char *argv[])

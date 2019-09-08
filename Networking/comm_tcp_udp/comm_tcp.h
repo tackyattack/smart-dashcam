@@ -11,6 +11,7 @@
 #include <fcntl.h>
 #include <sys/time.h>
 #include <sys/ioctl.h>
+#include <assert.h>
 
 #ifndef COMM_TCP_H
 #define COMM_TCP_H
@@ -23,39 +24,56 @@
 #define IS_CLIENT (1)
 
 /* Defaults */
-#define DEFAULT_CONN_TYPE        AF_INET          /* PF_LOCAL for a local only connection, or AF_INET for IP connection or AF_INET6 for ipv6 or AF_UNSPEC for ipv4 or piv6 */
+#define DEFAULT_CONN_TYPE        AF_UNSPEC        /* PF_LOCAL for a local only connection, or AF_INET for IP connection or AF_INET6 for ipv6 or AF_UNSPEC for ipv4 or piv6 */
 #define DEFAULT_SOCKET_TYPE      SOCKET_TYPE_TCP  /* */
 #define DEFAULT_PORT             "5555"           /* Port number to use if none are given */
-#define DEFAULT_ADDR             NULL             /* If no address was given, we default to this machines address */
-#define DEFAULT_HOSTNAME         "raspberrypi"    /* Default hostname to use to loock up address */
+#define MAX_HOSTNAME_SZ          255              /* Max size/length a hostname can be */
 #define MAX_MSG_SZ               512              /* max size of protocol message */
-#define MAX_PORT_NUM             65535            /* Max value a port can be (2^16) */
-#define CONNECT_TIMEOUT		 5                /* Set a timeout of 1 second for socket client connect attempt */
+#define CONNECT_TIMEOUT          1                /* Set a timeout of 1 second for socket client connect attempt */
 
-int hostname_to_ip(char * hostname , char* ip)
+/* Modifies ip string to be IP address of hostname found.
+    ip must be a char string of length MAX_HOSTNAME_SZ.
+    Return -1 if hostname not found */
+int hostname_to_ip(const char * hostname , char* ip)
 {
+    /*----------------------------------
+    |             VARIABLES             |
+    ------------------------------------*/
 	struct hostent *he;
 	struct in_addr **addr_list;
 	int i;
+    
+    /*----------------------------------
+    |          INITIALIZATIONS          |
+    ------------------------------------*/
+    bzero(ip, MAX_HOSTNAME_SZ);
 		
-	if ( (he = gethostbyname( hostname ) ) == NULL) 
+    /*----------------------------------
+    |       GET IP FROM HOSTNAME        |
+    ------------------------------------*/
+	he = gethostbyname( hostname );
+    if ( he == NULL) 
 	{
-		// get the host info
 		herror("gethostbyname");
-		return 1;
+		return -1;
 	}
 
 	addr_list = (struct in_addr **) he->h_addr_list;
 	
+    /*----------------------------------
+    |            RETURN IP              |
+    ------------------------------------*/
 	for(i = 0; addr_list[i] != NULL; i++) 
 	{
 		//Return the first one;
 		strcpy(ip , inet_ntoa(*addr_list[i]) );
 		printf("Found IP address \"%s\" for hostname \"%s\"\n",ip,hostname);
+
+        /* Return successfully */
 		return 0;
 	}
-	
-	return 1;
+
+	return -1;
 }
 
 void print_addrinfo(const struct addrinfo *addr)
@@ -69,81 +87,100 @@ void print_addrinfo(const struct addrinfo *addr)
 
 int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t timeout)
 {
-  int res; 
-  long flags;
-  fd_set myset;
-  struct timeval tv; 
-  int valopt;
-  socklen_t lon; 
+    /*----------------------------------
+    |             VARIABLES             |
+    ------------------------------------*/
+    int res;
+    long flags;
+    fd_set myset;
+    struct timeval tv;
+    int valopt;
+    socklen_t lon;
 
-  // Set non-blocking 
-  if( (flags = fcntl(sock, F_GETFL, NULL)) < 0) 
-  {
-     fprintf(stderr, "Error fcntl(..., F_GETFL) (%s)\n", strerror(errno)); 
-     exit(0); 
-  } 
-  flags |= O_NONBLOCK; 
-  if( fcntl(sock, F_SETFL, flags) < 0) { 
-     fprintf(stderr, "Error fcntl(..., F_SETFL) (%s)\n", strerror(errno)); 
-     exit(0); 
-  } 
-  // Trying to connect with timeout 
-  res = connect(sock, addr, addrlen); 
-  if (res < 0) 
-  { 
-     if (errno == EINPROGRESS) { 
-        fprintf(stderr, "EINPROGRESS in connect() - selecting\n"); 
-        do { 
-           tv.tv_sec = timeout; 
-           tv.tv_usec = 0; 
-           FD_ZERO(&myset); 
-           FD_SET(sock, &myset); 
-           res = select(sock+1, NULL, &myset, NULL, &tv); 
-           if (res < 0 && errno != EINTR) { 
-              fprintf(stderr, "Error connecting %d - %s\n", errno, strerror(errno)); 
-              exit(0); 
-           } 
-           else if (res > 0) { 
-              // Socket selected for write 
-              lon = sizeof(int); 
-              if (getsockopt(sock, SOL_SOCKET, SO_ERROR, (void*)(&valopt), &lon) < 0) { 
-                 fprintf(stderr, "Error in getsockopt() %d - %s\n", errno, strerror(errno)); 
-                 exit(0); 
-              } 
-              // Check the value returned... 
-              if (valopt) { 
-                 fprintf(stderr, "Error in delayed connection() %d - %s\n", valopt, strerror(valopt) ); 
-                 exit(0); 
-              } 
-              break; 
-           } 
-           else { 
-              fprintf(stderr, "Timeout in select() - Cancelling!\n"); 
-              exit(0); 
-           } 
-        } while (1); 
-     } 
-     else { 
-        fprintf(stderr, "Error connecting %d - %s\n", errno, strerror(errno)); 
-        exit(0); 
-     } 
-  } 
-  // Set to blocking mode again... 
-  if( (flags = fcntl(sock, F_GETFL, NULL)) < 0) { 
-     fprintf(stderr, "Error fcntl(..., F_GETFL) (%s)\n", strerror(errno)); 
-     exit(0); 
-  } 
-  flags &= (~O_NONBLOCK); 
-  if( fcntl(sock, F_SETFL, flags) < 0) { 
-     fprintf(stderr, "Error fcntl(..., F_SETFL) (%s)\n", strerror(errno)); 
-     exit(0); 
-  } 
-  // I hope that is all 
+    // Set non-blocking
+    if ((flags = fcntl(sock, F_GETFL, NULL)) < 0)
+    {
+        fprintf(stderr, "Error fcntl(..., F_GETFL) (%s)\n", strerror(errno));
+        exit(0);
+    }
+    flags |= O_NONBLOCK;
+    if (fcntl(sock, F_SETFL, flags) < 0)
+    {
+        fprintf(stderr, "Error fcntl(..., F_SETFL) (%s)\n", strerror(errno));
+        exit(0);
+    }
+    // Trying to connect with timeout
+    res = connect(sock, addr, addrlen);
+    if (res < 0)
+    {
+        if (errno == EINPROGRESS)
+        {
+            fprintf(stderr, "EINPROGRESS in connect() - selecting\n");
+            do
+            {
+                tv.tv_sec = timeout;
+                tv.tv_usec = 0;
+                FD_ZERO(&myset);
+                FD_SET(sock, &myset);
+                res = select(sock + 1, NULL, &myset, NULL, &tv);
+                if (res < 0 && errno != EINTR)
+                {
+                    fprintf(stderr, "Error connecting %d - %s\n", errno, strerror(errno));
+                    exit(0);
+                }
+                else if (res > 0)
+                {
+                    // Socket selected for write
+                    lon = sizeof(int);
+                    if (getsockopt(sock, SOL_SOCKET, SO_ERROR, (void *)(&valopt), &lon) < 0)
+                    {
+                        fprintf(stderr, "Error in getsockopt() %d - %s\n", errno, strerror(errno));
+                        exit(0);
+                    }
+                    // Check the value returned...
+                    if (valopt)
+                    {
+                        fprintf(stderr, "Error in delayed connection() %d - %s\n", valopt, strerror(valopt));
+                        exit(0);
+                    }
+                    break;
+                }
+                else
+                {
+                    fprintf(stderr, "Timeout in select() - Cancelling!\n");
+                    exit(0);
+                }
+            } while (1);
+        }
+        else
+        {
+            fprintf(stderr, "Error connecting %d - %s\n", errno, strerror(errno));
+            exit(0);
+        }
+    }
+    // Set to blocking mode again...
+    if ((flags = fcntl(sock, F_GETFL, NULL)) < 0)
+    {
+        fprintf(stderr, "Error fcntl(..., F_GETFL) (%s)\n", strerror(errno));
+        exit(0);
+    }
+    flags &= (~O_NONBLOCK);
+    if (fcntl(sock, F_SETFL, flags) < 0)
+    {
+        fprintf(stderr, "Error fcntl(..., F_SETFL) (%s)\n", strerror(errno));
+        exit(0);
+    }
+
+    /* We succeeded in connecting */
+    return 0;
 }
 
 /* Returns the server_fd */
 int server_bind(struct addrinfo *address_info_set)
 {
+    /*----------------------------------
+    |             VARIABLES             |
+    ------------------------------------*/
     int server_fd;
     struct addrinfo *i;
 
@@ -206,10 +243,11 @@ int client_connect(struct addrinfo *address_info_set)
     return client_fd;
 }
 
-/* Given a port number, return a socket for the machine this program is running on
-    using NULL as the host address. Pass a value of '0' for the type_serv_client parameter 
-    if setting up a Server. Else any value to setup a client.  */
-int make_socket(char* port, uint8_t sock_type, const char *addr, uint8_t type_serv_client)
+/* Given a port number, socket type, an address (this can be IP or hostname), 
+    and a value for the type_serv_client parameter, this will return a socket.
+    If setting up a Server use IS_SERVER. Else use IS_CLIENT for the type_serv_client parameter.
+    If setting up a server, addr can be NULL to use that machines IP.  */
+int make_socket(char* port, uint8_t socket_type,  const char *addr, uint8_t type_serv_client)
 {
     /*----------------------------------
     |             VARIABLES             |
@@ -217,6 +255,7 @@ int make_socket(char* port, uint8_t sock_type, const char *addr, uint8_t type_se
     int socket_fd;
     struct addrinfo hints;
     struct addrinfo *name;
+    char ip[MAX_HOSTNAME_SZ];
 
 
     /*----------------------------------
@@ -226,13 +265,18 @@ int make_socket(char* port, uint8_t sock_type, const char *addr, uint8_t type_se
 
     /* Set the socket info. */
     hints.ai_family = DEFAULT_CONN_TYPE;        /* ipv4/ipv6/any/local */
-    hints.ai_socktype = sock_type;              /* TCP/UDP/ETC */
-    hints.ai_protocol = 0;                      /* Any Port number */
-    // hints.ai_protocol = atoi(port);            /* Port number */
+    hints.ai_socktype = socket_type;    /* TCP/UDP/local.... */
+    hints.ai_protocol = 0;                      /* Any Port number. Don't worry, we set the desired port later */
     hints.ai_canonname = NULL;
     hints.ai_addr = NULL;
     hints.ai_next = NULL;
     
+    /* Initialize for addr. Check if addr is a valid hostname/IP address and get the IP address if it's a hostname. */
+    if ( addr != NULL && hostname_to_ip(addr,ip) != -1 )
+    {
+        addr = ip;
+    } 
+
     /* Settings/initializations specific to being a server/client */
     if ( type_serv_client == IS_SERVER ) /* If we are a server */
     {
@@ -260,11 +304,6 @@ int make_socket(char* port, uint8_t sock_type, const char *addr, uint8_t type_se
     }
 
    
-    //TODO this is a test on getting up from hostname
-    char* ip;
-    hostname_to_ip((char*)DEFAULT_HOSTNAME,ip);
-    //delete ip;
-
     /*----------------------------------
     |   GET SOCKET_FD AND BIND/CONNECT  |
     ------------------------------------*/
@@ -294,7 +333,6 @@ int receive_data(int socket_fd, char* buffer, const size_t buffer_sz)
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
-    char msg_buffer[MAX_MSG_SZ];
     int bytes_read;
 
     /*----------------------------------
