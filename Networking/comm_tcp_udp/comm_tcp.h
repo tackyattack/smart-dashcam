@@ -9,6 +9,8 @@
 #include <unistd.h>
 #include <sys/select.h>
 #include <fcntl.h>
+#include <sys/time.h>
+#include <sys/ioctl.h>
 
 #ifndef COMM_TCP_H
 #define COMM_TCP_H
@@ -38,6 +40,81 @@ void print_addrinfo(const struct addrinfo *addr)
     printf("host=%s, serv=%s\n", hbuf, sbuf);
 }
 
+int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t timeout)
+{
+  int res; 
+  long flags;
+  fd_set myset;
+  struct timeval tv; 
+  int valopt;
+  socklen_t lon; 
+
+  // Set non-blocking 
+  if( (flags = fcntl(sock, F_GETFL, NULL)) < 0) 
+  {
+     fprintf(stderr, "Error fcntl(..., F_GETFL) (%s)\n", strerror(errno)); 
+     exit(0); 
+  } 
+  flags |= O_NONBLOCK; 
+  if( fcntl(sock, F_SETFL, flags) < 0) { 
+     fprintf(stderr, "Error fcntl(..., F_SETFL) (%s)\n", strerror(errno)); 
+     exit(0); 
+  } 
+  // Trying to connect with timeout 
+  res = connect(sock, addr, addrlen); 
+  if (res < 0) 
+  { 
+     if (errno == EINPROGRESS) { 
+        fprintf(stderr, "EINPROGRESS in connect() - selecting\n"); 
+        do { 
+           tv.tv_sec = timeout; 
+           tv.tv_usec = 0; 
+           FD_ZERO(&myset); 
+           FD_SET(sock, &myset); 
+           res = select(sock+1, NULL, &myset, NULL, &tv); 
+           if (res < 0 && errno != EINTR) { 
+              fprintf(stderr, "Error connecting %d - %s\n", errno, strerror(errno)); 
+              exit(0); 
+           } 
+           else if (res > 0) { 
+              // Socket selected for write 
+              lon = sizeof(int); 
+              if (getsockopt(sock, SOL_SOCKET, SO_ERROR, (void*)(&valopt), &lon) < 0) { 
+                 fprintf(stderr, "Error in getsockopt() %d - %s\n", errno, strerror(errno)); 
+                 exit(0); 
+              } 
+              // Check the value returned... 
+              if (valopt) { 
+                 fprintf(stderr, "Error in delayed connection() %d - %s\n", valopt, strerror(valopt) ); 
+                 exit(0); 
+              } 
+              break; 
+           } 
+           else { 
+              fprintf(stderr, "Timeout in select() - Cancelling!\n"); 
+              exit(0); 
+           } 
+        } while (1); 
+     } 
+     else { 
+        fprintf(stderr, "Error connecting %d - %s\n", errno, strerror(errno)); 
+        exit(0); 
+     } 
+  } 
+  // Set to blocking mode again... 
+  if( (flags = fcntl(sock, F_GETFL, NULL)) < 0) { 
+     fprintf(stderr, "Error fcntl(..., F_GETFL) (%s)\n", strerror(errno)); 
+     exit(0); 
+  } 
+  flags &= (~O_NONBLOCK); 
+  if( fcntl(sock, F_SETFL, flags) < 0) { 
+     fprintf(stderr, "Error fcntl(..., F_SETFL) (%s)\n", strerror(errno)); 
+     exit(0); 
+  } 
+  // I hope that is all 
+}
+
+/*
 //do a nonblocking connect 
 //  return -1 on a system call error, 0 on success
 //  sa - host to connect to, filled by caller
@@ -103,8 +180,7 @@ done:
         return -1;
 
     return 0;
-}
-
+}*/
 /* Returns the server_fd */
 int server_bind(struct addrinfo *address_info_set)
 {
