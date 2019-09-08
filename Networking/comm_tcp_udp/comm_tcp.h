@@ -7,6 +7,8 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <sys/select.h>
+#include <fcntl.h>
 
 #ifndef COMM_TCP_H
 #define COMM_TCP_H
@@ -19,12 +21,89 @@
 #define IS_CLIENT (1)
 
 /* Defaults */
-#define DEFAULT_CONN_TYPE        AF_UNSPEC          /* PF_LOCAL for a local only connection, or AF_INET for IP connection or AF_INET6 for ipv6 or AF_UNSPEC for ipv4 or piv6 */
+#define DEFAULT_CONN_TYPE        AF_INET          /* PF_LOCAL for a local only connection, or AF_INET for IP connection or AF_INET6 for ipv6 or AF_UNSPEC for ipv4 or piv6 */
 #define DEFAULT_SOCKET_TYPE      SOCKET_TYPE_TCP  /* */
 #define DEFAULT_PORT             "5555"           /* Port number to use if none are given */
 #define DEFAULT_ADDR             NULL             /* If no address was given, we default to this machines address */
 #define MAX_MSG_SZ               512              /* max size of protocol message */
 #define MAX_PORT_NUM             65535            /* Max value a port can be (2^16) */
+#define CONNECT_TIMEOUT		 5                /* Set a timeout of 1 second for socket client connect attempt */
+
+void print_addrinfo(const struct addrinfo *addr)
+{
+    char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
+
+    if (getnameinfo(addr->ai_addr, addr->ai_addrlen, hbuf, sizeof(hbuf), sbuf,
+                       sizeof(sbuf), NI_NUMERICHOST | NI_NUMERICSERV) == 0)
+    printf("host=%s, serv=%s\n", hbuf, sbuf);
+}
+
+//do a nonblocking connect 
+//  return -1 on a system call error, 0 on success
+//  sa - host to connect to, filled by caller
+//  sock - the socket to connect
+//  timeout - how long to wait to connect
+int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t timeout)
+{   
+    int flags = 0, error = 0, ret = 0;
+    fd_set  rset, wset;
+    socklen_t   len = sizeof(error);
+    struct timeval  ts;
+
+    ts.tv_sec = timeout;
+    ts.tv_usec = 0;
+    
+    //clear out descriptor sets for select
+    //add socket to the descriptor sets
+    FD_ZERO(&rset);
+    FD_SET(sock, &rset);
+    wset = rset;    //structure assignment ok
+    
+    //set socket nonblocking flag
+    if( (flags = fcntl(sock, F_GETFL, 0)) < 0)
+        return -1;
+    
+    if(fcntl(sock, F_SETFL, flags | O_NONBLOCK) < 0)
+        return -1;
+    
+    //initiate non-blocking connect
+    //if (connect(client_fd, i->ai_addr, i->ai_addrlen) != -1)
+    if (connect(sock, addr, addrlen) < 0)
+    //if( (ret = connect(sock, sa, 16)) < 0 )
+        if (errno != EINPROGRESS)
+            return -1;
+
+    if(ret == 0)    //then connect succeeded right away
+        goto done;
+    
+    //we are waiting for connect to complete now
+    if( (ret = select(sock + 1, &rset, &wset, NULL, (timeout) ? &ts : NULL)) < 0)
+        return -1;
+    if(ret == 0){   //we had a timeout
+        errno = ETIMEDOUT;
+        return -1;
+    }
+
+    //we had a positivite return so a descriptor is ready
+    if (FD_ISSET(sock, &rset) || FD_ISSET(sock, &wset)){
+        if(getsockopt(sock, SOL_SOCKET, SO_ERROR, &error, &len) < 0)
+            return -1;
+    }else
+        return -1;
+
+    if(error != 0){  //check if we had a socket error
+        errno = error;
+        return -1;
+
+    }
+
+done:
+    //put socket back in blocking mode
+    if(fcntl(sock, F_SETFL, flags) < 0)
+        return -1;
+
+    return 0;
+}
 
 /* Returns the server_fd */
 int server_bind(struct addrinfo *address_info_set)
@@ -70,7 +149,7 @@ int client_connect(struct addrinfo *address_info_set)
         {
             continue;
         }
-        if (connect(client_fd, i->ai_addr, i->ai_addrlen) != -1)
+        if (connect_timeout(client_fd, i->ai_addr, i->ai_addrlen, CONNECT_TIMEOUT) != -1)
         {
             break; /* Success */
         }
@@ -84,6 +163,9 @@ int client_connect(struct addrinfo *address_info_set)
         fprintf(stderr, "Could not bind\n");
         exit(EXIT_FAILURE);
     }
+
+    /* Print info */
+    print_addrinfo(i);
 
     return client_fd;
 }

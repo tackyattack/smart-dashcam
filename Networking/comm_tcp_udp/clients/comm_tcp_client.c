@@ -3,8 +3,6 @@
 #include <unistd.h> /* Needed for close() */
 
 #define SERVER_ADDR  "192.168.200.1"    /* Address of the server we are conencting to */
-#define BUFFER_SZ    1024             /* Size of the send/receive message buffer */
-
 
 /* Check for value parameters and return port number */
 char* check_parameters(int argc, char *argv[])
@@ -54,21 +52,21 @@ int main(int argc, char *argv[])
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
-    char buffer[BUFFER_SZ];
+    char buffer[MAX_MSG_SZ];
     char* port = check_parameters(argc, argv);
     const int socket_fd = make_socket(port, DEFAULT_SOCKET_TYPE, SERVER_ADDR, IS_CLIENT);
 
     /*----------------------------------
     |          INITIALIZATIONS          |
     ------------------------------------*/
-    bzero(buffer,BUFFER_SZ);
+    bzero(buffer,MAX_MSG_SZ);
 
     /* Info print */
     printf("Sending message to server.\n");
     send_data (socket_fd, (char*)"Hello Server!");
 
     //TODO is this a blocking call?
-    receive_data(socket_fd, buffer, BUFFER_SZ);
+    receive_data(socket_fd, buffer, MAX_MSG_SZ);
 
     /* Info print */
     printf ("Received message \"%s\" from server.\n", buffer);
