@@ -48,6 +48,7 @@ int hostname_to_ip(const char * hostname , char* ip)
     ------------------------------------*/
     bzero(ip, MAX_HOSTNAME_SZ);
 		
+
     /*----------------------------------
     |       GET IP FROM HOSTNAME        |
     ------------------------------------*/
@@ -74,16 +75,26 @@ int hostname_to_ip(const char * hostname , char* ip)
 	}
 
 	return -1;
-}
+} /* hostname_to_ip() */
 
+/* print_addrinfo will print the host IP address and port number 
+    of a passed addrinfo struct */
 void print_addrinfo(const struct addrinfo *addr)
 {
+    /*----------------------------------
+    |             VARIABLES             |
+    ------------------------------------*/
     char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
 
-    if (getnameinfo(addr->ai_addr, addr->ai_addrlen, hbuf, sizeof(hbuf), sbuf,
-                       sizeof(sbuf), NI_NUMERICHOST | NI_NUMERICSERV) == 0)
-    printf("host=%s, serv=%s\n", hbuf, sbuf);
-}
+
+    /*----------------------------------
+    |        PRINT IF ADDR VALID        |
+    ------------------------------------*/
+    if (getnameinfo(addr->ai_addr, addr->ai_addrlen, hbuf, sizeof(hbuf), sbuf, sizeof(sbuf), NI_NUMERICHOST | NI_NUMERICSERV) == 0)
+    {
+        printf("host=%s, serv=%s\n", hbuf, sbuf);
+    }
+} /* print_addrinfo() */
 
 int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t timeout)
 {
@@ -97,19 +108,26 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
     int valopt;
     socklen_t lon;
 
-    // Set non-blocking
+    /*----------------------------------
+    |       SET NOT-BLOCKING MODE       |
+    ------------------------------------*/
     if ((flags = fcntl(sock, F_GETFL, NULL)) < 0)
     {
         fprintf(stderr, "Error fcntl(..., F_GETFL) (%s)\n", strerror(errno));
         exit(0);
     }
+
     flags |= O_NONBLOCK;
+
     if (fcntl(sock, F_SETFL, flags) < 0)
     {
         fprintf(stderr, "Error fcntl(..., F_SETFL) (%s)\n", strerror(errno));
         exit(0);
     }
-    // Trying to connect with timeout
+
+    /*----------------------------------
+    |  ATTEMPT TO CONNECT WITH TIMEOUT  |
+    ------------------------------------*/
     res = connect(sock, addr, addrlen);
     if (res < 0)
     {
@@ -122,6 +140,7 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
                 tv.tv_usec = 0;
                 FD_ZERO(&myset);
                 FD_SET(sock, &myset);
+
                 res = select(sock + 1, NULL, &myset, NULL, &tv);
                 if (res < 0 && errno != EINTR)
                 {
@@ -137,6 +156,7 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
                         fprintf(stderr, "Error in getsockopt() %d - %s\n", errno, strerror(errno));
                         exit(0);
                     }
+
                     // Check the value returned...
                     if (valopt)
                     {
@@ -158,13 +178,18 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
             exit(0);
         }
     }
-    // Set to blocking mode again...
+
+    /*----------------------------------
+    |         SET BLOCKING MODE         |
+    ------------------------------------*/
     if ((flags = fcntl(sock, F_GETFL, NULL)) < 0)
     {
         fprintf(stderr, "Error fcntl(..., F_GETFL) (%s)\n", strerror(errno));
         exit(0);
     }
+
     flags &= (~O_NONBLOCK);
+    
     if (fcntl(sock, F_SETFL, flags) < 0)
     {
         fprintf(stderr, "Error fcntl(..., F_SETFL) (%s)\n", strerror(errno));
@@ -173,7 +198,7 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
 
     /* We succeeded in connecting */
     return 0;
-}
+} /* connect_timeout() */
 
 /* Returns the server_fd */
 int server_bind(struct addrinfo *address_info_set)
@@ -183,6 +208,11 @@ int server_bind(struct addrinfo *address_info_set)
     ------------------------------------*/
     int server_fd;
     struct addrinfo *i;
+
+
+    /*----------------------------------
+    |          ATTEMPT TO BIND          |
+    ------------------------------------*/
 
     for (i = address_info_set; i != NULL; i = i->ai_next)
     {
@@ -199,6 +229,10 @@ int server_bind(struct addrinfo *address_info_set)
         close(server_fd);
     } /* for loop */
 
+
+    /*----------------------------------
+    |           VERIFICATION            |
+    ------------------------------------*/
     /* Verify we successfully binded to an address */
     if (i == NULL)
     {
@@ -207,13 +241,21 @@ int server_bind(struct addrinfo *address_info_set)
     }
 
     return server_fd;
-}
+} /* server_bind() */
 
 /* Returns the client_fd */
 int client_connect(struct addrinfo *address_info_set)
 {
+    /*----------------------------------
+    |             VARIABLES             |
+    ------------------------------------*/
     int client_fd;
     struct addrinfo *i;
+
+
+    /*----------------------------------
+    |         ATTEMPT TO CONNECT        |
+    ------------------------------------*/
 
     for (i = address_info_set; i != NULL; i = i->ai_next)
     {
@@ -230,7 +272,11 @@ int client_connect(struct addrinfo *address_info_set)
         close(client_fd);
     } /* for loop */
 
-    /* Verify we successfully connected to a server */
+
+    /*----------------------------------
+    |           VERIFY SUCCESS          |
+    ------------------------------------*/
+
     if (i == NULL)
     {
         fprintf(stderr, "Could not bind\n");
@@ -241,7 +287,7 @@ int client_connect(struct addrinfo *address_info_set)
     print_addrinfo(i);
 
     return client_fd;
-}
+} /* client_connect() */
 
 /* Given a port number, socket type, an address (this can be IP or hostname), 
     and a value for the type_serv_client parameter, this will return a socket.

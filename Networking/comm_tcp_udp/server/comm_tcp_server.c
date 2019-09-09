@@ -13,8 +13,8 @@
 #include "../comm_tcp.h"
 
 #define MAX_PENDING_CONNECTIONS  5      /* 5 is a standard value for the max backlogged connection requests */
-#define SERVER_ADDR             NULL    /* Set this value to a string that is the IP address, hostname or the server you're creating or set to NULL (0) to use this machines address (NULL recommended) */
-#define BUFFER_SZ               1024    /* Size of the buffer we use to send/receive data */
+#define SERVER_ADDR              NULL    /* Set this value to a string that is the IP address, hostname or the server you're creating or set to NULL (0) to use this machines address (NULL recommended) */
+#define BUFFER_SZ                1024    /* Size of the buffer we use to send/receive data */
 
 /* Check for value parameters and return port number */
 char* check_parameters(int argc, char *argv[])
@@ -22,6 +22,7 @@ char* check_parameters(int argc, char *argv[])
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
+
     char* port;
 
 
@@ -35,10 +36,8 @@ char* check_parameters(int argc, char *argv[])
     {
         printf("WARNING, no port provided, defaulting to %s\n", DEFAULT_PORT);
 
-        //No port number provided, use default
-        // strcpy(port, (const char*)DEFAULT_PORT);
+        /* No port number provided, use default */
         port = (char*)DEFAULT_PORT;
-        // port = DEFAULT_PORT;
     }
     else if (argc > 2)
     {
@@ -47,12 +46,14 @@ char* check_parameters(int argc, char *argv[])
     }
     else //1 argument
     {
+        /* Test that argument is valid */
         if ( atoi(argv[1]) < 0 || atoi(argv[1]) > 65535 )
         {
             printf("ERROR: invalid port number %s!",argv[1]);
             exit(EXIT_FAILURE);
         }
-        //Get port number of server from the arguments
+
+        /* Get port number of server from the arguments */
         port = argv[1];
     }
 
@@ -67,17 +68,21 @@ int init_server(char* port)
     ------------------------------------*/
     int server_socket_fd;                              /* generic socket variable */
        
-    /* Info print */
-    printf("Creating server on port %s\n", port);
+
 
     /*----------------------------------
     |       CREATE SERVER SOCKET        |
     ------------------------------------*/
+
+    /* Info print */
+    printf("Creating server on port %s\n", port);
     server_socket_fd = make_socket(port, DEFAULT_SOCKET_TYPE, (const char*)SERVER_ADDR, IS_SERVER);
     
+
     /*----------------------------------
     |   BLOCK UNTIL FIRST CONNECTION    |
     ------------------------------------*/
+
     if ( listen(server_socket_fd, MAX_PENDING_CONNECTIONS) < 0 )
     {
         fprintf (stderr, "errno = %d ", errno);
@@ -91,7 +96,7 @@ int init_server(char* port)
     return server_socket_fd;
 }
 
-/* Handles accepting an incoming connection 
+/* Handles accepting incoming connections 
    -returns the new clients file descriptor */
 int handle_conn_request(int server_socket_fd)
 {
@@ -103,10 +108,16 @@ int handle_conn_request(int server_socket_fd)
     int new_client_fd;                          /* File descriptor for new client */
     new_client_sz = sizeof(new_client_info);    /* Size of client info struct */
 
-    /* Accept connection request on original server_socket_fd. */
+
+    /*----------------------------------
+    |        ACCEPT CONN REQUEST        |
+    ------------------------------------*/
+
     new_client_fd = accept(server_socket_fd, (struct sockaddr *)&new_client_info, &new_client_sz);
 
-    /* Verify connection was successful */
+    /*----------------------------------
+    |           VERIFY SUCCESS          |
+    ------------------------------------*/
     if (new_client_fd < 0)
     {
         fprintf (stderr, "errno = %d ", errno);
