@@ -23,6 +23,7 @@ General-Purpose computing on GPU (GPGPU) using OpenGL|ES
 #include "ogl_utils.h"
 #include "program_utils.h"
 #include "image_loader.h"
+#include "ogl_image_proc_pipeline.h"
 
 // Flat quad to render to
 static const GLfloat vertex_data[] = {
@@ -54,7 +55,7 @@ static const GLfloat vertex_data[] = {
    // tell shader where the input texture is
    // NOTE: DO NOT USE GL_TEXTURE<i> since that's for setting the active unit
    //       instead use integers 0, 1, 2, ... etc for whichever GL_TEXTURE<i> you used
-   glUniform1i(get_program_var(program_ctx, "tex")->location, input_tex_unit);
+   glUniform1i(get_program_var(program_ctx, "input_texture")->location, input_tex_unit);
 
    // render the primitive from array data (triangle fan: first vertex is a hub, others fan around it)
    // 0 -> starting index
@@ -78,13 +79,42 @@ int main ()
   bcm_host_init();
   init_ogl(&egl_device);
 
+  char*  fragment_shaders[] = {"shaders/grayscale_fshader.glsl", "shaders/texture_renderer.glsl"};
+  init_image_processing_pipeline("shaders/flat_vshader.glsl", fragment_shaders, 2);
+  load_image_to_first_stage("sample_images/road2.bmp");
+  while(process_pipeline() != PIPELINE_COMPLETED)
+  {
+
+  }
+  render_final_stage_to_default_fbo();
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  glViewport ( 0, 0, 1920, 1080);
+  eglSwapBuffers(egl_device.display, egl_device.surface);
+  while(1)
+  {
+    
+  }
+  // while(1)
+  // {
+  //   start_profiler_timer();
+  //   reset_pipeline();
+  //   while(process_pipeline() != PIPELINE_COMPLETED)
+  //   {
+  //
+  //   }
+  //   render_final_stage_to_default_fbo();
+  //   eglSwapBuffers(egl_device.display, egl_device.surface);
+  //   long run_time = stop_profiler_timer();
+  //   printf("time ms: %ld\r\n", run_time);
+  // }
+
   const GLchar *vshader = ogl_load_shader("shaders/flat_vshader.glsl");
   const GLchar *fshader = ogl_load_shader("shaders/test_image_shader.glsl");
 
   OGL_PROGRAM_CONTEXT_T programA;
   OGL_SHADER_VAR_T programA_vars[2];
   construct_shader_var(&programA_vars[0], "vertex", OGL_ATTRIBUTE_TYPE);
-  construct_shader_var(&programA_vars[1], "tex", OGL_UNIFORM_TYPE);
+  construct_shader_var(&programA_vars[1], "input_texture", OGL_UNIFORM_TYPE);
   check();
   programA.vars = programA_vars;
   programA.num_vars = 2;
@@ -97,7 +127,7 @@ int main ()
   OGL_PROGRAM_CONTEXT_T render_program;
   OGL_SHADER_VAR_T render_program_vars[2];
   construct_shader_var(&render_program_vars[0], "vertex", OGL_ATTRIBUTE_TYPE);
-  construct_shader_var(&render_program_vars[1], "tex", OGL_UNIFORM_TYPE);
+  construct_shader_var(&render_program_vars[1], "input_texture", OGL_UNIFORM_TYPE);
   check();
   render_program.vars = render_program_vars;
   render_program.num_vars = 2;
