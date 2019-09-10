@@ -61,9 +61,9 @@ void init_image_processing_pipeline(char *vertex_shader_path, char **fragment_sh
    glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_data), vertex_data, GL_STATIC_DRAW);
    check();
 
+   const GLchar *vshader = ogl_load_shader(vertex_shader_path);
    for(int i = 0; i < num_stages; i++)
    {
-     const GLchar *vshader = ogl_load_shader(vertex_shader_path);
      const GLchar *fshader = ogl_load_shader(fragment_shader_paths[i]);
 
      construct_shader_var(&image_stages[i].vars[0], "vertex", OGL_ATTRIBUTE_TYPE);
@@ -85,6 +85,7 @@ void init_image_processing_pipeline(char *vertex_shader_path, char **fragment_sh
 
    create_fbo_tex_pair(&texture1, &fbo1, GL_TEXTURE0, 1920, 1080);
    create_fbo_tex_pair(&texture2, &fbo2, GL_TEXTURE1, 1920, 1080);
+
 }
 
  static void draw_stage(OGL_PROGRAM_CONTEXT_T *program_ctx, GLuint out_tex, GLuint out_fbo,
@@ -118,6 +119,8 @@ void init_image_processing_pipeline(char *vertex_shader_path, char **fragment_sh
    // 4 -> number of indices to render
    glDrawArrays ( GL_TRIANGLE_FAN, 0, 4 );
    check();
+
+
    //glBindTexture(GL_TEXTURE_2D, input_tex_unit+1);
 
    // execute and BLOCK until done (in the future you'll want to check status instead so it doesn't block)
@@ -130,6 +133,11 @@ void reset_pipeline()
 {
   current_stage = 0;
   current_input_buffer = 0;
+}
+
+int single_pipeline()
+{
+
 }
 
 int process_pipeline()

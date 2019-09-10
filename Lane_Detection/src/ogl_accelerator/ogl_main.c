@@ -81,10 +81,9 @@ int main ()
 
   char*  fragment_shaders[] = {"shaders/grayscale_fshader.glsl",
                               "shaders/blur_fshader.glsl",
-                              "shaders/blur_fshader.glsl",
                               "shaders/red_to_grayscale_fshader.glsl",
                               "shaders/texture_renderer.glsl"};
-  init_image_processing_pipeline("shaders/flat_vshader.glsl", fragment_shaders, 5);
+  init_image_processing_pipeline("shaders/flat_vshader.glsl", fragment_shaders, 4);
   load_image_to_first_stage("sample_images/road2.bmp");
   while(process_pipeline() != PIPELINE_COMPLETED)
   {
@@ -100,9 +99,9 @@ int main ()
   while(1)
   {
 
+    start_profiler_timer();
     reset_pipeline();
     load_image_to_first_stage("sample_images/road2.bmp");
-    start_profiler_timer();
     while(process_pipeline() != PIPELINE_COMPLETED)
     {
 

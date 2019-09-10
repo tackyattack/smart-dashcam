@@ -6,5 +6,6 @@ float x_pos = (gl_FragCoord.x)/1920.0;
 float y_pos = (gl_FragCoord.y)/1080.0;
 vec2 pos = vec2(x_pos,y_pos);
 color_out = texture2D(input_texture, pos);
+color_out = vec4(color_out.r, color_out.g, color_out.b, 1);
 gl_FragColor = color_out;
 }
