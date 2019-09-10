@@ -24,6 +24,8 @@ Created by: Henry Bergin 2019
 #include "program_utils.h"
 #include "image_loader.h"
 
+unsigned char *img = NULL;
+
 typedef struct IMAGE_PIPELINE_STAGE_T
 {
   OGL_SHADER_VAR_T vars[2];
@@ -188,8 +190,13 @@ int process_pipeline()
 
 void load_image_to_first_stage(char *image_path)
 {
+  if(img != NULL)
+  {
+    free(img);
+    img = NULL;
+  }
   reset_pipeline(); // reset stage back to the beginning
-  unsigned char *img = loadBMP(image_path);
+  img = loadBMP(image_path);
   glActiveTexture(GL_TEXTURE0+current_input_buffer); // use texture unit x to store it
   glBindTexture(GL_TEXTURE_2D, current_input_buffer);
   glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,1920,1280,0,GL_RGB,GL_UNSIGNED_BYTE,img);
