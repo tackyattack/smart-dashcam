@@ -93,12 +93,11 @@ void init_image_processing_pipeline(char *vertex_shader_path, char **fragment_sh
  static void draw_stage(OGL_PROGRAM_CONTEXT_T *program_ctx, GLuint out_tex, GLuint out_fbo,
                         GLuint input_tex_unit, GLuint output_tex_unit, GLuint vbuffer)
  {
-   //printf("drawing: output texture: %d   output_fbo: %d   input_tex_unit:%d   output_tex_unit:%d\n", out_tex,out_fbo, input_tex_unit, output_tex_unit);
+   printf("drawing: output texture: %d   output_fbo: %d   input_tex_unit:%d   output_tex_unit:%d\n", out_tex,out_fbo, input_tex_unit, output_tex_unit);
    // note: you only need to set the active texture unit when making a change to the texture
    //       by binding it
    // render to offscreen fbo
-   glActiveTexture(GL_TEXTURE0+output_tex_unit);
-   glBindTexture(GL_TEXTURE_2D, out_tex);
+   // Since a texture is linked to this framebuffer, anything written in the shader will write to the texture
    glBindFramebuffer(GL_FRAMEBUFFER, out_fbo);
 
    glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
@@ -135,11 +134,6 @@ void reset_pipeline()
 {
   current_stage = 0;
   current_input_buffer = 0;
-}
-
-int single_pipeline()
-{
-
 }
 
 int process_pipeline()
@@ -190,6 +184,7 @@ int process_pipeline()
 
 void load_image_to_first_stage(char *image_path)
 {
+  assert(current_input_buffer == 0);
   if(img != NULL)
   {
     free(img);
@@ -197,9 +192,9 @@ void load_image_to_first_stage(char *image_path)
   }
   reset_pipeline(); // reset stage back to the beginning
   img = loadBMP(image_path);
-  glActiveTexture(GL_TEXTURE0+current_input_buffer); // use texture unit x to store it
-  glBindTexture(GL_TEXTURE_2D, current_input_buffer);
-  glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,1920,1280,0,GL_RGB,GL_UNSIGNED_BYTE,img);
+  glActiveTexture(GL_TEXTURE0); // use texture unit x to store it
+  glBindTexture(GL_TEXTURE_2D, texture1);
+  glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,1920,1080,0,GL_RGB,GL_UNSIGNED_BYTE,img);
   glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
   glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
   check();
