@@ -83,16 +83,19 @@ void init_image_processing_pipeline(char *vertex_shader_path, char **fragment_sh
 
    }
 
-   create_fbo_tex_pair(&texture1, &fbo1, GL_TEXTURE0, 1920, 1280);
+   create_fbo_tex_pair(&texture1, &fbo1, GL_TEXTURE0, 1920, 1080);
    create_fbo_tex_pair(&texture2, &fbo2, GL_TEXTURE1, 1920, 1080);
 }
 
- static void draw_stage(OGL_PROGRAM_CONTEXT_T *program_ctx, GLuint out_tex, GLuint out_fbo, GLuint input_tex_unit, GLuint vbuffer)
+ static void draw_stage(OGL_PROGRAM_CONTEXT_T *program_ctx, GLuint out_tex, GLuint out_fbo,
+                        GLuint input_tex_unit, GLuint output_tex_unit, GLuint vbuffer)
  {
-   printf("drawing: output texture: %d   output_fbo: %d   input_tex_unit:%d\n", out_tex,out_fbo,input_tex_unit);
+   //printf("drawing: output texture: %d   output_fbo: %d   input_tex_unit:%d   output_tex_unit:%d\n", out_tex,out_fbo, input_tex_unit, output_tex_unit);
    // note: you only need to set the active texture unit when making a change to the texture
    //       by binding it
    // render to offscreen fbo
+   glActiveTexture(GL_TEXTURE0+output_tex_unit);
+   glBindTexture(GL_TEXTURE_2D, out_tex);
    glBindFramebuffer(GL_FRAMEBUFFER, out_fbo);
 
    glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
@@ -115,48 +118,54 @@ void init_image_processing_pipeline(char *vertex_shader_path, char **fragment_sh
    // 4 -> number of indices to render
    glDrawArrays ( GL_TRIANGLE_FAN, 0, 4 );
    check();
+   //glBindTexture(GL_TEXTURE_2D, input_tex_unit+1);
 
    // execute and BLOCK until done (in the future you'll want to check status instead so it doesn't block)
-   glFlush();
-   glFinish();
+   //glFlush();
+   //glFinish();
    check();
  }
 
 void reset_pipeline()
 {
   current_stage = 0;
+  current_input_buffer = 0;
 }
 
 int process_pipeline()
 {
-  printf("stage:%d\n", current_stage);
   if(current_stage != 0)
   {
-    // GLenum fbo_status = glCheckFramebufferStatus(completed_fbo);
-    // if (fbo_status != GL_FRAMEBUFFER_COMPLETE)
-    // {
-    //   return PIPELINE_PROCESSING;
-    // }
+    GLenum fbo_status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (fbo_status != GL_FRAMEBUFFER_COMPLETE)
+    {
+      return PIPELINE_PROCESSING;
+    }
     if (current_stage >= number_of_stages)
     {
       return PIPELINE_COMPLETED;
     }
   }
-
-  GLuint output_tex, output_fbo, input_tex_unit;
+  //printf("stage:%d\n", current_stage);
+  GLuint output_tex, output_fbo, input_tex_unit, output_tex_unit;
   if(current_input_buffer == 0)
   {
     output_tex = texture2;
     output_fbo = fbo2;
     input_tex_unit = 0;
+    output_tex_unit = 1;
   }
   else
   {
     output_tex = texture1;
     output_fbo = fbo1;
     input_tex_unit = 1;
+    output_tex_unit = 0;
   }
-  draw_stage(&image_stages[current_stage].program, output_tex, output_fbo, input_tex_unit, vbuffer);
+  // are we on the last stage? If so, just render to the default FBO so it can go to screen
+  // TODO: fix this in the future so you can specify if it should go to screen
+  if(current_stage == (number_of_stages-1)) output_fbo = 0;
+  draw_stage(&image_stages[current_stage].program, output_tex, output_fbo, input_tex_unit, output_tex_unit, vbuffer);
   completed_stage = current_stage;
   completed_fbo = output_fbo;
   current_output_tex = output_tex;
@@ -165,6 +174,7 @@ int process_pipeline()
 
   current_stage = (current_stage + 1);
   current_input_buffer = (current_input_buffer + 1)%2;
+
   return PIPELINE_PROCESSING;
 }
 
@@ -178,10 +188,4 @@ void load_image_to_first_stage(char *image_path)
   glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
   glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
   check();
-}
-
-void render_final_stage_to_default_fbo()
-{
-  // draw to default framebuffer (for screen)
-  draw_stage(&image_stages[number_of_stages-1].program, current_output_fbo, 0, current_input_tex_unit, vbuffer);
 }

@@ -11,6 +11,5 @@ void init_image_processing_pipeline(char *vertex_shader_path, char **fragment_sh
 void reset_pipeline();
 int process_pipeline();
 void load_image_to_first_stage(char *image_path);
-void render_final_stage_to_default_fbo();
 
 #endif

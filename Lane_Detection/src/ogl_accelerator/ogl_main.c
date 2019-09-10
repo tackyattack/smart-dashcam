@@ -79,34 +79,38 @@ int main ()
   bcm_host_init();
   init_ogl(&egl_device);
 
-  char*  fragment_shaders[] = {"shaders/grayscale_fshader.glsl", "shaders/texture_renderer.glsl"};
-  init_image_processing_pipeline("shaders/flat_vshader.glsl", fragment_shaders, 2);
+  char*  fragment_shaders[] = {"shaders/grayscale_fshader.glsl",
+                              "shaders/blur_fshader.glsl",
+                              "shaders/blur_fshader.glsl",
+                              "shaders/red_to_grayscale_fshader.glsl",
+                              "shaders/texture_renderer.glsl"};
+  init_image_processing_pipeline("shaders/flat_vshader.glsl", fragment_shaders, 5);
   load_image_to_first_stage("sample_images/road2.bmp");
   while(process_pipeline() != PIPELINE_COMPLETED)
   {
 
   }
-  render_final_stage_to_default_fbo();
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
   glViewport ( 0, 0, 1920, 1080);
   eglSwapBuffers(egl_device.display, egl_device.surface);
-  while(1)
-  {
-    
-  }
   // while(1)
   // {
-  //   start_profiler_timer();
-  //   reset_pipeline();
-  //   while(process_pipeline() != PIPELINE_COMPLETED)
-  //   {
   //
-  //   }
-  //   render_final_stage_to_default_fbo();
-  //   eglSwapBuffers(egl_device.display, egl_device.surface);
-  //   long run_time = stop_profiler_timer();
-  //   printf("time ms: %ld\r\n", run_time);
   // }
+  while(1)
+  {
+
+    reset_pipeline();
+    load_image_to_first_stage("sample_images/road2.bmp");
+    start_profiler_timer();
+    while(process_pipeline() != PIPELINE_COMPLETED)
+    {
+
+    }
+    eglSwapBuffers(egl_device.display, egl_device.surface);
+    long run_time = stop_profiler_timer();
+    printf("time ms: %ld\r\n", run_time);
+  }
 
   const GLchar *vshader = ogl_load_shader("shaders/flat_vshader.glsl");
   const GLchar *fshader = ogl_load_shader("shaders/test_image_shader.glsl");

@@ -112,7 +112,7 @@ void create_fbo_tex_pair(GLuint *tex, GLuint *fbo, GLuint active_texture_unit, G
   check();
   glBindFramebuffer(GL_FRAMEBUFFER,*fbo);
   check();
-  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, *fbo, 0);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, *tex, 0);
   check();
 }
 
