@@ -9,6 +9,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <assert.h>
 
 #include "../comm_tcp.h"
 
@@ -66,7 +67,7 @@ int init_server(char* port)
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
-    int server_socket_fd;                              /* generic socket variable */
+    int server_socket_fd;      /* generic socket variable */
        
 
 
@@ -77,6 +78,11 @@ int init_server(char* port)
     /* Info print */
     printf("Creating server on port %s\n", port);
     server_socket_fd = make_socket(port, DEFAULT_SOCKET_TYPE, (const char*)SERVER_ADDR, IS_SERVER);
+
+    /*----------------------------------
+    |       VERIFY SERVER CREATED       |
+    ------------------------------------*/
+    assert(server_socket_fd != 0);
     
 
     /*----------------------------------
@@ -86,7 +92,7 @@ int init_server(char* port)
     if ( listen(server_socket_fd, MAX_PENDING_CONNECTIONS) < 0 )
     {
         fprintf (stderr, "errno = %d ", errno);
-        perror("listen");
+        perror("Set server to listen for incoming connections");
         exit(EXIT_FAILURE);
     }
 
@@ -121,8 +127,8 @@ int handle_conn_request(int server_socket_fd)
     if (new_client_fd < 0)
     {
         fprintf (stderr, "errno = %d ", errno);
-        perror("accept");
-        exit(EXIT_FAILURE);
+        perror("Failed to accept connection request from client");
+        // exit(EXIT_FAILURE);
     }
 
     /* Info print */
@@ -191,7 +197,12 @@ void execute_server(int server_socket_fd)
                     |          SETUP NEW CLIENT         |
                     ------------------------------------*/
                     new_client_fd = handle_conn_request(server_socket_fd);
-                    FD_SET(new_client_fd, &active_fd_set);
+
+                    /* If fd is valid, add client to our set of clients */
+                    if (new_client_fd >= 0)
+                    {
+                        FD_SET(new_client_fd, &active_fd_set);
+                    }
                 }
                 else /* A client has sent us a message */
                 {
@@ -203,7 +214,7 @@ void execute_server(int server_socket_fd)
                     /* Info print. Data read. */    
                     fprintf(stderr, "Server: received message: \"%s\"\n", buffer);
 
-                    //REVIEW TODO Remove this line. It is for testing
+                    //TODO Remove this line. It is for testing
                     /* Echo message back to client */
                     send_data(i, buffer);
 

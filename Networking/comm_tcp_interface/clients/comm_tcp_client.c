@@ -2,8 +2,9 @@
 
 #include <unistd.h> /* Needed for close() */
 
-#define SERVER_ADDR  "192.168.200.1"    /* Address of the server we are conencting to. Note, this can be a IP or hostname */
-// #define SERVER_ADDR  "raspberrypi"      /* Address of the server we are conencting to. Note, this can be a IP or hostname */
+#define SERVER_ADDR  "192.168.200.1"            /* Address of the server we are conencting to. Note, this can be a IP or hostname */
+// #define SERVER_ADDR  "raspberrypi"           /* Address of the server we are conencting to. Note, this can be a IP or hostname */
+#define TIME_BETWEEN_CONNECTION_ATTEMPTS (1)    /* Time in seconds between attempts to connect to server if we fail to connect */
 
 /* Check for value parameters and return port number */
 char* check_parameters(int argc, char *argv[])
@@ -48,29 +49,54 @@ char* check_parameters(int argc, char *argv[])
     return port;
 } /* check_parameters() */
 
-int main(int argc, char *argv[])
+void execute_client(const int *socket_fd)
 {
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
     char buffer[MAX_MSG_SZ];
-    char* port = check_parameters(argc, argv);
-    const int socket_fd = make_socket(port, DEFAULT_SOCKET_TYPE, SERVER_ADDR, IS_CLIENT);
 
     /*----------------------------------
     |          INITIALIZATIONS          |
     ------------------------------------*/
     bzero(buffer,MAX_MSG_SZ);
 
-    /* Info print */
-    printf("Sending message to server.\n");
-    send_data (socket_fd, (char*)"Hello Server!");
+    /*----------------------------------
+    |           INFINITE LOOP           |
+    ------------------------------------*/
+    while(1)
+    {
+        receive_data(*socket_fd, buffer, MAX_MSG_SZ);
 
-    //TODO is this a blocking call?
-    receive_data(socket_fd, buffer, MAX_MSG_SZ);
+        /* Info print TODO remove this */
+        printf ("Received message \"%s\" from server.\n", buffer);
 
+    } /* while(1) */
+} /* execute_client */
+
+int main(int argc, char *argv[])
+{
+    /*----------------------------------
+    |             VARIABLES             |
+    ------------------------------------*/
+    char* port = check_parameters(argc, argv);
+    int socket_fd; 
+    
+    /* Loop until successful connection with server */
+    do
+    {
+        /* Info print */
+        printf ("\nAttempt to open socket to server....\n");
+
+        sleep(TIME_BETWEEN_CONNECTION_ATTEMPTS);
+        socket_fd = make_socket(port, DEFAULT_SOCKET_TYPE, SERVER_ADDR, IS_CLIENT);
+    } while (socket_fd < 0);
+    
     /* Info print */
-    printf ("Received message \"%s\" from server.\n", buffer);
+    printf ("Successfully opened socket to server \"%s\" on port %s.\n", SERVER_ADDR, port);
+    
+    /* Main loop for client to receive/process data */
+    execute_client(&socket_fd);
 
     /* Close socket */
     close(socket_fd);

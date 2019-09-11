@@ -107,14 +107,24 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
     struct timeval tv;
     int valopt;
     socklen_t lon;
+    int returnval;
+
+
+    /*----------------------------------
+    |          INITIALIZATIONS          |
+    ------------------------------------*/
+
+    returnval = 0;
+
 
     /*----------------------------------
     |       SET NOT-BLOCKING MODE       |
     ------------------------------------*/
+
     if ((flags = fcntl(sock, F_GETFL, NULL)) < 0)
     {
         fprintf(stderr, "Error fcntl(..., F_GETFL) (%s)\n", strerror(errno));
-        exit(0);
+        exit(EXIT_FAILURE);
     }
 
     flags |= O_NONBLOCK;
@@ -122,30 +132,41 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
     if (fcntl(sock, F_SETFL, flags) < 0)
     {
         fprintf(stderr, "Error fcntl(..., F_SETFL) (%s)\n", strerror(errno));
-        exit(0);
+        exit(EXIT_FAILURE);
     }
+
 
     /*----------------------------------
     |  ATTEMPT TO CONNECT WITH TIMEOUT  |
     ------------------------------------*/
+
     res = connect(sock, addr, addrlen);
     if (res < 0)
     {
         if (errno == EINPROGRESS)
         {
-            fprintf(stderr, "EINPROGRESS in connect() - selecting\n");
+            // fprintf(stderr, "EINPROGRESS in connect() - selecting\n");
             do
             {
+                /*----------------------------------
+                |       LOOP INITIALIZATIONS        |
+                ------------------------------------*/
+
                 tv.tv_sec = timeout;
                 tv.tv_usec = 0;
                 FD_ZERO(&myset);
                 FD_SET(sock, &myset);
 
+
+                /*----------------------------------
+                |       GET CONNECTION STATUS       |
+                ------------------------------------*/
+
                 res = select(sock + 1, NULL, &myset, NULL, &tv);
                 if (res < 0 && errno != EINTR)
                 {
                     fprintf(stderr, "Error connecting %d - %s\n", errno, strerror(errno));
-                    exit(0);
+                    exit(EXIT_FAILURE);
                 }
                 else if (res > 0)
                 {
@@ -154,38 +175,42 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
                     if (getsockopt(sock, SOL_SOCKET, SO_ERROR, (void *)(&valopt), &lon) < 0)
                     {
                         fprintf(stderr, "Error in getsockopt() %d - %s\n", errno, strerror(errno));
-                        exit(0);
+                        exit(EXIT_FAILURE);
                     }
 
                     // Check the value returned...
                     if (valopt)
                     {
                         fprintf(stderr, "Error in delayed connection() %d - %s\n", valopt, strerror(valopt));
-                        exit(0);
+                        exit(EXIT_FAILURE);
                     }
                     break;
                 }
                 else
                 {
-                    fprintf(stderr, "Timeout in select() - Cancelling!\n");
-                    exit(0);
+                    fprintf(stderr, "Timed out while attempting to connect to server!\n");
+                    returnval = -1;
+                    break;
+                    // exit(EXIT_FAILURE);
                 }
             } while (1);
         }
         else
         {
             fprintf(stderr, "Error connecting %d - %s\n", errno, strerror(errno));
-            exit(0);
+            exit(EXIT_FAILURE);
         }
     }
+
 
     /*----------------------------------
     |         SET BLOCKING MODE         |
     ------------------------------------*/
+
     if ((flags = fcntl(sock, F_GETFL, NULL)) < 0)
     {
         fprintf(stderr, "Error fcntl(..., F_GETFL) (%s)\n", strerror(errno));
-        exit(0);
+        exit(EXIT_FAILURE);
     }
 
     flags &= (~O_NONBLOCK);
@@ -193,19 +218,19 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
     if (fcntl(sock, F_SETFL, flags) < 0)
     {
         fprintf(stderr, "Error fcntl(..., F_SETFL) (%s)\n", strerror(errno));
-        exit(0);
+        exit(EXIT_FAILURE);
     }
 
-    /* We succeeded in connecting */
-    return 0;
+    return returnval;
 } /* connect_timeout() */
 
-/* Returns the server_fd */
+/* Returns the server_fd. Returns -1 if failed to connect. */
 int server_bind(struct addrinfo *address_info_set)
 {
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
+
     int server_fd;
     struct addrinfo *i;
 
@@ -233,22 +258,25 @@ int server_bind(struct addrinfo *address_info_set)
     /*----------------------------------
     |           VERIFICATION            |
     ------------------------------------*/
+
     /* Verify we successfully binded to an address */
     if (i == NULL)
     {
         fprintf(stderr, "Could not bind\n");
-        exit(EXIT_FAILURE);
+        return -1;
+        // exit(EXIT_FAILURE);
     }
 
     return server_fd;
 } /* server_bind() */
 
-/* Returns the client_fd */
+/* Returns the client_fd. Returns -1 if failed to connect. */
 int client_connect(struct addrinfo *address_info_set)
 {
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
+
     int client_fd;
     struct addrinfo *i;
 
@@ -279,8 +307,9 @@ int client_connect(struct addrinfo *address_info_set)
 
     if (i == NULL)
     {
-        fprintf(stderr, "Could not bind\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "Could not open socket\n");
+        return -1;
+        // exit(EXIT_FAILURE);
     }
 
     /* Print info */
@@ -292,7 +321,8 @@ int client_connect(struct addrinfo *address_info_set)
 /* Given a port number, socket type, an address (this can be IP or hostname), 
     and a value for the type_serv_client parameter, this will return a socket.
     If setting up a Server use IS_SERVER. Else use IS_CLIENT for the type_serv_client parameter.
-    If setting up a server, addr can be NULL to use that machines IP.  */
+    If setting up a server, addr can be NULL to use that machines IP.  
+    Returns -1 if failed. */
 int make_socket(char* port, uint8_t socket_type,  const char *addr, uint8_t type_serv_client)
 {
     /*----------------------------------
@@ -341,12 +371,14 @@ int make_socket(char* port, uint8_t socket_type,  const char *addr, uint8_t type
     /*----------------------------------
     |       GET NETWORK ADDR INFO       |
     ------------------------------------*/
+
     int err = getaddrinfo(addr,port,&hints, &name);
     if ( err != 0 )
     {
         fprintf(stderr, "%s: %s\n", addr, gai_strerror(err));
         perror("ERROR: host/client address not valid");
-        exit(EXIT_FAILURE);
+        return -1;
+        // exit(EXIT_FAILURE);
     }
 
    
@@ -364,26 +396,33 @@ int make_socket(char* port, uint8_t socket_type,  const char *addr, uint8_t type
         socket_fd = client_connect( name );
     }
 
+
     /*----------------------------------
     |            FREE MEMORY            |
     ------------------------------------*/
+
     freeaddrinfo(name);
+
 
     return socket_fd;
 } /* make_socket() */
 
-/* Given a socket file descriptor, reads data and returns the number of bytes read. This is a blocking call. */
+/* Given a socket file descriptor, reads data and returns the number of bytes read. This is a blocking call. 
+    Returns negative number if failed to receive data. */
 int receive_data(int socket_fd, char* buffer, const size_t buffer_sz)
 {
     //TODO see if data received is broken into MAX_MSG_SZ chucks or is received in its entirety
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
+
     int bytes_read;
+
 
     /*----------------------------------
     |             READ DATA             |
     ------------------------------------*/
+
     //TODO see what happens if buffer is too small for received data
     bytes_read = read(socket_fd, buffer, buffer_sz);
 
@@ -393,7 +432,7 @@ int receive_data(int socket_fd, char* buffer, const size_t buffer_sz)
         /* Read error. */
         fprintf (stderr, "errno = %d ", errno);
         perror("read");
-        exit(EXIT_FAILURE);
+        // exit(EXIT_FAILURE);
     }
     else if (bytes_read == 0)
     {
@@ -406,12 +445,14 @@ int receive_data(int socket_fd, char* buffer, const size_t buffer_sz)
 } /* receive_data() */
 
 
-/* Send data. Returns number of bytes send or -1 if there's an error. Sends a string up to 2^16 in size */
+/* Send data. Returns number of bytes send or -1 if there's an error. Sends a string up to 2^16 in size 
+    Returns negative number if failed to send data. */
 int send_data ( const int socket_fd, const char * data )
 {
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
+    
     char buffer[MAX_MSG_SZ];        /* Buffer used to send data */
     uint16_t total_bytes_to_send;   /* Length of string we are to send */
     uint16_t all_sent_bytes;        /* Total number of bytes sent */
@@ -421,9 +462,11 @@ int send_data ( const int socket_fd, const char * data )
     uint8_t n_buffers_to_send;      /* Number of loop interations (number of buffers) needed to send data */
     uint8_t send_flags;             /* Send Flags */
 
+
     /*----------------------------------
     |          INITIALIZATIONS          |
     ------------------------------------*/
+    
     send_flags = 0;
     all_sent_bytes = 0;
     bytes_sent = 0;
@@ -443,6 +486,7 @@ int send_data ( const int socket_fd, const char * data )
     /*----------------------------------
     |             SEND DATA             |
     ------------------------------------*/
+
     for (uint8_t i = 0; i < n_buffers_to_send; i++)
     {
         bzero(buffer, MAX_MSG_SZ);
@@ -493,9 +537,11 @@ int send_data ( const int socket_fd, const char * data )
         
     } /* For loop */
 
+
     /*----------------------------------
     |        VERIFY DATA WAS SENT       |
     ------------------------------------*/
+
     if ( all_sent_bytes != total_bytes_to_send )
     {
         printf("ERROR: sent %u of %u bytes\n", all_sent_bytes, total_bytes_to_send);
