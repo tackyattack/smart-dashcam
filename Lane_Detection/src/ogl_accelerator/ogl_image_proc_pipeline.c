@@ -24,11 +24,14 @@ Created by: Henry Bergin 2019
 #include "program_utils.h"
 #include "image_loader.h"
 
+//https://stackoverflow.com/questions/142789/what-is-a-callback-in-c-and-how-are-they-implemented
+static draw_callback_t draw_callback_p = NULL;
+
 unsigned char *img = NULL;
 
 typedef struct IMAGE_PIPELINE_STAGE_T
 {
-  OGL_SHADER_VAR_T vars[2];
+  OGL_SHADER_VAR_T *vars;
   OGL_PROGRAM_CONTEXT_T program;
 } IMAGE_PIPELINE_STAGE_T;
 
@@ -37,9 +40,8 @@ static IMAGE_PIPELINE_STAGE_T image_stages[MAX_IMAGE_STAGES];
 static GLuint texture1, fbo1, texture2, fbo2;
 static int current_input_buffer = 0; // can be 0 or 1
 static int current_stage = 0;
-static int completed_stage = 0;
-static GLuint completed_fbo = 0;
 static int number_of_stages = 0;
+static int repeat_current_stage = 0;
 
 static GLuint current_output_tex, current_output_fbo, current_input_tex_unit;
 
@@ -51,8 +53,13 @@ static const GLfloat vertex_data[] = {
       -1.0,1.0,1.0,1.0
  };
 
+void register_draw_callback(draw_callback_t dc)
+{
+  draw_callback_p = dc;
+}
+
 GLuint vbuffer;
-void init_image_processing_pipeline(char *vertex_shader_path, char **fragment_shader_paths, int num_stages)
+void init_image_processing_pipeline(char *vertex_shader_path, IMAGE_PIPELINE_SHADER_T *pipeline_shaders, int num_stages)
 {
    assert(num_stages <= MAX_IMAGE_STAGES);
    number_of_stages = num_stages;
@@ -66,13 +73,20 @@ void init_image_processing_pipeline(char *vertex_shader_path, char **fragment_sh
    const GLchar *vshader = ogl_load_shader(vertex_shader_path);
    for(int i = 0; i < num_stages; i++)
    {
-     const GLchar *fshader = ogl_load_shader(fragment_shader_paths[i]);
+     const GLchar *fshader = ogl_load_shader(pipeline_shaders[i].fragment_shader_path);
+
+     // make space for the internal and external variables
+     image_stages[i].vars = malloc(sizeof(OGL_SHADER_VAR_T)*(pipeline_shaders[i].num_vars+2));
 
      construct_shader_var(&image_stages[i].vars[0], "vertex", OGL_ATTRIBUTE_TYPE);
      construct_shader_var(&image_stages[i].vars[1], "input_texture", OGL_UNIFORM_TYPE);
+     for(int var_cnt = 0; var_cnt < pipeline_shaders[i].num_vars; var_cnt++)
+     {
+       construct_shader_var(&image_stages[i].vars[var_cnt+2], pipeline_shaders[i].vars[var_cnt], OGL_UNIFORM_TYPE);
+     }
      check();
      image_stages[i].program.vars = image_stages[i].vars;
-     image_stages[i].program.num_vars = 2;
+     image_stages[i].program.num_vars = 2+pipeline_shaders[i].num_vars;
      create_program_context(&image_stages[i].program, &vshader, &fshader, verbose);
      check();
 
@@ -114,6 +128,10 @@ void init_image_processing_pipeline(char *vertex_shader_path, char **fragment_sh
    // NOTE: DO NOT USE GL_TEXTURE<i> since that's for setting the active unit
    //       instead use integers 0, 1, 2, ... etc for whichever GL_TEXTURE<i> you used
    glUniform1i(get_program_var(program_ctx, "input_texture")->location, input_tex_unit);
+   if(draw_callback_p != NULL)
+   {
+     draw_callback_p(program_ctx, current_stage);
+   }
 
    // render the primitive from array data (triangle fan: first vertex is a hub, others fan around it)
    // 0 -> starting index
@@ -129,6 +147,11 @@ void init_image_processing_pipeline(char *vertex_shader_path, char **fragment_sh
    //glFinish();
    check();
  }
+
+void set_repeat_stage()
+{
+  repeat_current_stage = 1;
+}
 
 void reset_pipeline()
 {
@@ -170,13 +193,20 @@ int process_pipeline()
   // TODO: fix this in the future so you can specify if it should go to screen
   if(current_stage == (number_of_stages-1)) output_fbo = 0;
   draw_stage(&image_stages[current_stage].program, output_tex, output_fbo, input_tex_unit, output_tex_unit, vbuffer);
-  completed_stage = current_stage;
-  completed_fbo = output_fbo;
   current_output_tex = output_tex;
   current_output_fbo = output_fbo;
   current_input_tex_unit = input_tex_unit;
 
-  current_stage = (current_stage + 1);
+  if(!repeat_current_stage)
+  {
+    current_stage = (current_stage + 1); // only go to the next stage if we're not repeating
+  }
+  else
+  {
+    repeat_current_stage = 0;
+  }
+
+
   current_input_buffer = (current_input_buffer + 1)%2;
 
   return PIPELINE_PROCESSING;

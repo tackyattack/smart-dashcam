@@ -7,8 +7,22 @@
 #define PIPELINE_COMPLETED 1
 #define PIPELINE_PROCESSING 0
 
-void init_image_processing_pipeline(char *vertex_shader_path, char **fragment_shader_paths, int num_stages);
+#include "ogl_mngr.h"
+// function pointer to the callback for setting shader variables before rendering starts
+// You can repeat the stage by seeing what the current stage is and flagging it to repeat
+typedef void (*draw_callback_t)(OGL_PROGRAM_CONTEXT_T *program_ctx, int current_render_stage);
+
+typedef struct IMAGE_PIPELINE_SHADER_T
+{
+  char *fragment_shader_path;
+  char **vars;
+  int num_vars;
+} IMAGE_PIPELINE_SHADER_T;
+
+void init_image_processing_pipeline(char *vertex_shader_path, IMAGE_PIPELINE_SHADER_T *pipeline_shaders, int num_stages);
+void register_draw_callback(draw_callback_t dc);
 void reset_pipeline();
+void set_repeat_stage();
 int process_pipeline();
 void load_image_to_first_stage(char *image_path);
 
