@@ -37,13 +37,15 @@ typedef struct IMAGE_PIPELINE_STAGE_T
 
 static IMAGE_PIPELINE_STAGE_T image_stages[MAX_IMAGE_STAGES];
 // texture / fbo pairs for ping pong
-static GLuint texture1, fbo1, texture2, fbo2;
-static int current_input_buffer = 0; // can be 0 or 1
+static GLuint texture0, fbo0, texture1, fbo1, texture2, fbo2;
+static int current_buffer_state = 0; // can be 0, 1, 3
+static int last_stage_buffer_state = 0;
 static int current_stage = 0;
+static int last_stage_ran = 0;
 static int number_of_stages = 0;
 static int repeat_current_stage = 0;
 
-static GLuint current_output_tex, current_output_fbo, current_input_tex_unit;
+static GLuint current_output_tex, current_output_fbo, current_input_tex_unit, last_output_tex_unit;
 
 // Flat quad to render to
 static const GLfloat vertex_data[] = {
@@ -99,15 +101,16 @@ void init_image_processing_pipeline(char *vertex_shader_path, IMAGE_PIPELINE_SHA
 
    }
 
-   create_fbo_tex_pair(&texture1, &fbo1, GL_TEXTURE0, 1920, 1080);
-   create_fbo_tex_pair(&texture2, &fbo2, GL_TEXTURE1, 1920, 1080);
+   create_fbo_tex_pair(&texture0, &fbo0, GL_TEXTURE0, 1920, 1080);
+   create_fbo_tex_pair(&texture1, &fbo1, GL_TEXTURE1, 1920, 1080);
+   create_fbo_tex_pair(&texture2, &fbo2, GL_TEXTURE2, 1920, 1080);
 
 }
 
  static void draw_stage(OGL_PROGRAM_CONTEXT_T *program_ctx, GLuint out_tex, GLuint out_fbo,
                         GLuint input_tex_unit, GLuint output_tex_unit, GLuint vbuffer)
  {
-   printf("drawing: output texture: %d   output_fbo: %d   input_tex_unit:%d   output_tex_unit:%d\n", out_tex,out_fbo, input_tex_unit, output_tex_unit);
+   printf("drawing stage %d: output texture: %d   output_fbo: %d   input_tex_unit:%d   output_tex_unit:%d\n", current_stage, out_tex,out_fbo, input_tex_unit, output_tex_unit);
    // note: you only need to set the active texture unit when making a change to the texture
    //       by binding it
    // render to offscreen fbo
@@ -154,10 +157,27 @@ void set_repeat_stage()
   repeat_current_stage = 1;
 }
 
+static GLuint preserved_output_texture_unit = 0;
+static int preserve_last_stage_output = 0;
+void set_preserve_last_stage_output()
+{
+  preserve_last_stage_output = 1;
+}
+void clear_preserve_last_stage_output()
+{
+  preserve_last_stage_output = 0;
+}
+int get_last_output_stage_unit()
+{
+  return preserved_output_texture_unit;
+}
+
 void reset_pipeline()
 {
   current_stage = 0;
-  current_input_buffer = 0;
+  current_buffer_state = 0;
+  last_output_tex_unit = 0;
+  last_stage_ran = -1;
 }
 
 int process_pipeline()
@@ -174,26 +194,53 @@ int process_pipeline()
       return PIPELINE_COMPLETED;
     }
   }
+
+  //printf("     last stage buffer state:%d\n",last_stage_buffer_state);
+
   //printf("stage:%d\n", current_stage);
   GLuint output_tex, output_fbo, input_tex_unit, output_tex_unit;
-  if(current_input_buffer == 0)
+  // Just walks up through the buffers then wraps back around
+
+  // if we want to preserve the last stage's output, then jump over that state
+  if(preserve_last_stage_output)
   {
-    output_tex = texture2;
-    output_fbo = fbo2;
-    input_tex_unit = 0;
-    output_tex_unit = 1;
+    if(current_buffer_state == last_stage_buffer_state)
+    {
+      current_buffer_state = (current_buffer_state + 1)%3; // hop over to the next state
+    }
+    preserved_output_texture_unit = (last_stage_buffer_state + 1)%3; // which one we are skipping over is the once
+                                                                  // that is being preserved
+    //printf("**** preserving texture unit: %d ****\n", preserved_output_texture_unit);
   }
-  else
+  switch(current_buffer_state)
   {
-    output_tex = texture1;
-    output_fbo = fbo1;
-    input_tex_unit = 1;
-    output_tex_unit = 0;
+    case 0:
+      output_tex = texture1;
+      output_fbo = fbo1;
+      //input_tex_unit = 0;
+      output_tex_unit = 1;
+      break;
+    case 1:
+      output_tex = texture2;
+      output_fbo = fbo2;
+      //input_tex_unit = 1;
+      output_tex_unit = 2;
+      break;
+    case 2:
+      output_tex = texture0;
+      output_fbo = fbo0;
+      //input_tex_unit = 2;
+      output_tex_unit = 0;
+      break;
   }
+  input_tex_unit = last_output_tex_unit;
+  last_output_tex_unit = output_tex_unit;
+
   // are we on the last stage? If so, just render to the default FBO so it can go to screen
   // TODO: fix this in the future so you can specify if it should go to screen
   if(current_stage == (number_of_stages-1)) output_fbo = 0;
   draw_stage(&image_stages[current_stage].program, output_tex, output_fbo, input_tex_unit, output_tex_unit, vbuffer);
+  last_stage_ran = current_stage;
   current_output_tex = output_tex;
   current_output_fbo = output_fbo;
   current_input_tex_unit = input_tex_unit;
@@ -206,16 +253,21 @@ int process_pipeline()
   {
     repeat_current_stage = 0;
   }
+  if(current_stage != last_stage_ran)
+  {
+    last_stage_buffer_state = current_buffer_state;
+  }
+
+  current_buffer_state = (current_buffer_state + 1)%3;
 
 
-  current_input_buffer = (current_input_buffer + 1)%2;
 
   return PIPELINE_PROCESSING;
 }
 
 void load_image_to_first_stage(char *image_path)
 {
-  assert(current_input_buffer == 0);
+  assert(current_buffer_state == 0);
   if(img != NULL)
   {
     free(img);
@@ -224,7 +276,7 @@ void load_image_to_first_stage(char *image_path)
   reset_pipeline(); // reset stage back to the beginning
   img = loadBMP(image_path);
   glActiveTexture(GL_TEXTURE0); // use texture unit x to store it
-  glBindTexture(GL_TEXTURE_2D, texture1);
+  glBindTexture(GL_TEXTURE_2D, texture0);
   glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,1920,1080,0,GL_RGB,GL_UNSIGNED_BYTE,img);
   glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
   glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);

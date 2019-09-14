@@ -25,5 +25,14 @@ void reset_pipeline();
 void set_repeat_stage();
 int process_pipeline();
 void load_image_to_first_stage(char *image_path);
+// You can set it to preserve the output texture unit at any point
+void set_preserve_last_stage_output();
+void clear_preserve_last_stage_output();
+// Which texture unit was outputted from the last stage
+// when preserving output.
+// You would use this in the draw callback to tell the shader
+// where the image input is so it can bounce back and forth
+// between the other two and accumulate.
+int get_last_output_stage_unit();
 
 #endif

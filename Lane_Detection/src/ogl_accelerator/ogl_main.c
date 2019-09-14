@@ -49,6 +49,22 @@ void draw_callback(OGL_PROGRAM_CONTEXT_T *program_ctx, int current_render_stage)
   //   set_repeat_stage();
   //   repeat_flag_B--;
   // }
+
+  set_preserve_last_stage_output();
+  static int repeat_flag_A = 2;
+  if(current_render_stage == 0)
+  {
+    repeat_flag_A = 2;
+  }
+
+  if((current_render_stage == 2)&&(repeat_flag_A))
+  {
+    set_repeat_stage();
+    printf("   the last stage's output unit is:%d\n", get_last_output_stage_unit());
+    repeat_flag_A--;
+  }
+
+
 }
 
 int main ()
