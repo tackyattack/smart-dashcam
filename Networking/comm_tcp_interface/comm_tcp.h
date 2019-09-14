@@ -23,13 +23,29 @@
 #define IS_SERVER (0)
 #define IS_CLIENT (1)
 
+/* First/Last byte received is msg start/end/cont indicator */
+#define MSG_START                (uint8_t)0x0F                       /* Message separator. Used to detect begining of message */
+#define MSG_END                  (uint8_t)0x0E                       /* Message separator. Used to detect end of message */
+#define MSG_HEADER_SZ              (sizeof(MSG_START)+sizeof(MSG_END)) /* Total size used by the message headers */
+// #define MSG_CONT                 0x0D                             /* Message separator. Used to signify message is continued due to length 
+//                                                                     being a multiplyer of MAX_MSG_SZ. Also signifies MSG_END implicitly */
+
+/* 2nd byte is a command indicator */
+#define COMMAND_PING             (uint8_t)0x0F                       /* If this is received, we have been pinged and request this msg be echoed back */
+#define COMMAND_DISCONNECT       (uint8_t)0x0E                       /* If received, signals to disconnect */
+#define COMMAND_UUID             (uint8_t)0x0D                       /* If received, signals msg data is our UUID */
+
+
 /* Defaults */
-#define DEFAULT_CONN_TYPE        AF_UNSPEC        /* PF_LOCAL for a local only connection, or AF_INET for IP connection or AF_INET6 for ipv6 or AF_UNSPEC for ipv4 or piv6 */
-#define DEFAULT_SOCKET_TYPE      SOCKET_TYPE_TCP  /* */
-#define DEFAULT_PORT             "5555"           /* Port number to use if none are given */
-#define MAX_HOSTNAME_SZ          255              /* Max size/length a hostname can be */
-#define MAX_MSG_SZ               512              /* max size of protocol message */
-#define CONNECT_TIMEOUT          1                /* Set a timeout of 1 second for socket client connect attempt */
+#define DEFAULT_CONN_TYPE        AF_UNSPEC                           /* PF_LOCAL for a local only connection, or AF_INET for IP connection or AF_INET6 for ipv6 or AF_UNSPEC for ipv4 or piv6 */
+#define DEFAULT_SOCKET_TYPE      SOCKET_TYPE_TCP                     /* */
+#define DEFAULT_PORT             "5555"                              /* Port number to use if none are given */
+#define MAX_HOSTNAME_SZ          (255)                               /* Max size/length a hostname can be */
+#define MAX_TX_MSG_SZ            (512)                               /* max size of the message that will be sent over socket. NOTE, this should not be used outside of this file */
+#define MAX_MSG_SZ               (MAX_TX_MSG_SZ-MSG_HEADER_SZ)         /* max size of the message payload that can be sent */
+#define CONNECT_TIMEOUT          (1)                                 /* Set a timeout of 1 second for socket client connect attempt */
+#define UUID_SZ                  (36)                                /* UUID is 4 hyphens + 32 digits */
+#define TIME_BETWEEN_PINGS       (1)                                 /* Time (in seconds) between pings from the server. The server sends a ping to all clients every TIME_BETWEEN_PINGS seconds */
 
 /* Modifies ip string to be IP address of hostname found.
     ip must be a char string of length MAX_HOSTNAME_SZ.
@@ -182,7 +198,9 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
                     if (valopt)
                     {
                         fprintf(stderr, "Error in delayed connection() %d - %s\n", valopt, strerror(valopt));
-                        exit(EXIT_FAILURE);
+                        // exit(EXIT_FAILURE);
+                        returnval = -1;
+                        break;
                     }
                     break;
                 }
@@ -407,6 +425,38 @@ int make_socket(char* port, uint8_t socket_type,  const char *addr, uint8_t type
     return socket_fd;
 } /* make_socket() */
 
+/* Returns the received data's payload. 
+    Returns -1 if data received is invalid, else the length of the payload */
+int get_data_payload(char *buffer, int bytes_read)
+{
+    char *temp;
+
+    if (bytes_read <= 0)
+    {
+        return -1;
+    }
+    assert(buffer != NULL);
+
+    if (buffer[0] != MSG_START || buffer[bytes_read-1] != MSG_END)
+    {
+        /* Info print */
+        printf("Received invalid message!...continuing");
+        return -1;
+    }
+    //TODO could implement ability to search for/find the msg start/end
+
+    /* Copy message (data minus header) to a temp string. Then erase buffer and copy message to buffer */
+    temp = malloc(bytes_read-MSG_HEADER_SZ);
+    memcpy(temp, (const void *)&buffer[1], (bytes_read-MSG_HEADER_SZ));
+    bzero(buffer,bytes_read);
+    memcpy(buffer, temp, (bytes_read-MSG_HEADER_SZ));
+
+    free(temp);
+
+    return (int)(bytes_read-MSG_HEADER_SZ);
+} /* get_data_payload */
+
+
 /* Given a socket file descriptor, reads data and returns the number of bytes read. This is a blocking call. 
     Returns negative number if failed to receive data. */
 int receive_data(int socket_fd, char* buffer, const size_t buffer_sz)
@@ -434,26 +484,40 @@ int receive_data(int socket_fd, char* buffer, const size_t buffer_sz)
         perror("read");
         // exit(EXIT_FAILURE);
     }
-    else if (bytes_read == 0)
+        /* Received invalid message */
+    else if (bytes_read < (int)MSG_HEADER_SZ )
     {
         /* End-of-file. This signifies to close the connection */
-        return 0;
+        return -1;
     }
 
-    return bytes_read;
+    /* Info print */
+    printf ("Received raw data: ");
+    putchar('0');
+    putchar('x');
+    for (int i = 0; i < bytes_read; i++) {
+        printf("%02x ", buffer[i]);
+    }
+    putchar('\n');
+    putchar('\n');
+    
+    return get_data_payload(buffer, bytes_read);
 
 } /* receive_data() */
 
 
-/* Send data. Returns number of bytes send or -1 if there's an error. Sends a string up to 2^16 in size 
-    Returns negative number if failed to send data. */
-int send_data ( const int socket_fd, const char * data )
+/* Send data. Returns number of bytes sent or -1 or 0 if there's an error. Sends a char* up to 2^16 in size 
+    Please note that data_sz should include a termination character if applicable.
+    
+    Please note that calls to this are thread safe as long as the size of data is less than MAX_MSG_SZ
+        including any termination characters if applicable. */
+int send_data ( const int socket_fd, const char * data, const uint16_t data_sz )
 {
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
     
-    char buffer[MAX_MSG_SZ];        /* Buffer used to send data */
+    char buffer[MAX_TX_MSG_SZ];     /* Buffer used to send data. Should be size data + MSG_START + MSG_END */
     uint16_t total_bytes_to_send;   /* Length of string we are to send */
     uint16_t all_sent_bytes;        /* Total number of bytes sent */
     uint16_t bytes_left_to_send;    /* Tally of the number of bytes left to sent */
@@ -472,15 +536,16 @@ int send_data ( const int socket_fd, const char * data )
     bytes_sent = 0;
     n_buffers_to_send = 0;
 
-    total_bytes_to_send = strlen ( data ) + 1; /* Plus 1 to include termination terminal */
-    bytes_left_to_send = total_bytes_to_send;
-    n_buffers_to_send = ( (total_bytes_to_send)/MAX_MSG_SZ );
+    n_buffers_to_send = data_sz/MAX_MSG_SZ;
 
-    if ( (total_bytes_to_send) % MAX_MSG_SZ != 0 )
+    if ( data_sz % MAX_MSG_SZ != 0 )
     {
-        /* There are additional bytes leftover, add one message */
+        /* There are additional bytes leftover, add one message. Essentially acts as a round-to-ceiling. */
         n_buffers_to_send+=1;
     }
+
+    total_bytes_to_send = data_sz + n_buffers_to_send * MSG_HEADER_SZ; /* data bytes to send + msg header size for each buffer needed to send */
+    bytes_left_to_send = total_bytes_to_send;
 
 
     /*----------------------------------
@@ -489,12 +554,12 @@ int send_data ( const int socket_fd, const char * data )
 
     for (uint8_t i = 0; i < n_buffers_to_send; i++)
     {
-        bzero(buffer, MAX_MSG_SZ);
+        bzero(buffer, MAX_TX_MSG_SZ);
 
         /* Determine number of bytes to send */
-        if (bytes_left_to_send > MAX_MSG_SZ)
+        if (bytes_left_to_send > MAX_TX_MSG_SZ)
         {
-            bytes_to_send = MAX_MSG_SZ;
+            bytes_to_send = MAX_TX_MSG_SZ;
         }
         else
         {
@@ -502,17 +567,15 @@ int send_data ( const int socket_fd, const char * data )
         }
 
         /* Verify there are bytes to send */
-        if ( bytes_to_send == 0 )
-        {
-            return 0;
-        }
+        assert ( bytes_to_send > 0 );
 
+        buffer[0] = MSG_START;
         /* Get substring to be sent */
-        memcpy( buffer, &data[all_sent_bytes], bytes_to_send);
-        //TODO does this need null termination?
+        memcpy( &buffer[1], &data[all_sent_bytes], bytes_to_send-MSG_HEADER_SZ);
+        buffer[bytes_to_send-sizeof(MSG_END)] = MSG_END;
         
-        /* if this is the last message to send */ /* For send flags, see https://linux.die.net/man/2/send */
-        if (i != n_buffers_to_send-1 )
+        /* if this is the last message to send in a sequence, set appropiate flag */ /* For send flags, see https://linux.die.net/man/2/send */
+        if (i == n_buffers_to_send-1 )
         {
             send_flags = 0;
         }
@@ -525,18 +588,28 @@ int send_data ( const int socket_fd, const char * data )
         bytes_sent = send ( socket_fd, buffer, bytes_to_send, send_flags );
         
         /* Verify bytes were sent */
-        if ( bytes_sent < 1 )
+        if ( bytes_sent != bytes_to_send )
         {
             perror("ERROR: Failed to send data.");
-            // exit(EXIT_FAILURE);
             return -1;
         }
+
+        /* Info print */
+        printf ("Sent data: ");
+        putchar('0');
+        putchar('x');
+        for (int i = 0; i < bytes_to_send; i++) {
+            printf("%02x ", buffer[i]);
+        }
+        putchar('\n');
 
         all_sent_bytes += bytes_sent;
         bytes_left_to_send -= bytes_sent;
         
     } /* For loop */
 
+    /* Info print */
+    putchar('\n');
 
     /*----------------------------------
     |        VERIFY DATA WAS SENT       |
@@ -546,14 +619,11 @@ int send_data ( const int socket_fd, const char * data )
     {
         printf("ERROR: sent %u of %u bytes\n", all_sent_bytes, total_bytes_to_send);
         perror("ERROR");
-        exit(EXIT_FAILURE);
         return -1;
     }
 
-    /* Info print */
-    printf ("Sent data: \"%s\" \n", data);
     
-    return all_sent_bytes;
+    return data_sz;
 } /* send_data */
 
 #endif

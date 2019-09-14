@@ -4,3 +4,6 @@ exe*
 # Directories
 backups/**
 WorkingConfigs/**
+
+# Other
+device-id
