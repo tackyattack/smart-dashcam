@@ -31,7 +31,24 @@ void draw_callback(OGL_PROGRAM_CONTEXT_T *program_ctx, int current_render_stage)
 {
   //if stage == x, set_repeat_stage();
   // glUniform1i(get_program_var(program_ctx, "my_var")->location, my_value);
-  //printf("******* stage%d\n", current_render_stage);
+  // printf("******* stage%d\n", current_render_stage);
+  // static int repeat_flag_A = 4;
+  // static int repeat_flag_B = 4;
+  // if(current_render_stage == 0)
+  // {
+  //   repeat_flag_A = 4;
+  //   repeat_flag_B = 4;
+  // }
+  // if((current_render_stage == 2) &&(repeat_flag_A))
+  // {
+  //   set_repeat_stage();
+  //   repeat_flag_A--;
+  // }
+  // if((current_render_stage == 3) &&(repeat_flag_B))
+  // {
+  //   set_repeat_stage();
+  //   repeat_flag_B--;
+  // }
 }
 
 int main ()

@@ -114,9 +114,10 @@ void init_image_processing_pipeline(char *vertex_shader_path, IMAGE_PIPELINE_SHA
    // Since a texture is linked to this framebuffer, anything written in the shader will write to the texture
    glBindFramebuffer(GL_FRAMEBUFFER, out_fbo);
 
-   glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+   glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT); // Having this in there may signal to GPU that framebuffer doesn't
+                                                     // need to go back to CPU
    check();
-   glBindBuffer(GL_ARRAY_BUFFER, vbuffer);
+   //glBindBuffer(GL_ARRAY_BUFFER, vbuffer);
 
    // installs the program (done after it has been linked)
    glUseProgram ( program_ctx->program );
