@@ -25,6 +25,9 @@ General-Purpose computing on GPU (GPGPU) using OpenGL|ES
 #include "image_loader.h"
 #include "ogl_image_proc_pipeline.h"
 
+#define NUM_SHADERS 6
+
+
 // this will be called right before drawing so you can set variables
 // or tell it to repeat this stage
 void draw_callback(OGL_PROGRAM_CONTEXT_T *program_ctx, int current_render_stage)
@@ -59,9 +62,16 @@ void draw_callback(OGL_PROGRAM_CONTEXT_T *program_ctx, int current_render_stage)
 
   if((current_render_stage == 2)&&(repeat_flag_A))
   {
-    set_repeat_stage();
+    //set_repeat_stage();
     printf("   the last stage's output unit is:%d\n", get_last_output_stage_unit());
     repeat_flag_A--;
+  }
+
+  static GLuint toggle = 0;
+  if(current_render_stage == (NUM_SHADERS-1))
+  {
+    glUniform1i(get_program_var(program_ctx, "fps_state")->location, toggle);
+    toggle = !toggle;
   }
 
 
@@ -81,7 +91,7 @@ int main ()
   //                             "shaders/blur3_fshader.glsl",
   //                             "shaders/red_to_grayscale_fshader.glsl",
   //                             "shaders/texture_renderer.glsl"};
-  IMAGE_PIPELINE_SHADER_T pipeline_shaders[5];
+  IMAGE_PIPELINE_SHADER_T pipeline_shaders[NUM_SHADERS];
   pipeline_shaders[0].fragment_shader_path = "shaders/grayscale_fshader.glsl";
   pipeline_shaders[0].num_vars = 2;
   char *shader1_vars[] = {"my_var1", "my_var2"};
@@ -93,10 +103,14 @@ int main ()
   pipeline_shaders[2].num_vars = 0;
   pipeline_shaders[3].fragment_shader_path = "shaders/red_to_grayscale_fshader.glsl";
   pipeline_shaders[3].num_vars = 0;
-  pipeline_shaders[4].fragment_shader_path = "shaders/texture_renderer.glsl";
+  pipeline_shaders[4].fragment_shader_path = "shaders/sobel_fshader.glsl";
   pipeline_shaders[4].num_vars = 0;
+  pipeline_shaders[5].fragment_shader_path = "shaders/texture_renderer.glsl";
+  pipeline_shaders[5].num_vars = 1;
+  char *texture_renderer_vars[] = {"fps_state"};
+  pipeline_shaders[5].vars = texture_renderer_vars;
 
-  init_image_processing_pipeline("shaders/flat_vshader.glsl", pipeline_shaders, 5);
+  init_image_processing_pipeline("shaders/flat_vshader.glsl", pipeline_shaders, NUM_SHADERS);
   register_draw_callback(draw_callback);
   load_image_to_first_stage("sample_images/road2.bmp");
   while(process_pipeline() != PIPELINE_COMPLETED)
@@ -116,15 +130,15 @@ int main ()
 
     reset_pipeline();
     load_image_to_first_stage("sample_images/road2.bmp");
-    glFlush(); // these are purely for getting an accurate time measurement (though forcing a sync could incur time too)
-    glFinish();
+    //glFlush(); // these are purely for getting an accurate time measurement (though forcing a sync could incur time too)
+    //glFinish();
     start_profiler_timer();
     while(process_pipeline() != PIPELINE_COMPLETED)
     {
 
     }
-    glFlush(); // these are purely for getting an accurate time measurement (though forcing a sync could incur time too)
-    glFinish();
+    //glFlush(); // these are purely for getting an accurate time measurement (though forcing a sync could incur time too)
+    //glFinish();
     eglSwapBuffers(egl_device.display, egl_device.surface);
     long run_time = stop_profiler_timer();
     printf("time ms: %ld\r\n", run_time);
