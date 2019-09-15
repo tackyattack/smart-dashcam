@@ -34,12 +34,16 @@ C_INC=-I$(shell pwd)
 #	-Wextra			Further enables addionational compiler warnings not included by -Wall
 #	-std=gnu99		Sets what language standard is used. gnu99: GNU dialect of ISO C99
 #	-ggdb			Enables debugging symbols for GDB
-CFLAGS= -Wall -Wextra -std=gnu99 -ggdb 
+#	-luuid			Use the uuid library. Note that this will need to be installed on the system.
+CFLAGS= -O3 -Wall -Wextra -std=gnu99 -ggdb -luuid
+
+# Define any parameters to be passed during compile time
+CDEFINES= -DUUID_FILE_NAME=\"$(ID_FILE)\"
 
 
-# define library paths in addition to /usr/lib
+# Define library paths in addition to /usr/lib
 #   if I wanted to include libraries not in /usr/lib I'd specify
-#   their path using -Lpath, something like:
+#   their path using -Lpath:
 # LDFLAGS=
 
 
@@ -55,30 +59,27 @@ CFLAGS= -Wall -Wextra -std=gnu99 -ggdb
 .PHONY: build server client runServer runClient debugServer debugClient setup download dependencies install clean clean-all
 
 # make build will compile all source code. This is the default if 'make' is run.
-build: server client | $(ID_FILE)
+build: server client
 	echo "\nFinished!"
 
-server: clean-all | $(ID_FILE)
+server: clean-all
 	# Compile server C code:
-	$(CC) $(C_SERV_SRC) $(C_INC) -o $(EXE_SERV) $(CFLAGS)
+	$(CC) $(C_SERV_SRC) $(C_INC) $(CFLAGS) -o $(EXE_SERV)
 
 	chmod 770 $(EXE_SERV)
 
-client: clean-all | $(ID_FILE)
+client: clean-all
 	# Compile client C code:
-	$(CC) -DUUID_FILE_NAME=\"$(ID_FILE)\" $(C_CLIENT_SRC) $(C_INC) -o $(EXE_CLIENT) $(CFLAGS)
+	$(CC) $(C_CLIENT_SRC) $(C_INC) $(CFLAGS) $(CDEFINES) -o $(EXE_CLIENT)
 	chmod 770 $(EXE_CLIENT)
 
-runServer: $(EXE_SERV) | $(ID_FILE)
+runServer: $(EXE_SERV)
 	echo "\n -----------------Executing Server-----------------\n\n"
 	./$(EXE_SERV)
 
-runClient: $(EXE_CLIENT) | $(ID_FILE)
+runClient: $(EXE_CLIENT)
 	echo "\n-----------------Executing Client-----------------\n\n"
 	./$(EXE_CLIENT)
-
-$(ID_FILE):
-	uuid -mF STR -o $(ID_FILE)
 
 debugClient: $(EXE_CLIENT)
 	gdb $(EXE_CLIENT)
@@ -92,10 +93,17 @@ setup: clean-all dependencies download install clean
 	echo "\nSystem setup\n"
 # make dependencies will install any software/package dependencies needed (ie installs gcc on system)
 dependencies:
-	#uuid
-	#glibc
-	#gcc
-	#make
+	#For alpine linux 
+		#util-linux-dev 	#for uuid generator
+		#glibc 				# Compiler stuff
+		#gcc				# Compiler
+		#cmake				# For makefile(s)
+		#git				# For git
+		#build-essentials	
+	#For Raspbian
+		#uuid-dev			# For uuid generator
+		#build-essentials	
+		#git				# For git
 # make download will download any items (not software) needed (ie gcc source code for a cross compiler)
 download:
 # make install will install any software/items needed to build/run code but that is not a software package (ie used to build a cross compiler)
@@ -104,4 +112,4 @@ install:
 clean :
 # make clean-all will remove all generated/downloaded files. Should essetially revert directories back to original post clone state
 clean-all:
-	rm -rf $(EXE_SERV) $(EXE_CLIENT)
+	rm -rf $(EXE_SERV) $(EXE_CLIENT) $(ID_FILE)

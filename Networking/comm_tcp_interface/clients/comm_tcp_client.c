@@ -10,8 +10,8 @@
                                                                         message from the server within this amount of time (s), disconnect and assume failure */
 
 /* Static variables */
-static int client_fd = -1;
-static char UUID[UUID_SZ+1] = {0};
+static int client_fd = -1;          /* Stores the socket_fd for our connection to the server */
+static char UUID[UUID_SZ+1] = {0};  /* Stores our UUID. +1 because uuid_unparse generates a str with UUID_SZ ascii characters plus a termination char */
 
 
 /* Check for value parameters and return port number */
@@ -52,7 +52,25 @@ char* check_parameters(int argc, char *argv[])
     return port;
 } /* check_parameters() */
 
-/* Reads UUID from file. Returns -1 if failed. str should be at least UUID_SZ+1 */
+/* Generate uuid and set UUID to the new uuid */
+void uuid_create()
+{
+    /*----------------------------------
+    |             VARIABLES             |
+    ------------------------------------*/
+    uuid_t new_uuid;
+
+
+    /*----------------------------------
+    |       CREATE AND SAVE UUID        |
+    ------------------------------------*/
+    uuid_generate(new_uuid);
+    uuid_unparse_lower(new_uuid, UUID);
+
+} /* uuid_create() */
+
+/* Reads UUID from file. If UUID file doesn't exist, it is created 
+    -Returns -1 if failed. */
 void load_uuid()
 {
     /*----------------------------------
@@ -61,12 +79,24 @@ void load_uuid()
     FILE *fptr;
     char buffer[UUID_SZ]; /* Defined at compile time */
 
-    fptr = fopen(UUID_FILE_NAME,"r"); /* UUID_FILE_NAME if defined at compile time */
+
     /*----------------------------------
     |          INITIALIZATIONS          |
     ------------------------------------*/
+    assert(UUID_FILE_NAME != NULL);
+    fptr = fopen(UUID_FILE_NAME,"r"); /* UUID_FILE_NAME is defined at compile time */
 
-    assert(fgets(buffer,UUID_SZ,fptr) != NULL); /* get uuid string from file */
+    if(fptr != NULL)
+    {
+        assert(fgets(buffer,UUID_SZ,fptr) != NULL); /* get uuid string from file */
+    }
+    else
+    {
+        uuid_create();
+        fptr = fopen(UUID_FILE_NAME,"w"); /* UUID_FILE_NAME is defined at compile time */
+        fputs(UUID, fptr);
+    }
+    
 
     /*----------------------------------
     |         SAVE UUID TO UUID         |
