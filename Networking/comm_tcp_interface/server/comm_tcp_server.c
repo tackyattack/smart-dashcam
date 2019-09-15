@@ -54,8 +54,6 @@ void  PIPEhandler(int sig)
 
 
     signal(SIGPIPE, PIPEhandler);
-    // close(server_socket_fd);
-    // exit(EXIT_SUCCESS);
 }
 
 /* Return the pointer to the client_info struct containing
@@ -219,10 +217,10 @@ int handle_conn_request()
     new_client_sz = sizeof(new_client_info);    /* Size of client info struct */
     struct client_info *new_client;             /* Struct containing client information such as UUID */
 
+
     /*----------------------------------
     |        ACCEPT CONN REQUEST        |
     ------------------------------------*/
-    
     new_client_fd = accept(server_socket_fd, (struct sockaddr *)&new_client_info, &new_client_sz);
 
 
@@ -240,7 +238,6 @@ int handle_conn_request()
     /*----------------------------------
     |        SET/ADD CLIENT INFO        |
     ------------------------------------*/
-
     new_client = malloc(sizeof(struct client_info));
     assert(new_client!=NULL);
     new_client->fd = new_client_fd;
@@ -422,23 +419,26 @@ int send_to_all(const char* buffer, const int buffer_sz)
     returnval = 0;
 
 
-    /* Remove client from list of client infos */
+    /*----------------------------------
+    |            SEND PINGS             |
+    ------------------------------------*/
     for(client=client_infos; client!=NULL; client=client->next)
     {
         n = send_data(client->fd,buffer,buffer_sz);
         if( n < 1 )
         {
+            /* Disconnect client if failed to send message */
             close_conn(client->fd);
         }
         else
         {
+            /* Tally total bytes sent */
             returnval += n;
         }
         
     } /* for */
 
     return returnval;
-
 } /* send_to_all */
 
 /* Check if message has been received from any clients and
@@ -454,14 +454,11 @@ void service_sockets(const fd_set *read_fd_set)
     /*----------------------------------
     |     SERVICE SOCKETS WITH INPUT    |
     ------------------------------------*/
-
     for (i = 0; i < FD_SETSIZE; ++i)
     {
         /* Check if clients fd is set */
         if (FD_ISSET(i, read_fd_set))
         {
-            /* Check if the server's fd is set, 
-                if so, handle conenction request */
             if (i == server_socket_fd)
             {
                 /*----------------------------------
@@ -489,7 +486,6 @@ void execute_server()
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
-
     fd_set active_fd_set, read_fd_set;          /* generic file descriptor set for sockets */
     struct timeval timeout;                     /* Used to set select() timeout time */
     int select_return;                          /* Return value of select() */
@@ -500,7 +496,6 @@ void execute_server()
     /*----------------------------------
     |            INITIALIZE             |
     ------------------------------------*/
-
     /* Initialize the set of active sockets. */
     FD_ZERO(&active_fd_set);
     FD_SET(server_socket_fd, &active_fd_set);
@@ -510,11 +505,10 @@ void execute_server()
     /*----------------------------------
     |           INFINITE LOOP           |
     ------------------------------------*/
-
     while (1)
     {
         /*----------------------------------
-        |     ITERATION INITIALIZATIONS     |
+        |     ITERATION INITIALIZATION      |
         ------------------------------------*/
         timeout.tv_sec  = 0;// SERVER_PING_TIMEOUT; /*  */
         timeout.tv_usec = SELECT_TIMEOUT_TIME*10000; /* Set select() to block for SELECT_TIMEOUT_TIME ms */
@@ -529,7 +523,6 @@ void execute_server()
             fprintf (stderr, "errno = %d ", errno);
             perror("select");
             continue;
-            // exit(EXIT_FAILURE);
         }
 
         if(select_return != 0) /* Received a message */
@@ -541,7 +534,6 @@ void execute_server()
         /*----------------------------------
         |            PING CLIENTS           |
         ------------------------------------*/
-
         if ( TIME_BETWEEN_PINGS <= (time(NULL)-lastPing) && client_infos != NULL)
         {
             /* Info print */
@@ -568,9 +560,8 @@ int main(int argc, char *argv[])
     char* port;                              /* Port number for socket server */
     
     /*----------------------------------
-    |       SETUP SIGNAL CATCHING       |
+    |       SETUP SIGNAL HANDLERS       |
     ------------------------------------*/
-    /* Handle ctrl + c signal to force safe shutdown of socket */
     struct sigaction act_sigint,act_sigpipe;
     act_sigint.sa_handler = INThandler;
     sigaction(SIGINT, &act_sigint, NULL);
@@ -581,7 +572,6 @@ int main(int argc, char *argv[])
     /*----------------------------------
     |            CHECK INPUT            |
     ------------------------------------*/
-    /* Check and parse input parameters */
     port = check_parameters(argc, argv);
 
 

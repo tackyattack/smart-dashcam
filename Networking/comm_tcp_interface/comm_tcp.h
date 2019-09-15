@@ -26,14 +26,11 @@
 /* First/Last byte received is msg start/end/cont indicator */
 #define MSG_START                (uint8_t)0x0F                       /* Message separator. Used to detect begining of message */
 #define MSG_END                  (uint8_t)0x0E                       /* Message separator. Used to detect end of message */
-#define MSG_HEADER_SZ              (sizeof(MSG_START)+sizeof(MSG_END)) /* Total size used by the message headers */
-// #define MSG_CONT                 0x0D                             /* Message separator. Used to signify message is continued due to length 
-//                                                                     being a multiplyer of MAX_MSG_SZ. Also signifies MSG_END implicitly */
+#define MSG_HEADER_SZ            (sizeof(MSG_START)+sizeof(MSG_END)) /* Total size used by the message headers */
 
 /* 2nd byte is a command indicator */
 #define COMMAND_PING             (uint8_t)0x0F                       /* If this is received, we have been pinged and request this msg be echoed back */
-#define COMMAND_DISCONNECT       (uint8_t)0x0E                       /* If received, signals to disconnect */
-#define COMMAND_UUID             (uint8_t)0x0D                       /* If received, signals msg data is our UUID */
+#define COMMAND_UUID             (uint8_t)0x0E                       /* If received, signals msg data is our UUID */
 
 
 /* Defaults */
@@ -42,14 +39,17 @@
 #define DEFAULT_PORT             "5555"                              /* Port number to use if none are given */
 #define MAX_HOSTNAME_SZ          (255)                               /* Max size/length a hostname can be */
 #define MAX_TX_MSG_SZ            (512)                               /* max size of the message that will be sent over socket. NOTE, this should not be used outside of this file */
-#define MAX_MSG_SZ               (MAX_TX_MSG_SZ-MSG_HEADER_SZ)         /* max size of the message payload that can be sent */
+#define MAX_MSG_SZ               (MAX_TX_MSG_SZ-MSG_HEADER_SZ)       /* max size of the message payload that can be sent */
 #define CONNECT_TIMEOUT          (1)                                 /* Set a timeout of 1 second for socket client connect attempt */
 #define UUID_SZ                  (36)                                /* UUID is 4 hyphens + 32 digits */
 #define TIME_BETWEEN_PINGS       (1)                                 /* Time (in seconds) between pings from the server. The server sends a ping to all clients every TIME_BETWEEN_PINGS seconds */
 
-/* Modifies ip string to be IP address of hostname found.
-    ip must be a char string of length MAX_HOSTNAME_SZ.
-    Return -1 if hostname not found */
+/* Modifies ip string to be IP address of hostname.
+    IP must be a char string of length MAX_HOSTNAME_SZ.
+    Return -1 if hostname not found. Note that hostname
+    can be the hostname of ip of a machine. 
+    -returns -1 if failed to find hostname and leaves ip
+        string untouched. Returns 0 if found hostname. */
 int hostname_to_ip(const char * hostname , char* ip)
 {
     /*----------------------------------
@@ -110,6 +110,7 @@ void print_addrinfo(const struct addrinfo *addr)
     {
         printf("host=%s, serv=%s\n", hbuf, sbuf);
     }
+
 } /* print_addrinfo() */
 
 int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t timeout)
@@ -129,14 +130,12 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
     /*----------------------------------
     |          INITIALIZATIONS          |
     ------------------------------------*/
-
     returnval = 0;
 
 
     /*----------------------------------
     |       SET NOT-BLOCKING MODE       |
     ------------------------------------*/
-
     if ((flags = fcntl(sock, F_GETFL, NULL)) < 0)
     {
         fprintf(stderr, "Error fcntl(..., F_GETFL) (%s)\n", strerror(errno));
@@ -155,7 +154,6 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
     /*----------------------------------
     |  ATTEMPT TO CONNECT WITH TIMEOUT  |
     ------------------------------------*/
-
     res = connect(sock, addr, addrlen);
     if (res < 0)
     {
@@ -167,7 +165,6 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
                 /*----------------------------------
                 |       LOOP INITIALIZATIONS        |
                 ------------------------------------*/
-
                 tv.tv_sec = timeout;
                 tv.tv_usec = 0;
                 FD_ZERO(&myset);
@@ -177,7 +174,6 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
                 /*----------------------------------
                 |       GET CONNECTION STATUS       |
                 ------------------------------------*/
-
                 res = select(sock + 1, NULL, &myset, NULL, &tv);
                 if (res < 0 && errno != EINTR)
                 {
@@ -224,7 +220,6 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
     /*----------------------------------
     |         SET BLOCKING MODE         |
     ------------------------------------*/
-
     if ((flags = fcntl(sock, F_GETFL, NULL)) < 0)
     {
         fprintf(stderr, "Error fcntl(..., F_GETFL) (%s)\n", strerror(errno));
@@ -248,7 +243,6 @@ int server_bind(struct addrinfo *address_info_set)
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
-
     int server_fd;
     struct addrinfo *i;
 
@@ -256,7 +250,6 @@ int server_bind(struct addrinfo *address_info_set)
     /*----------------------------------
     |          ATTEMPT TO BIND          |
     ------------------------------------*/
-
     for (i = address_info_set; i != NULL; i = i->ai_next)
     {
         server_fd = socket(i->ai_family, i->ai_socktype, i->ai_protocol);
@@ -276,25 +269,22 @@ int server_bind(struct addrinfo *address_info_set)
     /*----------------------------------
     |           VERIFICATION            |
     ------------------------------------*/
-
-    /* Verify we successfully binded to an address */
     if (i == NULL)
     {
         fprintf(stderr, "Could not bind\n");
         return -1;
-        // exit(EXIT_FAILURE);
     }
 
     return server_fd;
 } /* server_bind() */
 
-/* Returns the client_fd. Returns -1 if failed to connect. */
+/* Returns the client_fd. 
+    -Returns -1 if failed to connect. */
 int client_connect(struct addrinfo *address_info_set)
 {
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
-
     int client_fd;
     struct addrinfo *i;
 
@@ -302,7 +292,6 @@ int client_connect(struct addrinfo *address_info_set)
     /*----------------------------------
     |         ATTEMPT TO CONNECT        |
     ------------------------------------*/
-
     for (i = address_info_set; i != NULL; i = i->ai_next)
     {
         client_fd = socket(i->ai_family, i->ai_socktype, i->ai_protocol);
@@ -322,12 +311,10 @@ int client_connect(struct addrinfo *address_info_set)
     /*----------------------------------
     |           VERIFY SUCCESS          |
     ------------------------------------*/
-
     if (i == NULL)
     {
         fprintf(stderr, "Could not open socket\n");
         return -1;
-        // exit(EXIT_FAILURE);
     }
 
     /* Print info */
@@ -339,7 +326,7 @@ int client_connect(struct addrinfo *address_info_set)
 /* Given a port number, socket type, an address (this can be IP or hostname), 
     and a value for the type_serv_client parameter, this will return a socket.
     If setting up a Server use IS_SERVER. Else use IS_CLIENT for the type_serv_client parameter.
-    If setting up a server, addr can be NULL to use that machines IP.  
+    If setting up a server, addr can be NULL.  
     Returns -1 if failed. */
 int make_socket(char* port, uint8_t socket_type,  const char *addr, uint8_t type_serv_client)
 {
@@ -357,59 +344,52 @@ int make_socket(char* port, uint8_t socket_type,  const char *addr, uint8_t type
     ------------------------------------*/
     memset(&hints, 0, sizeof(struct addrinfo));
 
-    /* Set the socket info. */
     hints.ai_family = DEFAULT_CONN_TYPE;        /* ipv4/ipv6/any/local */
-    hints.ai_socktype = socket_type;    /* TCP/UDP/local.... */
+    hints.ai_socktype = socket_type;            /* TCP/UDP/local.... */
     hints.ai_protocol = 0;                      /* Any Port number. Don't worry, we set the desired port later */
-    hints.ai_canonname = NULL;
-    hints.ai_addr = NULL;
-    hints.ai_next = NULL;
+    hints.ai_canonname = NULL;                  /* This would be a hostname but we use a different method */
+    hints.ai_addr = NULL;                       /* This would be ip address but we dont use this */
+    hints.ai_next = NULL;                       /* Next addrinfo struct pointer */
     
-    /* Initialize for addr. Check if addr is a valid hostname/IP address and get the IP address if it's a hostname. */
     if ( addr != NULL && hostname_to_ip(addr,ip) != -1 )
     {
         addr = ip;
     } 
 
-    /* Settings/initializations specific to being a server/client */
-    if ( type_serv_client == IS_SERVER ) /* If we are a server */
+    if ( type_serv_client == IS_SERVER )
     {
         /* Set passive flag on server to signify we want to use this machine's IP/addr */
         hints.ai_flags = AI_PASSIVE;
         
-        /* If we are a server, use addr NULL */
+        /* If we are a server, addr should be NULL */
         addr = NULL;
     }
     else /* We are a client */
     {
-        hints.ai_flags = 0; /* Flags for clients */
+        hints.ai_flags = 0;
     }
 
 
     /*----------------------------------
     |       GET NETWORK ADDR INFO       |
     ------------------------------------*/
-
     int err = getaddrinfo(addr,port,&hints, &name);
     if ( err != 0 )
     {
         fprintf(stderr, "%s: %s\n", addr, gai_strerror(err));
         perror("ERROR: host/client address not valid");
         return -1;
-        // exit(EXIT_FAILURE);
     }
 
    
     /*----------------------------------
     |   GET SOCKET_FD AND BIND/CONNECT  |
     ------------------------------------*/
-    
-    /* Get socket file descriptor and bind if server or connect if client */
-    if ( type_serv_client == IS_SERVER ) /* If we are a server wishing to bind */
+    if ( type_serv_client == IS_SERVER )
     {
         socket_fd = server_bind( name );
     } 
-    else /* We are a client wishing to connect to a server */
+    else
     {
         socket_fd = client_connect( name );
     }
@@ -418,76 +398,91 @@ int make_socket(char* port, uint8_t socket_type,  const char *addr, uint8_t type
     /*----------------------------------
     |            FREE MEMORY            |
     ------------------------------------*/
-
     freeaddrinfo(name);
-
 
     return socket_fd;
 } /* make_socket() */
 
-/* Returns the received data's payload. 
-    Returns -1 if data received is invalid, else the length of the payload */
-int get_data_payload(char *buffer, int bytes_read)
+/* Removes message headers from the buffer string. 
+    -Returns -1 if data received is invalid (invalid message headers), 
+        else the length of the payload */
+int remove_msg_header(char *buffer, int buffer_sz)
 {
+    /*----------------------------------
+    |             VARIABLES             |
+    ------------------------------------*/
     char *temp;
 
-    if (bytes_read <= 0)
+
+    /*----------------------------------
+    |           VERIFICATION            |
+    ------------------------------------*/
+    if (buffer_sz <= 0)
     {
         return -1;
     }
     assert(buffer != NULL);
 
-    if (buffer[0] != MSG_START || buffer[bytes_read-1] != MSG_END)
+
+    /*----------------------------------
+    |       CHECK FOR MSG HEADERS       |
+    ------------------------------------*/
+    if (buffer[0] != MSG_START || buffer[buffer_sz-1] != MSG_END)
     {
         /* Info print */
-        printf("Received invalid message!...continuing");
+        printf("Received invalid message!");
         return -1;
     }
-    //TODO could implement ability to search for/find the msg start/end
+    //TODO should implement ability to search for/find the msg start/end
 
+
+    /*----------------------------------
+    |        REMOVE MSG HEADERS         |
+    ------------------------------------*/
     /* Copy message (data minus header) to a temp string. Then erase buffer and copy message to buffer */
-    temp = malloc(bytes_read-MSG_HEADER_SZ);
-    memcpy(temp, (const void *)&buffer[1], (bytes_read-MSG_HEADER_SZ));
-    bzero(buffer,bytes_read);
-    memcpy(buffer, temp, (bytes_read-MSG_HEADER_SZ));
+    temp = malloc(buffer_sz-MSG_HEADER_SZ);
+    memcpy(temp, (const void *)&buffer[1], (buffer_sz-MSG_HEADER_SZ));
+    bzero(buffer,buffer_sz);
+    memcpy(buffer, temp, (buffer_sz-MSG_HEADER_SZ));
 
+
+    /*----------------------------------
+    |            FREE MEMORY            |
+    ------------------------------------*/
     free(temp);
 
-    return (int)(bytes_read-MSG_HEADER_SZ);
-} /* get_data_payload */
+    return (int)(buffer_sz-MSG_HEADER_SZ);
+} /* remove_msg_header */
 
 
-/* Given a socket file descriptor, reads data and returns the number of bytes read. This is a blocking call. 
-    Returns negative number if failed to receive data. */
+/* Given a socket file descriptor and buffer, receives data received. 
+    This is a blocking call. 
+    -Returns negative number if failed to receive data else number of bytes received. 
+        Receiving 0 bytes is generally indicative of the sending closing their socket. */
 int receive_data(int socket_fd, char* buffer, const size_t buffer_sz)
 {
     //TODO see if data received is broken into MAX_MSG_SZ chucks or is received in its entirety
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
-
     int bytes_read;
 
 
     /*----------------------------------
-    |             READ DATA             |
+    |   READ DATA FROM FILE DESCRIPTOR  |
     ------------------------------------*/
-
     //TODO see what happens if buffer is too small for received data
     bytes_read = read(socket_fd, buffer, buffer_sz);
 
-    /* Check for error/EOF */    
     if (bytes_read < 0)
     {
         /* Read error. */
         fprintf (stderr, "errno = %d ", errno);
         perror("read");
-        // exit(EXIT_FAILURE);
     }
-        /* Received invalid message */
     else if (bytes_read < (int)MSG_HEADER_SZ )
     {
-        /* End-of-file. This signifies to close the connection */
+        /* Soft error: didn't receive minumum number of bytes expected */
         return -1;
     }
 
@@ -501,22 +496,20 @@ int receive_data(int socket_fd, char* buffer, const size_t buffer_sz)
     putchar('\n');
     putchar('\n');
     
-    return get_data_payload(buffer, bytes_read);
+    return remove_msg_header(buffer, bytes_read);
 
 } /* receive_data() */
 
 
-/* Send data. Returns number of bytes sent or -1 or 0 if there's an error. Sends a char* up to 2^16 in size 
-    Please note that data_sz should include a termination character if applicable.
-    
-    Please note that calls to this are thread safe as long as the size of data is less than MAX_MSG_SZ
-        including any termination characters if applicable. */
+/*  Sends a char* up to 2^16 in size given a socket_fd and data string
+    Note that data_sz should include a termination character if applicable.
+    Note that calls to this are thread safe as long as the size of data is less than MAX_MSG_SZ
+    -Returns number of bytes sent or -1 or 0 if there's an error. */
 int send_data ( const int socket_fd, const char * data, const uint16_t data_sz )
 {
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
-    
     char buffer[MAX_TX_MSG_SZ];     /* Buffer used to send data. Should be size data + MSG_START + MSG_END */
     uint16_t total_bytes_to_send;   /* Length of string we are to send */
     uint16_t all_sent_bytes;        /* Total number of bytes sent */
@@ -530,7 +523,6 @@ int send_data ( const int socket_fd, const char * data, const uint16_t data_sz )
     /*----------------------------------
     |          INITIALIZATIONS          |
     ------------------------------------*/
-    
     send_flags = 0;
     all_sent_bytes = 0;
     bytes_sent = 0;
@@ -540,23 +532,21 @@ int send_data ( const int socket_fd, const char * data, const uint16_t data_sz )
 
     if ( data_sz % MAX_MSG_SZ != 0 )
     {
-        /* There are additional bytes leftover, add one message. Essentially acts as a round-to-ceiling. */
         n_buffers_to_send+=1;
     }
 
-    total_bytes_to_send = data_sz + n_buffers_to_send * MSG_HEADER_SZ; /* data bytes to send + msg header size for each buffer needed to send */
+    total_bytes_to_send = data_sz + n_buffers_to_send * MSG_HEADER_SZ;
     bytes_left_to_send = total_bytes_to_send;
 
 
     /*----------------------------------
     |             SEND DATA             |
     ------------------------------------*/
-
     for (uint8_t i = 0; i < n_buffers_to_send; i++)
     {
         bzero(buffer, MAX_TX_MSG_SZ);
 
-        /* Determine number of bytes to send */
+        /* Determine number of bytes to send this iteration */
         if (bytes_left_to_send > MAX_TX_MSG_SZ)
         {
             bytes_to_send = MAX_TX_MSG_SZ;
@@ -570,7 +560,7 @@ int send_data ( const int socket_fd, const char * data, const uint16_t data_sz )
         assert ( bytes_to_send > 0 );
 
         buffer[0] = MSG_START;
-        /* Get substring to be sent */
+        /* Get substring to be sent and copy to buffer */
         memcpy( &buffer[1], &data[all_sent_bytes], bytes_to_send-MSG_HEADER_SZ);
         buffer[bytes_to_send-sizeof(MSG_END)] = MSG_END;
         
@@ -581,7 +571,7 @@ int send_data ( const int socket_fd, const char * data, const uint16_t data_sz )
         }
         else /*else this is not the last message to send */
         {
-            send_flags = send_flags | MSG_MORE; /* signifies there is more data to send. */
+            send_flags = send_flags | MSG_MORE;
         }
         
         /* Send the message */
@@ -603,6 +593,7 @@ int send_data ( const int socket_fd, const char * data, const uint16_t data_sz )
         }
         putchar('\n');
 
+        /* Tally bytes */
         all_sent_bytes += bytes_sent;
         bytes_left_to_send -= bytes_sent;
         
@@ -614,7 +605,6 @@ int send_data ( const int socket_fd, const char * data, const uint16_t data_sz )
     /*----------------------------------
     |        VERIFY DATA WAS SENT       |
     ------------------------------------*/
-
     if ( all_sent_bytes != total_bytes_to_send )
     {
         printf("ERROR: sent %u of %u bytes\n", all_sent_bytes, total_bytes_to_send);
@@ -622,7 +612,6 @@ int send_data ( const int socket_fd, const char * data, const uint16_t data_sz )
         return -1;
     }
 
-    
     return data_sz;
 } /* send_data */
 
