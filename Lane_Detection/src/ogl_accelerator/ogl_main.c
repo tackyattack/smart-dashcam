@@ -25,7 +25,7 @@ General-Purpose computing on GPU (GPGPU) using OpenGL|ES
 #include "image_loader.h"
 #include "ogl_image_proc_pipeline.h"
 
-#define NUM_SHADERS 6
+#define NUM_SHADERS 7
 
 
 // this will be called right before drawing so you can set variables
@@ -101,14 +101,16 @@ int main ()
   pipeline_shaders[1].num_vars = 0;
   pipeline_shaders[2].fragment_shader_path = "shaders/blur3_fshader.glsl";
   pipeline_shaders[2].num_vars = 0;
-  pipeline_shaders[3].fragment_shader_path = "shaders/red_to_grayscale_fshader.glsl";
+  pipeline_shaders[3].fragment_shader_path = "shaders/birds_eye_fshader.glsl";
   pipeline_shaders[3].num_vars = 0;
-  pipeline_shaders[4].fragment_shader_path = "shaders/sobel_fshader.glsl";
+  pipeline_shaders[4].fragment_shader_path = "shaders/red_to_grayscale_fshader.glsl";
   pipeline_shaders[4].num_vars = 0;
-  pipeline_shaders[5].fragment_shader_path = "shaders/texture_renderer.glsl";
-  pipeline_shaders[5].num_vars = 1;
+  pipeline_shaders[5].fragment_shader_path = "shaders/sobel_fshader.glsl";
+  pipeline_shaders[5].num_vars = 0;
+  pipeline_shaders[6].fragment_shader_path = "shaders/texture_renderer.glsl";
+  pipeline_shaders[6].num_vars = 1;
   char *texture_renderer_vars[] = {"fps_state"};
-  pipeline_shaders[5].vars = texture_renderer_vars;
+  pipeline_shaders[6].vars = texture_renderer_vars;
 
   init_image_processing_pipeline("shaders/flat_vshader.glsl", pipeline_shaders, NUM_SHADERS);
   register_draw_callback(draw_callback);
@@ -126,8 +128,6 @@ int main ()
   // }
   while(1)
   {
-
-
     reset_pipeline();
     load_image_to_first_stage("sample_images/road2.bmp");
     //glFlush(); // these are purely for getting an accurate time measurement (though forcing a sync could incur time too)
