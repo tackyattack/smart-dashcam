@@ -27,7 +27,7 @@ for y in range(0, h):
         #               ])
 
         camera_matrix = np.array([[1, 0, 0, 0],
-                                  [0, 1, 0, 0],
+                                  [0, 1, 0, -100],
                                   [0, 0, 1, -200],
                                   [0, 0, 0, 1]
                                  ])
@@ -35,7 +35,7 @@ for y in range(0, h):
 
 
         a = np.array([[sy, 0, 0, 0],
-                      [0, sx*cos(t), sin(t), -100],
+                      [0, sx*cos(t), sin(t), 0],
                       [0, sin(t), cos(t), 0],
                       [0, 0, 0, 1]
                       ])
