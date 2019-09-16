@@ -5,7 +5,7 @@ from math import *
 import cv2
 
 image = cv2.imread('road3.png')
-image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 out_img=np.ndarray(shape=image.shape, dtype=image.dtype)
 
 h = image.shape[0]
@@ -20,72 +20,99 @@ for y in range(0, h):
         f = 0.1
 
 
-        # a = np.array([[1, 0, 0, 0],
-        #               [0, 1, 0, 0],
-        #               [0, 0, 1, 0],
+        # # a = np.array([[1, 0, 0, 0],
+        # #               [0, 1, 0, 0],
+        # #               [0, 0, 1, 0],
+        # #               [0, 0, 0, 1]
+        # #               ])
+        #
+        # camera_matrix = np.array([[1, 0, 0, 0],
+        #                           [0, 1, 0, -100],
+        #                           [0, 0, 1, -200],
+        #                           [0, 0, 0, 1]
+        #                          ])
+        # camera_location = np.array([0, 0, 1, 1])
+        #
+        #
+        # a = np.array([[sy, 0, 0, 0],
+        #               [0, sx*cos(t), sin(t), 0],
+        #               [0, sin(t), cos(t), 0],
         #               [0, 0, 0, 1]
         #               ])
+        #
+        #
+        # pixel_location = np.array([x-600/2, y-400/2, 0, 1])
+        #
+        # o = np.dot(a, pixel_location)
+        #
+        # cam_mat_inv = np.linalg.inv(camera_matrix)
+        # o = np.dot(cam_mat_inv, o)
+        #
+        #
+        # # make a pinhole camera to create the 3D object
+        # p = o[0] # x
+        # q = o[1]  # y
+        # r = o[2]  # z
+        # # u = f*p/(f+r)
+        # # v = f*q/(f+r)
+        #
+        # canvas_width = 2
+        # canvas_height = 2
+        # #https://www.scratchapixel.com/lessons/3d-basic-rendering/computing-pixel-coordinates-of-3d-point/mathematics-computing-2d-coordinates-of-3d-points?url=3d-basic-rendering/computing-pixel-coordinates-of-3d-point/mathematics-computing-2d-coordinates-of-3d-points
+        # # had to be negative or else you would get invalid values
+        # screen_x = p*f/(-1.0*r)#-int((600/2))
+        # screen_y = q*f/(-1.0*r)#-int((400/2))
+        #
+        # if (abs(screen_x) > canvas_width) or (abs(screen_y) > canvas_height):
+        #     pass
+        # else:
+        #
+        #     normal_x = (screen_x*1.0 + canvas_width/2.0)/canvas_width
+        #     normal_y = (screen_y*1.0 + canvas_height/2.0)/canvas_height
+        #     u = floor(normal_x * 600.0)
+        #     v = floor((1 - normal_y) * 400.0)
+        #
+        #     # w=600
+        #     # h=400
+        #     # zshift=-200
+        #     # vshift=-100
+        #     # u = -w*((f*sy*(w/2 - x))/(2*(zshift + sin(t)*(h/2 - y))) - 1/2)
+        #     # v = h*((f*(vshift + sx*cos(t)*(h/2 - y)))/(2*(zshift + sin(t)*(h/2 - y))) + 1/2)
+        #     # u=int(u)
+        #     # v=int(v)
 
-        camera_matrix = np.array([[1, 0, 0, 0],
-                                  [0, 1, 0, -100],
-                                  [0, 0, 1, -200],
-                                  [0, 0, 0, 1]
-                                 ])
-        camera_location = np.array([0, 0, 1, 1])
-
-
-        a = np.array([[sy, 0, 0, 0],
-                      [0, sx*cos(t), sin(t), 0],
-                      [0, sin(t), cos(t), 0],
-                      [0, 0, 0, 1]
-                      ])
-
-
-        pixel_location = np.array([x-600/2, y-400/2, 0, 1])
-
-        o = np.dot(a, pixel_location)
-
-        cam_mat_inv = np.linalg.inv(camera_matrix)
-        o = np.dot(cam_mat_inv, o)
-
-
-        # make a pinhole camera to create the 3D object
-        p = o[0] # x
-        q = o[1]  # y
-        r = o[2]  # z
-        # u = f*p/(f+r)
-        # v = f*q/(f+r)
-
-        canvas_width = 2
-        canvas_height = 2
-        #https://www.scratchapixel.com/lessons/3d-basic-rendering/computing-pixel-coordinates-of-3d-point/mathematics-computing-2d-coordinates-of-3d-points?url=3d-basic-rendering/computing-pixel-coordinates-of-3d-point/mathematics-computing-2d-coordinates-of-3d-points
-        # had to be negative or else you would get invalid values
-        screen_x = p*f/(-1.0*r)#-int((600/2))
-        screen_y = q*f/(-1.0*r)#-int((400/2))
-
-        if (abs(screen_x) > canvas_width) or (abs(screen_y) > canvas_height):
-            pass
+        w=600
+        h=400
+        zshift=-200
+        vshift=-200
+        u=x
+        v=y
+        input_x = (2*h*vshift*w*sin(t) - 4*h*u*vshift*sin(t) + h*sy*w*w*sin(t) - 2*v*sy*w*w*sin(t) - 2*h*sx*w*zshift*cos(t) + 4*h*u*sx*zshift*cos(t) + f*h*sx*sy*w*w*cos(t))/(2*sy*w*(h*sin(t) - 2*v*sin(t) + f*h*sx*cos(t)))
+        input_y = (h*h*sin(t) + 2*h*zshift - 4*v*zshift - 2*h*v*sin(t) + 2*f*h*vshift + f*h*h*sx*cos(t))/(2*h*sin(t) - 4*v*sin(t) + 2*f*h*sx*cos(t))
+        input_x = int(input_x)
+        input_y = int(input_y)
+        if (input_y > 0) and (input_y < 400) and (input_x > 0) and (input_x < 600):
+            out_img[y,x] = image[input_y, input_x]
         else:
+            out_img[y,x] = [0,0,0]
 
-            normal_x = (screen_x*1.0 + canvas_width/2.0)/canvas_width
-            normal_y = (screen_y*1.0 + canvas_height/2.0)/canvas_height
-            u = floor(normal_x * 600.0)
-            v = floor((1 - normal_y) * 400.0)
+            # # only map values in the right range
+            # if (v > 0) and (v < 400) and (u > 0) and (u < 600):
+            #     out_img[v,u] = image[y,x]
+            #     # filtering since the top and bottom pixel will get rounded
+            #     # so it might land on the wrong one, so just duplicate it
+            #     out_img[(v+1)%400,u] = image[y,x]
+            #     out_img[(v+2)%400, u] = image[y, x]
+            #     out_img[(v-2)%400, u] = image[y, x]
+            #     out_img[(v-1)%400, u] = image[y, x]
 
 
-            # only map values in the right range
-            if (v > 0) and (v < 400) and (u > 0) and (u < 600):
-                out_img[v,u] = image[y,x]
-                # filtering since the top and bottom pixel will get rounded
-                # so it might land on the wrong one, so just duplicate it
-                out_img[v+1,u] = image[y,x]
-                out_img[v+2, u] = image[y, x]
-                out_img[v-2, u] = image[y, x]
-                out_img[v-1, u] = image[y, x]
-
+# u = -w*((f*sy*(w/2 - x))/(2*(zshift + sin(t)*(h/2 - y))) - 1/2)
+# v = h*((f*(vshift + sx*cos(t)*(h/2 - y)))/(2*(zshift + sin(t)*(h/2 - y))) + 1/2)
+# matlab solve:
+# x = (2*h*vshift*w*sin(t) - 4*h*u*vshift*sin(t) + h*sy*w^2*sin(t) - 2*v*sy*w^2*sin(t) - 2*h*sx*w*zshift*cos(t) + 4*h*u*sx*zshift*cos(t) + f*h*sx*sy*w^2*cos(t))/(2*sy*w*(h*sin(t) - 2*v*sin(t) + f*h*sx*cos(t)))
+# y = (h^2*sin(t) + 2*h*zshift - 4*v*zshift - 2*h*v*sin(t) + 2*f*h*vshift + f*h^2*sx*cos(t))/(2*h*sin(t) - 4*v*sin(t) + 2*f*h*sx*cos(t))
+# where u,v is the output texture coords you're rendering
 
 imgplot = plt.imshow(out_img)
 plt.show()
-
-img=mpimg.imread('road1.png')
-out_img=np.ndarray(shape=img.shape, dtype=img.dtype)
