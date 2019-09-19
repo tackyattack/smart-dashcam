@@ -75,6 +75,7 @@ void init_image_processing_pipeline(char *vertex_shader_path, IMAGE_PIPELINE_SHA
    const GLchar *vshader = ogl_load_shader(vertex_shader_path);
    for(int i = 0; i < num_stages; i++)
    {
+     printf("******* %s *******\n", pipeline_shaders[i].fragment_shader_path);
      const GLchar *fshader = ogl_load_shader(pipeline_shaders[i].fragment_shader_path);
 
      // make space for the internal and external variables

@@ -92,16 +92,13 @@ int main ()
   //                             "shaders/red_to_grayscale_fshader.glsl",
   //                             "shaders/texture_renderer.glsl"};
   IMAGE_PIPELINE_SHADER_T pipeline_shaders[NUM_SHADERS];
-  pipeline_shaders[0].fragment_shader_path = "shaders/grayscale_fshader.glsl";
-  pipeline_shaders[0].num_vars = 2;
-  char *shader1_vars[] = {"my_var1", "my_var2"};
-  pipeline_shaders[0].vars = shader1_vars;
-
-  pipeline_shaders[1].fragment_shader_path = "shaders/blur2_fshader.glsl";
+  pipeline_shaders[0].fragment_shader_path = "shaders/birds_eye_fshader.glsl";
+  pipeline_shaders[0].num_vars = 0;
+  pipeline_shaders[1].fragment_shader_path = "shaders/grayscale_fshader.glsl";
   pipeline_shaders[1].num_vars = 0;
-  pipeline_shaders[2].fragment_shader_path = "shaders/blur3_fshader.glsl";
+  pipeline_shaders[2].fragment_shader_path = "shaders/blur2_fshader.glsl";
   pipeline_shaders[2].num_vars = 0;
-  pipeline_shaders[3].fragment_shader_path = "shaders/birds_eye_fshader.glsl";
+  pipeline_shaders[3].fragment_shader_path = "shaders/blur3_fshader.glsl";
   pipeline_shaders[3].num_vars = 0;
   pipeline_shaders[4].fragment_shader_path = "shaders/red_to_grayscale_fshader.glsl";
   pipeline_shaders[4].num_vars = 0;

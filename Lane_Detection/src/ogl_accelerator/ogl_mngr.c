@@ -19,9 +19,10 @@ const GLchar *ogl_load_shader(char *path_to_shader)
   while (fgetc(shader_file) != EOF) file_size_bytes++;
   rewind(shader_file);
 
-  char *shader_content = malloc(file_size_bytes);
+  char *shader_content = malloc(file_size_bytes+1);
   fread(shader_content, 1, file_size_bytes, shader_file);
   fclose(shader_file);
+  shader_content[file_size_bytes] = '\0';
 
   return shader_content;
 }
