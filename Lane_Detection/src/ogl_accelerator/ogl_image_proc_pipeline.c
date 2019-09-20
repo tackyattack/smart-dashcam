@@ -47,17 +47,48 @@ static int repeat_current_stage = 0;
 
 static GLuint current_output_tex, current_output_fbo, current_input_tex_unit, last_output_tex_unit;
 
-// Flat quad to render to
-static const GLfloat vertex_data[] = {
-      -1.0,-1.0,1.0,1.0,
-      1.0,-1.0,1.0,1.0,
-      1.0,1.0,1.0,1.0,
-      -1.0,1.0,1.0,1.0
+//Flat quad to render to
+static const GLfloat vertex_default_data[] = {
+      -1.0,-1.0,1.0,1.0, // 0
+      1.0,-1.0,1.0,1.0,  // 1
+      1.0,1.0,1.0,1.0,   // 2
+      -1.0,1.0,1.0,1.0   // 3
  };
+
+static GLfloat vertex_data[] = {
+  -1.0,-1.0,1.0,1.0, // 0
+  1.0,-1.0,1.0,1.0,  // 1
+  1.0,1.0,1.0,1.0,   // 2
+  -1.0,1.0,1.0,1.0   // 3
+ };
+
+ // static GLfloat vertex_data[] = {
+ //       -1.0,-1.0,1.0,1.0,
+ //       1.0,-1.0,1.0,1.0,
+ //       1.0,-0.9,1.0,1.0,
+ //       -1.0,-0.9,1.0,1.0
+ //  };
 
 void register_draw_callback(draw_callback_t dc)
 {
   draw_callback_p = dc;
+}
+
+// 1: top left
+// 2: bottom right
+void change_render_window(float x1, float y1, float x2, float y2)
+{
+  vertex_data[4*0 + 0] = x1;
+  vertex_data[4*0 + 1] = y2;
+
+  vertex_data[4*1 + 0] = x2;
+  vertex_data[4*1 + 1] = y2;
+
+  vertex_data[4*2 + 0] = x2;
+  vertex_data[4*2 + 1] = y1;
+
+  vertex_data[4*3 + 0] = x1;
+  vertex_data[4*3 + 1] = y1;
 }
 
 GLuint vbuffer;
@@ -117,6 +148,7 @@ void init_image_processing_pipeline(char *vertex_shader_path, IMAGE_PIPELINE_SHA
    // render to offscreen fbo
    // Since a texture is linked to this framebuffer, anything written in the shader will write to the texture
    glBindFramebuffer(GL_FRAMEBUFFER, out_fbo);
+   glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertex_data), vertex_data);
 
    glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT); // Having this in there may signal to GPU that framebuffer doesn't
                                                      // need to go back to CPU
@@ -179,6 +211,7 @@ void reset_pipeline()
   current_buffer_state = 0;
   last_output_tex_unit = 0;
   last_stage_ran = -1;
+  for(int i = 0; i < 16; i++) vertex_data[i] = vertex_default_data[i];
 }
 
 int process_pipeline()

@@ -6,6 +6,7 @@ float top_right_x = 1920.0;
 float top_right_y = 500.0;
 if(!(gl_FragCoord.x > bottom_left_x && gl_FragCoord.x < top_right_x && gl_FragCoord.y < top_right_y && gl_FragCoord.y > bottom_left_y))
 {
+
 return;
 }
 float width = top_right_x - bottom_left_x;

@@ -21,6 +21,7 @@ typedef struct IMAGE_PIPELINE_SHADER_T
 
 void init_image_processing_pipeline(char *vertex_shader_path, IMAGE_PIPELINE_SHADER_T *pipeline_shaders, int num_stages);
 void register_draw_callback(draw_callback_t dc);
+void change_render_window(float x1, float y1, float x2, float y2);
 void reset_pipeline();
 void set_repeat_stage();
 int process_pipeline();
