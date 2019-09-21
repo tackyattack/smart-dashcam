@@ -2,7 +2,7 @@ CFLAGS_DBUS = $(shell pkg-config --cflags --libs dbus-1)
 CFLAGS_DBUS_GLIB = $(shell pkg-config --cflags --libs dbus-glib-1)
 CFLAGS_GIO  = $(shell pkg-config --cflags --libs gio-2.0)
 
-CFLAGS = -g -Wall -Werror
+CFLAGS = -g -Wall #-Werror
 
 
 all: dbus-server dbus-client
