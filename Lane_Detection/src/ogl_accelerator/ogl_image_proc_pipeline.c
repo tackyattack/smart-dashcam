@@ -182,7 +182,9 @@ void init_image_processing_pipeline(char *vertex_shader_path, IMAGE_PIPELINE_SHA
  static void draw_stage(OGL_PROGRAM_CONTEXT_T *program_ctx, GLuint out_tex, GLuint out_fbo,
                         GLuint input_tex_unit, GLuint output_tex_unit, GLuint vbuffer)
  {
+   #ifdef DEBUG_PRINT
    printf("drawing stage %d: output texture: %d   output_fbo: %d   input_tex_unit:%d   output_tex_unit:%d\n", current_stage, out_tex,out_fbo, input_tex_unit, output_tex_unit);
+   #endif
    // note: you only need to set the active texture unit when making a change to the texture
    //       by binding it
    // render to offscreen fbo

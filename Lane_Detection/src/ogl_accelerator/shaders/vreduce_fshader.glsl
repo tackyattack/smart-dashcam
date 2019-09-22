@@ -26,7 +26,7 @@ void main(void)
   {
     accumulator+= texture2D(input_texture, vec2((current_x)/1920.0, (current_y+stride*i)/1080.0)).r;
   }
-  //accumulator = accumulator/20.0;
+  accumulator = accumulator/10.0;
   // if(accumulator < 0.1)
   // {
   //   accumulator = 0.0;
