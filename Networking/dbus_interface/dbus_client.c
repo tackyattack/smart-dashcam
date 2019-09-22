@@ -235,10 +235,17 @@ int Subscribe2Server(void* args)
         return EXIT_FAILURE;
     }
 
+    if (subsc->isSubscribed == true )
+    {
+        return EXIT_SUCCESS;
+    }
+
     printf("Adding signal subscriber to main loop...\n");
 	subsc->id = g_dbus_connection_signal_subscribe   (subsc->config->conn,subsc->config->ServerName,subsc->config->Interface,subsc->SignalName,subsc->config->ObjectPath,NULL, /* arg0 */G_DBUS_SIGNAL_FLAGS_NONE,subsc->callback,subsc->config->loop, /* user data *//*struct signal callback info*/subsc->callback_data);
 	// subsc->id = g_dbus_connection_signal_subscribe(subsc->config->conn,      DBUS_SERVER_NAME,          DBUS_IFACE,             "OnEmitSignal",    DBUS_OPATH,              NULL, /* arg0 */G_DBUS_SIGNAL_FLAGS_NONE,SubscriberCallback,subsc->config->loop, /* user data *//*struct signal callback info*/NULL);
     
+    subsc->isSubscribed = true;
+
     g_main_loop_ref(subsc->config->loop);
 
     if ( !g_main_loop_is_running(subsc->config->loop) )
@@ -251,14 +258,20 @@ int Subscribe2Server(void* args)
         }
     }
 
+
     return EXIT_SUCCESS;
 } /* Subscribe2Server */
 
 int UnsubscribeFromServer(struct dbus_subscriber* subsc)
 {
+    if (subsc->isSubscribed == false )
+    {
+        return EXIT_SUCCESS;
+    }
+
     g_dbus_connection_signal_unsubscribe(subsc->config->conn,subsc->id);
     g_main_loop_unref(subsc->config->loop);
-
+    subsc->isSubscribed = false;
     return EXIT_SUCCESS;
 } /* UnsubscribeFromServer */
 
@@ -272,8 +285,9 @@ void disconnect_client(struct dbus_clnt_config *config)
     GError *err = NULL;
 
     printf("Disconnect client and kill client thread\n");
-    // g_main_loop_quit(config->loop);
-    // g_main_loop_unref (config->loop);/* I believe this is mostly just used for keeping track of the number of connections or whatever are using the loop where ref incs the count of current number of uses and and unref is a dec. Note that if dec when count is 1, loop will be freed */
+    /* Not sure how many/which of these are needed */
+    g_main_loop_quit(config->loop);
+    g_main_loop_unref (config->loop);
     g_dbus_connection_close_sync(config->conn,NULL,&err);
     g_assert_no_error(err);
     g_object_unref(config->proxy);
@@ -285,7 +299,7 @@ void disconnect_client(struct dbus_clnt_config *config)
 int main(void)
 {
     struct dbus_clnt_config dbus_clnt_config = {0}; /* Do not destroy this until server is killed */
-    struct dbus_subscriber dbus_sbsc1 = {0}; /* Do not destroy this until server is killed */
+    struct dbus_subscriber dbus_sbsc1 = {0};        /* Do not destroy this until server is killed */
 
     dbus_clnt_config.ServerName = DBUS_SERVER_NAME;
     dbus_clnt_config.Interface = DBUS_IFACE;
@@ -301,17 +315,10 @@ int main(void)
         printf("Failed to initialize client!\nExiting.....\n");
         exit(EXIT_FAILURE);
     }
-    // if ( EXIT_FAILURE == start_main_loop(&dbus_clnt_config) )
-    // {
-    //     printf("Failed to execute client!\nExiting.....\n");
-    //     exit(EXIT_FAILURE);
-    // }
 
-
-
-	printf("Testing server interface v%s\n", server_version);
 
 	/* Test server methods */
+	printf("Testing server interface v%s\n", server_version);
 	test_Ping(dbus_clnt_config.proxy);
 	test_Echo(dbus_clnt_config.proxy);
 	test_CommandEmitSignal(dbus_clnt_config.proxy);
@@ -323,8 +330,29 @@ int main(void)
         exit(EXIT_FAILURE);
     }
 
+    sleep(2);
+
+    printf("Unsubscribe from server\n");
+    UnsubscribeFromServer(&dbus_sbsc1);
     
+    sleep(2);
+
+    printf("Unsubscribe from server\n");
+    UnsubscribeFromServer(&dbus_sbsc1);
     
+    printf("Subscribe to server\n");
+    if ( EXIT_FAILURE == Subscribe2Server(&dbus_sbsc1) )
+    {
+        printf("Failed to subscribe to server!\nExiting.....\n");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Subscribe to server\n");
+    if ( EXIT_FAILURE == Subscribe2Server(&dbus_sbsc1) )
+    {
+        printf("Failed to subscribe to server!\nExiting.....\n");
+    }
+
     for (size_t i = 0; i < 5; i++)
     {
         sleep(1);
@@ -334,6 +362,7 @@ int main(void)
         test_CommandEmitSignal(dbus_clnt_config.proxy);
     }
     
+    printf("Unsubscribe from server\n");
     UnsubscribeFromServer(&dbus_sbsc1);
 
     printf("Press enter to quit....\n");

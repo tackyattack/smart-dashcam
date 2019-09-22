@@ -3,6 +3,7 @@
 
 #include <gio/gio.h>    /* GDBusProxy and GMainLoop */
 #include <dbus/dbus.h> /* DBusConnection */
+#include <stdbool.h>
 
 /* Upon changing these defines, the server_introspection_xml must also 
     be updated to match */
@@ -13,21 +14,18 @@
 // #define DBUS_IFACE          "org.example.TestInterface"
 // #define DBUS_OPATH          "/org/example/TestObject"
 
-#define DBUS_VERBOSE 1
-
 
 /* This struct is used to pass multiple 
     args to a dbus function. This struct
     represents a configuration set.*/
     //TODO  this should be public not in prv_dbus
-    //TODO recommend breaking this up into different structs,
-    //      one for clients and one for server 
 struct dbus_srv_config
 {
     DBusConnection *conn; /* Do not set this value */
     GMainLoop *loop;      /* Do not set this value */
 };
 
+//TODO  this should be public not in prv_dbus
 struct dbus_clnt_config
 {
     char* ServerName;      /* Set this before calling init function */
@@ -43,14 +41,13 @@ struct dbus_clnt_config
 struct dbus_subscriber
 {
     guint id;                     /* Do not set this value */
+    bool isSubscribed;            /* Do not set this value */
     char* SignalName;             /* Set this before calling subscribe function */
     GDBusSignalCallback callback; /* Set this before calling subscribe function */
     void *callback_data;          /* Set this before calling subscribe function. Can be NULL */
-    /* void callback */
-    /* Probably add callbacks to a separate .c file that users can modify */
+    /* TODO Probably add callbacks to a separate .c file that users can modify */
     struct dbus_clnt_config *config;   /* Set this before calling subscribe function */
 };
-
 
 
 #endif /* PRV_DBUS_INTERFACE_H */
