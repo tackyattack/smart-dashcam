@@ -9,8 +9,6 @@
 #include "prv_dbus.h"
 
 const char *version = "0.1";
-GMainLoop *mainloop;
-
 
 /*
  * This is the XML string describing the interfaces, methods and
@@ -97,7 +95,7 @@ DBusHandlerResult server_get_properties_handler(const char *property, DBusConnec
         return DBUS_HANDLER_RESULT_NEED_MEMORY;
     }
 	return DBUS_HANDLER_RESULT_HANDLED;
-}
+} /* server_get_properties_handler */
 
 /*
  * This implements 'GetAll' method of DBUS_INTERFACE_PROPERTIES. This
@@ -137,7 +135,7 @@ DBusHandlerResult server_get_all_properties_handler(DBusConnection *conn, DBusMe
     }
 
 	return result;
-}
+} /* server_get_all_properties_handler() */
 
 /*
  * This function implements the 'TestInterface' interface for the
@@ -151,7 +149,7 @@ DBusHandlerResult server_get_all_properties_handler(DBusConnection *conn, DBusMe
  *
  * $ gdbus introspect --session --dest org.example.TestServer --object-path /org/example/TestObject
  */
-DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *message, void *data)
+DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *message, void *config)
 {
 	DBusHandlerResult result;
     DBusMessage *reply = NULL;
@@ -193,7 +191,6 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
 		result = server_get_properties_handler(property, conn, reply);
 		dbus_message_unref(reply);
 		return result;
-
 	}
     else if (dbus_message_is_method_call(message, DBUS_INTERFACE_PROPERTIES, "GetAll")) 
     {
@@ -205,7 +202,6 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
 		result = server_get_all_properties_handler(conn, reply);
 		dbus_message_unref(reply);
 		return result;
-
 	}
     else if (dbus_message_is_method_call(message, DBUS_IFACE, "Ping"))
     {
@@ -217,7 +213,6 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
         }
 
 		dbus_message_append_args(reply,DBUS_TYPE_STRING, &pong,DBUS_TYPE_INVALID);
-
 	}
     else if (dbus_message_is_method_call(message, DBUS_IFACE, "Echo")) 
     {
@@ -234,7 +229,6 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
         }
 
 		dbus_message_append_args(reply, DBUS_TYPE_STRING, &msg, DBUS_TYPE_INVALID);
-
 	} 
     else if (dbus_message_is_method_call(message, DBUS_IFACE, "EmitSignal")) 
     {
@@ -250,7 +244,6 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
 
 		/* Send a METHOD_RETURN reply. */
 		reply = dbus_message_new_method_return(message);
-
 	}
     else if (dbus_message_is_method_call(message, DBUS_IFACE, "Quit")) 
     {
@@ -260,8 +253,7 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
 		 * method was successfully processed.
 		 */
 		reply = dbus_message_new_method_return(message);
-		quit  = true;
-
+		quit  = true; /* unable to do this as the GMainLoop ptr is not known */
 	}
     else
 	{
@@ -297,60 +289,157 @@ fail:
 
 	dbus_message_unref(reply);
 
-	if (quit) {
-		fprintf(stderr, "Server exiting...\n");
-		g_main_loop_quit(mainloop);
+	if (quit)
+    {
+		fprintf(stderr, "Message Handler received quit command!\n");
+		g_main_loop_quit( ((struct dbus_srv_config*)config)->loop );
 	}
+
 	return result;
-}
+} /* server_message_handler() */
 
 
-const DBusObjectPathVTable server_vtable = {.message_function = server_message_handler};
 
-
-int main(void)
+void* server_thread(void *config)
 {
-	DBusConnection *conn;
-	DBusError err;
-	int rv;
+    printf("Starting dbus tiny server v%s\n", version);
+	/* Start the glib event loop */
+	g_main_loop_run( ((struct dbus_srv_config *)config)->loop );
+    
+    printf("Server thread exiting....\n");
+    return NULL;
+}  /* server_thread() */
 
-        dbus_error_init(&err);
+int init_server(struct dbus_srv_config *config)
+{
+    const DBusObjectPathVTable server_vtable = {.message_function = server_message_handler};
+    DBusError err;
+	int val;
+
+    bzero(config, sizeof(struct dbus_srv_config));
+    dbus_error_init(&err);
 
 	/* connect to the daemon bus */
-	conn = dbus_bus_get(DBUS_BUS_SESSION, &err);
-	if (!conn)
+	config->conn = dbus_bus_get(DBUS_BUS_SESSION, &err);
+	if (config->conn == NULL)
     {
 		fprintf(stderr, "Failed to get a session DBus connection: %s\n", err.message);
-		goto fail;
+		dbus_error_free(&err);
+	    return EXIT_FAILURE;
 	}
 
-	rv = dbus_bus_request_name(conn, DBUS_SERVER_NAME, DBUS_NAME_FLAG_REPLACE_EXISTING , &err);
-	if (rv != DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER)
+	val = dbus_bus_request_name(config->conn, DBUS_SERVER_NAME, DBUS_NAME_FLAG_REPLACE_EXISTING , &err);
+	if (val != DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER)
     {
 		fprintf(stderr, "Failed to request name on bus: %s\n", err.message);
-		goto fail;
+		dbus_error_free(&err);
+	    return EXIT_FAILURE;
 	}
 
-	if (!dbus_connection_register_object_path(conn, DBUS_OPATH, &server_vtable, NULL))
+    val = dbus_connection_register_object_path(config->conn, DBUS_OPATH, &server_vtable, (void*)config);
+	if (!val)
     {
-		fprintf(stderr, "Failed to register a object path for 'TestObject'\n");
-		goto fail;
+		fprintf(stderr, "Failed to register object path for '%s'\n", DBUS_OPATH);
+		dbus_error_free(&err);
+	    return EXIT_FAILURE;
 	}
 
-	/*
+    /*
 	 * For the sake of simplicity we're using glib event loop to
 	 * handle DBus messages. This is the only place where glib is
 	 * used.
 	 */
-	printf("Starting dbus tiny server v%s\n", version);
-	mainloop = g_main_loop_new(NULL, false);
-	/* Set up the DBus connection to work in a GLib event loop */
-	dbus_connection_setup_with_g_main(conn, NULL);
-	/* Start the glib event loop */
-	g_main_loop_run(mainloop);
+	config->loop = g_main_loop_new(NULL, false);
+
+    /* Set up the DBus connection to work in a GLib event loop */
+	dbus_connection_setup_with_g_main(config->conn, NULL);
+
+    return EXIT_SUCCESS;
+} /* init_server() */
+
+int execute_server(struct dbus_srv_config *config)
+{
+	pthread_t thread_id;
+
+    if ( config == NULL )
+    {
+        /* config ptr points to nothing. */
+        return EXIT_FAILURE;
+    }
+
+    if ( config->conn == NULL || config->loop == NULL )
+    {
+        /* config hasn't been initialized, initialize config/server */
+        if( EXIT_FAILURE == init_server(config) )
+        {
+            printf("Failed to initialize server!\nExiting.....\n");
+            return (EXIT_FAILURE);
+        }
+    }
+    
+    if ( EXIT_SUCCESS != pthread_create(&thread_id, NULL, server_thread, (void*)config) )
+    {
+        printf("FAILED to create thread!");
+        return (EXIT_FAILURE);
+    }
+    
+    printf("Detach server thread!\n");
+    if ( EXIT_SUCCESS != pthread_detach(thread_id) )
+    {
+        printf("FAILED to detach thread!");
+        return (EXIT_FAILURE);
+    }
 
 	return EXIT_SUCCESS;
-fail:
-	dbus_error_free(&err);
-	return EXIT_FAILURE;
+} /* execute_server() */
+
+void kill_server(struct dbus_srv_config *config)
+{
+   if ( config == NULL || config->loop == NULL )
+    {
+        return;
+    }
+
+    printf("Kill server thread\n");
+    g_main_loop_quit(config->loop); /* Kill server (aka message handling thread/g_main_loop) */
+    g_main_loop_unref (config->loop);
+
+    //TODO addition cleanup needed?
+} /* kill_server() */
+
+
+/* This is a test function. This function represents what would be done 
+    in the fuction/program that is using this dbus server code */
+int main(void)
+{
+    struct dbus_srv_config dbus_srv_config = {0}; /* Do not destroy this until server is killed */
+
+    if ( init_server(&dbus_srv_config) == EXIT_FAILURE )
+    {
+        printf("Failed to initialize server!\nExiting.....\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if ( execute_server(&dbus_srv_config) == EXIT_FAILURE )
+    {
+        printf("Failed to execute server!\nExiting.....\n");
+        exit(EXIT_FAILURE);
+    }
+        
+
+    // for (size_t i = 0; i < 10; i++)
+    for(;;)
+    {
+        sleep(1);
+        /* Test server methods */
+        dbus_message_new_signal(DBUS_OPATH,DBUS_IFACE,"OnEmitSignal");
+        //TODO 
+    }
+
+    printf("Press enter to quit....\n");
+    getchar(); /* Block until any stdin is received */
+
+    kill_server(&dbus_srv_config);
+
+    return EXIT_SUCCESS;
 }
