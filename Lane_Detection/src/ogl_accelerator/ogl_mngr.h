@@ -30,5 +30,6 @@ void create_program_context(OGL_PROGRAM_CONTEXT_T *program_ctx, const GLchar **v
 void create_fbo_tex_pair(GLuint *tex, GLuint *fbo, GLuint active_texture_unit, GLuint width, GLuint height);
 void construct_shader_var(OGL_SHADER_VAR_T *shader_var,char *name, char var_type);
 OGL_SHADER_VAR_T *get_program_var(OGL_PROGRAM_CONTEXT_T *program_ctx, char *name);
+void download_fbo(GLuint fb_id, GLuint x, GLuint y, GLuint width, GLuint height, void *mem_ptr);
 
 #endif

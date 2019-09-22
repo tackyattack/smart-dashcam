@@ -14,9 +14,43 @@ Created by: Henry Bergin 2019
 #include "ogl_image_proc_pipeline.h"
 #include "bcm_host.h"
 
+
+//
+// #include "interface/vcos/vcos.h"
+// #include "interface/mmal/mmal.h"
+// #include "interface/mmal/mmal_logging.h"
+// #include "interface/mmal/mmal_buffer.h"
+// #include "interface/mmal/util/mmal_util.h"
+// #include "interface/mmal/util/mmal_util_params.h"
+// #include "interface/mmal/util/mmal_default_components.h"
+// #include "interface/mmal/util/mmal_connection.h"
+//
+// #include "GLES2/gl2.h"
+// #include "EGL/egl.h"
+// #include "EGL/eglext.h"
+
+#include "interface/vcos/vcos.h"
+
+
+#include "interface/mmal/mmal.h"
+#include "interface/mmal/mmal_logging.h"
+#include "interface/mmal/mmal_buffer.h"
+#include "interface/mmal/util/mmal_util.h"
+#include "interface/mmal/util/mmal_util_params.h"
+#include "interface/mmal/util/mmal_default_components.h"
+#include "interface/mmal/util/mmal_connection.h"
+
 #include "GLES2/gl2.h"
 #include "EGL/egl.h"
 #include "EGL/eglext.h"
+
+#include <bcm_host.h>
+#include <GLES2/gl2.h>
+#include <GLES/gl.h>
+#include <GLES/glext.h>
+#include "interface/vcos/vcos.h"
+#include "EGL/eglext_brcm.h"
+
 
 #include "egl_interface.h"
 #include "ogl_mngr.h"
@@ -45,7 +79,7 @@ static int last_stage_ran = 0;
 static int number_of_stages = 0;
 static int repeat_current_stage = 0;
 
-static GLuint current_output_tex, current_output_fbo, current_input_tex_unit, last_output_tex_unit;
+static GLuint current_output_tex, current_output_fbo, current_input_tex_unit, last_output_tex_unit, last_offscreen_fbo;
 
 //Flat quad to render to
 static const GLfloat vertex_default_data[] = {
@@ -91,7 +125,9 @@ void change_render_window(float x1, float y1, float x2, float y2)
   vertex_data[4*3 + 1] = y1;
 }
 
-GLuint vbuffer;
+static GLuint cam_ytex;
+
+static GLuint vbuffer;
 void init_image_processing_pipeline(char *vertex_shader_path, IMAGE_PIPELINE_SHADER_T *pipeline_shaders, int num_stages)
 {
    assert(num_stages <= MAX_IMAGE_STAGES);
@@ -137,6 +173,10 @@ void init_image_processing_pipeline(char *vertex_shader_path, IMAGE_PIPELINE_SHA
    create_fbo_tex_pair(&texture1, &fbo1, GL_TEXTURE1, 1920, 1080);
    create_fbo_tex_pair(&texture2, &fbo2, GL_TEXTURE2, 1920, 1080);
 
+   glActiveTexture(GL_TEXTURE3);
+   glGenTextures(1, &cam_ytex);
+   glBindTexture(GL_TEXTURE_EXTERNAL_OES, cam_ytex);
+
 }
 
  static void draw_stage(OGL_PROGRAM_CONTEXT_T *program_ctx, GLuint out_tex, GLuint out_fbo,
@@ -148,6 +188,7 @@ void init_image_processing_pipeline(char *vertex_shader_path, IMAGE_PIPELINE_SHA
    // render to offscreen fbo
    // Since a texture is linked to this framebuffer, anything written in the shader will write to the texture
    glBindFramebuffer(GL_FRAMEBUFFER, out_fbo);
+   last_offscreen_fbo = out_fbo;
    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertex_data), vertex_data);
 
    glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT); // Having this in there may signal to GPU that framebuffer doesn't
@@ -169,6 +210,7 @@ void init_image_processing_pipeline(char *vertex_shader_path, IMAGE_PIPELINE_SHA
    {
      draw_callback_p(program_ctx, current_stage);
    }
+
 
    // render the primitive from array data (triangle fan: first vertex is a hub, others fan around it)
    // 0 -> starting index
@@ -204,6 +246,10 @@ int get_last_output_stage_unit()
 {
   return preserved_output_texture_unit;
 }
+GLuint get_last_offscreen_fbo()
+{
+  return last_offscreen_fbo;
+}
 
 void reset_pipeline()
 {
@@ -219,6 +265,7 @@ int process_pipeline()
   if(current_stage != 0)
   {
     GLenum fbo_status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    fbo_status = GL_FRAMEBUFFER_COMPLETE;
     if (fbo_status != GL_FRAMEBUFFER_COMPLETE)
     {
       return PIPELINE_PROCESSING;
@@ -272,7 +319,7 @@ int process_pipeline()
 
   // are we on the last stage? If so, just render to the default FBO so it can go to screen
   // TODO: fix this in the future so you can specify if it should go to screen
-  if(current_stage == (number_of_stages-1)) output_fbo = 0;
+  //if(current_stage == (number_of_stages-1)) output_fbo = 0;
   draw_stage(&image_stages[current_stage].program, output_tex, output_fbo, input_tex_unit, output_tex_unit, vbuffer);
   last_stage_ran = current_stage;
   current_output_tex = output_tex;
@@ -295,7 +342,6 @@ int process_pipeline()
   current_buffer_state = (current_buffer_state + 1)%3;
 
 
-
   return PIPELINE_PROCESSING;
 }
 
@@ -315,4 +361,26 @@ void load_image_to_first_stage(char *image_path)
   glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
   glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
   check();
+}
+
+static EGLImageKHR yimg = EGL_NO_IMAGE_KHR;
+void load_mmal_buffer_to_first_stage(MMAL_BUFFER_HEADER_T *buf, EGL_OBJECT_T egl_device)
+{
+  glActiveTexture(GL_TEXTURE3);
+  glBindTexture(GL_TEXTURE_EXTERNAL_OES, cam_ytex);
+  check();
+
+  if(yimg != EGL_NO_IMAGE_KHR)
+  {
+    eglDestroyImageKHR(egl_device.display, yimg);
+  }
+
+  yimg = eglCreateImageKHR(egl_device.display,
+			EGL_NO_CONTEXT,
+			EGL_IMAGE_BRCM_MULTIMEDIA_Y,
+			(EGLClientBuffer) buf->data,
+			NULL);
+		check();
+		glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, yimg);
+    check();
 }

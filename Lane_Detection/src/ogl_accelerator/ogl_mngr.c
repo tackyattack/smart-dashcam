@@ -3,6 +3,8 @@
 #include "ogl_utils.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <limits.h>
 
 
 const GLchar *ogl_load_shader(char *path_to_shader)
@@ -127,12 +129,11 @@ void upload_texture_data(GLuint tex, GLuint width, GLuint height, char *data)
   check();
 }
 
-void download_fbo(GLuint fb_id, GLuint width, GLuint height, void *mem_ptr)
+void download_fbo(GLuint fb_id, GLuint x, GLuint y, GLuint width, GLuint height, void *mem_ptr)
 {
   glBindFramebuffer(GL_FRAMEBUFFER, fb_id);
   check();
-  // start at the upper left corner
-  glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, mem_ptr);
+  glReadPixels(x, y, width, height, GL_RGBA, GL_UNSIGNED_BYTE, mem_ptr);
   check();
 }
 
