@@ -206,7 +206,7 @@ void* GMainLoop_Thread(void *loop)
 int start_main_loop(struct dbus_clnt_config *config)
 {
     pthread_t thread_id;
-    if ( EXIT_SUCCESS != pthread_create(&thread_id, NULL, GMainLoop_Thread, (void*)&config->loop) )
+    if ( EXIT_SUCCESS != pthread_create(&thread_id, NULL, GMainLoop_Thread, (void*)config->loop) )
     {
         printf("Failed to create subscriber thread!\n");
         return (EXIT_FAILURE);
