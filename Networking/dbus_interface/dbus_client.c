@@ -161,9 +161,8 @@ int init_client(struct dbus_clnt_config *config)
         return EXIT_FAILURE;
     }
 
-    // bzero(config, sizeof(struct dbus_clnt_config));
-
-	config->conn = g_bus_get_sync(G_BUS_TYPE_SESSION, NULL, &error);
+    /* connect to the system bus. Note, the 2 main buses are the system and session (user) buses. */
+	config->conn = g_bus_get_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
 	g_assert_no_error(error);
 
 
@@ -330,6 +329,7 @@ int main(void)
         exit(EXIT_FAILURE);
     }
 
+	test_CommandEmitSignal(dbus_clnt_config.proxy);
     sleep(2);
 
     printf("Unsubscribe from server\n");

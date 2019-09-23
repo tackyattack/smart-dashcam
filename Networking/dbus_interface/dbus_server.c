@@ -319,11 +319,12 @@ int init_server(struct dbus_srv_config *config)
     bzero(config, sizeof(struct dbus_srv_config));
     dbus_error_init(&err);
 
-	/* connect to the daemon bus */
-	config->conn = dbus_bus_get(DBUS_BUS_SESSION, &err);
+	/* connect to the daemon bus. Note, the 2 main buses are the system and session (user) buses.
+		This is connecting to the system bus. */
+	config->conn = dbus_bus_get(DBUS_BUS_SYSTEM, &err);
 	if (config->conn == NULL)
     {
-		fprintf(stderr, "Failed to get a session DBus connection: %s\n", err.message);
+		fprintf(stderr, "Failed to get a system DBus connection: %s\n", err.message);
 		dbus_error_free(&err);
 	    return EXIT_FAILURE;
 	}
@@ -331,7 +332,7 @@ int init_server(struct dbus_srv_config *config)
 	val = dbus_bus_request_name(config->conn, DBUS_SERVER_NAME, DBUS_NAME_FLAG_REPLACE_EXISTING , &err);
 	if (val != DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER)
     {
-		fprintf(stderr, "Failed to request name on bus: %s\n", err.message);
+		fprintf(stderr, "-----Note: This service is required to be run as root-----\nFailed to request name on bus: %s. Be sure to execute as root\n", err.message);
 		dbus_error_free(&err);
 	    return EXIT_FAILURE;
 	}

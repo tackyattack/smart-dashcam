@@ -5,8 +5,8 @@
 #include <dbus/dbus.h> /* DBusConnection */
 #include <stdbool.h>
 
-/* Upon changing these defines, the server_introspection_xml must also 
-    be updated to match */
+/* Upon changing these defines, the server_introspection_xml and the
+    com.dashcam.conf file must be updated to match */
 #define DBUS_SERVER_NAME    "com.dashcam.Server"
 #define DBUS_IFACE          "com.dashcam.TCP_Interface"
 #define DBUS_OPATH          "/com/dashcam/TCP_Object"
