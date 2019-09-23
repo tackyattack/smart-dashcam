@@ -92,6 +92,10 @@ void draw_callback(OGL_PROGRAM_CONTEXT_T *program_ctx, int current_render_stage)
     toggle = !toggle;
   }
 
+  if(current_render_stage == 8)
+  {
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  }
 
 }
 

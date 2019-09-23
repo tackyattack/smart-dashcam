@@ -81,12 +81,12 @@ void lane_draw_callback(OGL_PROGRAM_CONTEXT_T *program_ctx, int current_render_s
 
   if(current_render_stage == (NUM_SHADERS-1))
   {
-    //glBindFramebuffer(GL_FRAMEBUFFER, 0);
-  }
-  if(current_render_stage == 10)
-  {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
   }
+  // if(current_render_stage == 1)
+  // {
+  //   glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  // }
 
 
 }
