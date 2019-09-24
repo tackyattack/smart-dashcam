@@ -6,9 +6,14 @@ import threading
 
 
 ogl_cv_lib = ctypes.CDLL('../ogl_accelerator/ogl_cv.so')
+ogl_cv_init_lane_tracker = ogl_cv_lib.init_lane_tracker
+ogl_cv_init_lane_tracker.argtypes = None
+ogl_cv_init_lane_tracker.restype = None
+
 ogl_cv_detect_lanes_from_buffer = ogl_cv_lib.detect_lanes_from_buffer
 ogl_cv_detect_lanes_from_buffer.argtypes = [ctypes.POINTER(mmal.MMAL_BUFFER_HEADER_T), ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
 ogl_cv_detect_lanes_from_buffer.restype = None
+
 data_array = (ctypes.c_char*(1920*25))()
 line_data = []
 with open('sample_data.txt', 'w') as del_file:
@@ -111,6 +116,7 @@ camera._splitter.outputs[2].enable(video_callback)
 mmalobj.print_pipeline(camera._splitter.outputs[2])
 mmalobj.print_pipeline(camera._splitter.outputs[1])
 
+#camera.start_preview()
 camera.start_recording('test.h264')
 #sleep(5)
 #camera.stop_recording()

@@ -81,69 +81,75 @@ void lane_draw_callback(OGL_PROGRAM_CONTEXT_T *program_ctx, int current_render_s
 
   if(current_render_stage == (NUM_SHADERS-1))
   {
+    //glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  }
+  if(current_render_stage == 1)
+  {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
   }
-  // if(current_render_stage == 1)
-  // {
-  //   glBindFramebuffer(GL_FRAMEBUFFER, 0);
-  // }
 
 
 }
 
-
 static EGL_OBJECT_T egl_device;
 static int has_init = 0;
+
+void init_lane_tracker()
+{
+  egl_device.screen_width = 1920;
+  egl_device.screen_height = 1080;
+  bcm_host_init();
+  init_ogl(&egl_device);
+
+  IMAGE_PIPELINE_SHADER_T pipeline_shaders[NUM_SHADERS];
+  pipeline_shaders[0].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/camera_fshader.glsl";
+  pipeline_shaders[0].num_vars = 0;
+  pipeline_shaders[1].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/birds_eye_fshader.glsl";
+  pipeline_shaders[1].num_vars = 0;
+  pipeline_shaders[2].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/grayscale_fshader.glsl";
+  pipeline_shaders[2].num_vars = 0;
+  pipeline_shaders[3].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/blur2_fshader.glsl";
+  pipeline_shaders[3].num_vars = 1;
+  pipeline_shaders[4].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/blur3_fshader.glsl";
+  pipeline_shaders[4].num_vars = 1;
+  pipeline_shaders[5].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/red_to_grayscale_fshader.glsl";
+  pipeline_shaders[5].num_vars = 0;
+  pipeline_shaders[6].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/sobel_fshader.glsl";
+  pipeline_shaders[6].num_vars = 0;
+  pipeline_shaders[7].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/vreduce_fshader.glsl";
+  pipeline_shaders[7].num_vars = 0;
+  pipeline_shaders[8].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/blur2_fshader.glsl";
+  pipeline_shaders[8].num_vars = 1;
+  pipeline_shaders[9].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/blur3_fshader.glsl";
+  pipeline_shaders[9].num_vars = 1;
+  pipeline_shaders[10].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/texture_renderer.glsl";
+  pipeline_shaders[10].num_vars = 1;
+
+  char *texture_renderer_vars[] = {"fps_state"};
+  pipeline_shaders[10].vars = texture_renderer_vars;
+  char *blur_vars[] = {"top_right_y"};
+  pipeline_shaders[3].vars = blur_vars;
+  pipeline_shaders[4].vars = blur_vars;
+  pipeline_shaders[8].vars = blur_vars;
+  pipeline_shaders[9].vars = blur_vars;
+
+  init_image_processing_pipeline("/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/flat_vshader.glsl", pipeline_shaders, NUM_SHADERS);
+  register_draw_callback(lane_draw_callback);
+  printf("pipeline created\n");
+}
+
 void detect_lanes_from_buffer(MMAL_BUFFER_HEADER_T *buf, int download, char *mem_ptr, int show)
 {
 
   if(!has_init)
   {
-    //int verbose = 1;
-    egl_device.screen_width = 1920;
-    egl_device.screen_height = 1080;
-    bcm_host_init();
-    init_ogl(&egl_device);
-
-    IMAGE_PIPELINE_SHADER_T pipeline_shaders[NUM_SHADERS];
-    pipeline_shaders[0].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/camera_fshader.glsl";
-    pipeline_shaders[0].num_vars = 0;
-    pipeline_shaders[1].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/birds_eye_fshader.glsl";
-    pipeline_shaders[1].num_vars = 0;
-    pipeline_shaders[2].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/grayscale_fshader.glsl";
-    pipeline_shaders[2].num_vars = 0;
-    pipeline_shaders[3].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/blur2_fshader.glsl";
-    pipeline_shaders[3].num_vars = 1;
-    pipeline_shaders[4].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/blur3_fshader.glsl";
-    pipeline_shaders[4].num_vars = 1;
-    pipeline_shaders[5].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/red_to_grayscale_fshader.glsl";
-    pipeline_shaders[5].num_vars = 0;
-    pipeline_shaders[6].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/sobel_fshader.glsl";
-    pipeline_shaders[6].num_vars = 0;
-    pipeline_shaders[7].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/vreduce_fshader.glsl";
-    pipeline_shaders[7].num_vars = 0;
-    pipeline_shaders[8].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/blur2_fshader.glsl";
-    pipeline_shaders[8].num_vars = 1;
-    pipeline_shaders[9].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/blur3_fshader.glsl";
-    pipeline_shaders[9].num_vars = 1;
-    pipeline_shaders[10].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/texture_renderer.glsl";
-    pipeline_shaders[10].num_vars = 1;
-
-    char *texture_renderer_vars[] = {"fps_state"};
-    pipeline_shaders[10].vars = texture_renderer_vars;
-    char *blur_vars[] = {"top_right_y"};
-    pipeline_shaders[3].vars = blur_vars;
-    pipeline_shaders[4].vars = blur_vars;
-    pipeline_shaders[8].vars = blur_vars;
-    pipeline_shaders[9].vars = blur_vars;
-
-    init_image_processing_pipeline("/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/flat_vshader.glsl", pipeline_shaders, NUM_SHADERS);
-    register_draw_callback(lane_draw_callback);
-    printf("pipeline created\n");
-    //load_image_to_first_stage("sample_images/road2.bmp");
-    // load_mmal_buffer_to_first_stage(buf, egl_device);
+    init_lane_tracker();
     has_init = 1;
- }
+  }
+
+  EGLBoolean result = eglMakeCurrent(egl_device.display, egl_device.surface, egl_device.surface, egl_device.context);
+  assert(EGL_FALSE != result);
+  check();
 
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
   glViewport ( 0, 0, 1920, 1080);
@@ -166,24 +172,5 @@ void detect_lanes_from_buffer(MMAL_BUFFER_HEADER_T *buf, int download, char *mem
     download_fbo(data_fbo,0,10,1920,1,mem_ptr);
   }
 
-  // while(1)
-  // {
-  //   reset_pipeline();
-  //   //load_image_to_first_stage("sample_images/road2.bmp");
-  //   //glFlush(); // these are purely for getting an accurate time measurement (though forcing a sync could incur time too)
-  //   //glFinish();
-  //   load_mmal_buffer_to_first_stage(buf, egl_device);
-  //   start_profiler_timer();
-  //   while(process_pipeline() != PIPELINE_COMPLETED)
-  //   {
-  //
-  //   }
-  //   //glFlush(); // these are purely for getting an accurate time measurement (though forcing a sync could incur time too)
-  //   //glFinish();
-  //   eglSwapBuffers(egl_device.display, egl_device.surface);
-  //   long run_time = stop_profiler_timer();
-  //   printf("time ms: %ld\r\n", run_time);
-  // }
-
-  //detect_lanes_from_buffer(buf);
+  eglMakeCurrent(NULL, NULL, NULL, NULL);
 }

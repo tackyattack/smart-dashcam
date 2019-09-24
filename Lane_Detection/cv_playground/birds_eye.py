@@ -84,7 +84,7 @@ for y in range(0, h):
         w=600
         h=400
         zshift=-200
-        vshift=-200
+        vshift=-1
         u=x
         v=y
         input_x = (2*h*vshift*w*sin(t) - 4*h*u*vshift*sin(t) + h*sy*w*w*sin(t) - 2*v*sy*w*w*sin(t) - 2*h*sx*w*zshift*cos(t) + 4*h*u*sx*zshift*cos(t) + f*h*sx*sy*w*w*cos(t))/(2*sy*w*(h*sin(t) - 2*v*sin(t) + f*h*sx*cos(t)))
