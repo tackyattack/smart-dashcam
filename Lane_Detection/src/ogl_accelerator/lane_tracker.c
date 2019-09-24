@@ -27,6 +27,7 @@ General-Purpose computing on GPU (GPGPU) using OpenGL|ES
 #include "interface/mmal/util/mmal_default_components.h"
 #include "interface/mmal/util/mmal_connection.h"
 
+#include "lane_tracker.h"
 #include "egl_interface.h"
 #include "ogl_mngr.h"
 #include "ogl_utils.h"
@@ -91,10 +92,18 @@ void lane_draw_callback(OGL_PROGRAM_CONTEXT_T *program_ctx, int current_render_s
 
 }
 
+char* concat(const char *s1, const char *s2)
+{
+    char *result = malloc(strlen(s1) + strlen(s2) + 1); // +1 for the null-terminator
+    strcpy(result, s1);
+    strcat(result, s2);
+    return result;
+}
+
 static EGL_OBJECT_T egl_device;
 static int has_init = 0;
 
-void init_lane_tracker()
+void init_lane_tracker(const char* shader_dir_path)
 {
   egl_device.screen_width = 1920;
   egl_device.screen_height = 1080;
@@ -102,23 +111,23 @@ void init_lane_tracker()
   init_ogl(&egl_device);
 
   IMAGE_PIPELINE_SHADER_T pipeline_shaders[NUM_SHADERS];
-  pipeline_shaders[0].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/camera_fshader.glsl";
+  pipeline_shaders[0].fragment_shader_path = concat(shader_dir_path, "/camera_fshader.glsl");
   pipeline_shaders[0].num_vars = 0;
-  pipeline_shaders[1].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/birds_eye_fshader.glsl";
+  pipeline_shaders[1].fragment_shader_path = concat(shader_dir_path, "/birds_eye_fshader.glsl");
   pipeline_shaders[1].num_vars = 0;
-  pipeline_shaders[2].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/blur2_fshader.glsl";
+  pipeline_shaders[2].fragment_shader_path = concat(shader_dir_path, "/blur2_fshader.glsl");
   pipeline_shaders[2].num_vars = 1;
-  pipeline_shaders[3].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/blur3_fshader.glsl";
+  pipeline_shaders[3].fragment_shader_path = concat(shader_dir_path, "/blur3_fshader.glsl");
   pipeline_shaders[3].num_vars = 1;
-  pipeline_shaders[4].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/sobel_fshader.glsl";
+  pipeline_shaders[4].fragment_shader_path = concat(shader_dir_path, "/sobel_fshader.glsl");
   pipeline_shaders[4].num_vars = 0;
-  pipeline_shaders[5].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/vreduce_fshader.glsl";
+  pipeline_shaders[5].fragment_shader_path = concat(shader_dir_path, "/vreduce_fshader.glsl");
   pipeline_shaders[5].num_vars = 0;
-  pipeline_shaders[6].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/blur2_fshader.glsl";
+  pipeline_shaders[6].fragment_shader_path = concat(shader_dir_path, "/blur2_fshader.glsl");
   pipeline_shaders[6].num_vars = 1;
-  pipeline_shaders[7].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/blur3_fshader.glsl";
+  pipeline_shaders[7].fragment_shader_path = concat(shader_dir_path, "/blur3_fshader.glsl");
   pipeline_shaders[7].num_vars = 1;
-  pipeline_shaders[8].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/texture_renderer.glsl";
+  pipeline_shaders[8].fragment_shader_path = concat(shader_dir_path, "/texture_renderer.glsl");
   pipeline_shaders[8].num_vars = 1;
 
   char *texture_renderer_vars[] = {"fps_state"};
@@ -129,9 +138,13 @@ void init_lane_tracker()
   pipeline_shaders[6].vars = blur_vars;
   pipeline_shaders[7].vars = blur_vars;
 
-  init_image_processing_pipeline("/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/flat_vshader.glsl", pipeline_shaders, NUM_SHADERS);
+  char* vshader_path = concat(shader_dir_path, "/flat_vshader.glsl");
+  init_image_processing_pipeline(vshader_path, pipeline_shaders, NUM_SHADERS);
   register_draw_callback(lane_draw_callback);
   printf("pipeline created\n");
+  has_init = 1;
+  for(int i = 0; i < NUM_SHADERS; i++) free(pipeline_shaders[i].fragment_shader_path);
+  free(vshader_path);
 }
 
 void detect_lanes_from_buffer(MMAL_BUFFER_HEADER_T *buf, int download, char *mem_ptr, int show)
@@ -139,8 +152,8 @@ void detect_lanes_from_buffer(MMAL_BUFFER_HEADER_T *buf, int download, char *mem
 
   if(!has_init)
   {
-    init_lane_tracker();
-    has_init = 1;
+    printf("Error: init has not been called first\n");
+    return;
   }
 
   EGLBoolean result = eglMakeCurrent(egl_device.display, egl_device.surface, egl_device.surface, egl_device.context);
