@@ -87,17 +87,17 @@ void create_splitter_connections(MMAL_PORT_T *splitter_port)
 	int frame_rate = 30;
 	MMAL_ES_FORMAT_T *format;
 	MMAL_STATUS_T status;
-	format = splitter_port->format;
-	format->encoding = MMAL_ENCODING_OPAQUE;
-	format->encoding_variant = MMAL_ENCODING_I420;
-	format->es->video.width = width;
-	format->es->video.height = height;
-	format->es->video.crop.x = 0;
-	format->es->video.crop.y = 0;
-	format->es->video.crop.width = width;
-	format->es->video.crop.height = height;
-	format->es->video.frame_rate.num = frame_rate;
-	format->es->video.frame_rate.den = 1;
+	// format = splitter_port->format;
+	// format->encoding = MMAL_ENCODING_OPAQUE;
+	// format->encoding_variant = MMAL_ENCODING_I420;
+	// format->es->video.width = width;
+	// format->es->video.height = height;
+	// format->es->video.crop.x = 0;
+	// format->es->video.crop.y = 0;
+	// format->es->video.crop.width = width;
+	// format->es->video.crop.height = height;
+	// format->es->video.frame_rate.num = frame_rate;
+	// format->es->video.frame_rate.den = 1;
 	status = mmal_port_format_commit(splitter_port);
 	if (status != MMAL_SUCCESS)
 	{
