@@ -21,7 +21,7 @@ with open('sample_data.txt', 'w') as del_file:
 data_file = open('sample_data.txt', 'a')
 
 camera = PiCamera()
-camera.resolution = (640, 360)
+camera.resolution = (1920, 1080)
 camera.framerate = 30
 print(camera._camera.outputs[2])
 print(camera._splitter.outputs[2])
@@ -54,8 +54,11 @@ kf_left = KalmanFilter(process_variance, estimated_measurement_variance)
 kf_right = KalmanFilter(process_variance, estimated_measurement_variance)
 
 # what percentage of lane boundary until warning is thrown
-lane_tolerance = 0.25
+# i.e 1.0 is very sensitive, 0.0 would have to go all the way over midline
+lane_tolerance = 0.75
 calibrated_midline = 960
+calibrated_left_boundry = 960
+calibrated_right_boundry = 960
 
 def video_callback(port, buf):
     global data_array
@@ -99,8 +102,8 @@ def video_callback(port, buf):
     actual_left = kf_left.get_latest_estimated_measurement()
     actual_right = kf_right.get_latest_estimated_measurement()
     if (
-        (actual_left > (calibrated_midline - lane_tolerance*(calibrated_midline - actual_left)))
-     or (actual_right < (calibrated_midline + lane_tolerance*(actual_right - calibrated_midline)))
+        (actual_left > (calibrated_midline - lane_tolerance*(calibrated_midline - calibrated_left_boundry)))
+     or (actual_right < (calibrated_midline + lane_tolerance*(calibrated_right_boundry - calibrated_midline)))
        ):
            print("---- LANE WARNING ----")
 
@@ -123,6 +126,8 @@ camera.start_recording('test.h264')
 
 raw_input("Press enter to calibrate")
 calibrated_midline = int((kf_left.get_latest_estimated_measurement() + kf_right.get_latest_estimated_measurement())/2)
+calibrated_left_boundry = kf_left.get_latest_estimated_measurement()
+calibrated_right_boundry = kf_right.get_latest_estimated_measurement()
 print("***** midline: " + str(calibrated_midline))
 
 while(1):

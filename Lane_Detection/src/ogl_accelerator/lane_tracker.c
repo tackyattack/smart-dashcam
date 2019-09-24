@@ -34,7 +34,7 @@ General-Purpose computing on GPU (GPGPU) using OpenGL|ES
 #include "image_loader.h"
 #include "ogl_image_proc_pipeline.h"
 
-#define NUM_SHADERS 11
+#define NUM_SHADERS 9
 
 static GLuint data_fbo = 0;
 
@@ -49,20 +49,20 @@ void lane_draw_callback(OGL_PROGRAM_CONTEXT_T *program_ctx, int current_render_s
   }
 
 
-  if(current_render_stage == 3)
+  if(current_render_stage == 1)
   {
     change_render_window(-1.0, 500.0/1080.0*2 - 1.0, 1.0, -1.0);
   }
-  if(current_render_stage == 7)
+  if(current_render_stage == 5)
   {
     change_render_window(-1.0, 25.0/1080.0*2 - 1.0, 1.0, -1.0);
   }
 
-  if(current_render_stage == 3 || current_render_stage == 4)
+  if(current_render_stage == 2 || current_render_stage == 3)
   {
     glUniform1f(get_program_var(program_ctx, "top_right_y")->location, 500.0);
   }
-  if(current_render_stage == 8 || current_render_stage == 9)
+  if(current_render_stage == 6 || current_render_stage == 7)
   {
     glUniform1f(get_program_var(program_ctx, "top_right_y")->location, 25.0);
   }
@@ -81,11 +81,11 @@ void lane_draw_callback(OGL_PROGRAM_CONTEXT_T *program_ctx, int current_render_s
 
   if(current_render_stage == (NUM_SHADERS-1))
   {
-    //glBindFramebuffer(GL_FRAMEBUFFER, 0);
-  }
-  if(current_render_stage == 1)
-  {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  }
+  if(current_render_stage == 3)
+  {
+    //glBindFramebuffer(GL_FRAMEBUFFER, 0);
   }
 
 
@@ -106,32 +106,28 @@ void init_lane_tracker()
   pipeline_shaders[0].num_vars = 0;
   pipeline_shaders[1].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/birds_eye_fshader.glsl";
   pipeline_shaders[1].num_vars = 0;
-  pipeline_shaders[2].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/grayscale_fshader.glsl";
-  pipeline_shaders[2].num_vars = 0;
-  pipeline_shaders[3].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/blur2_fshader.glsl";
+  pipeline_shaders[2].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/blur2_fshader.glsl";
+  pipeline_shaders[2].num_vars = 1;
+  pipeline_shaders[3].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/blur3_fshader.glsl";
   pipeline_shaders[3].num_vars = 1;
-  pipeline_shaders[4].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/blur3_fshader.glsl";
-  pipeline_shaders[4].num_vars = 1;
-  pipeline_shaders[5].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/red_to_grayscale_fshader.glsl";
+  pipeline_shaders[4].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/sobel_fshader.glsl";
+  pipeline_shaders[4].num_vars = 0;
+  pipeline_shaders[5].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/vreduce_fshader.glsl";
   pipeline_shaders[5].num_vars = 0;
-  pipeline_shaders[6].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/sobel_fshader.glsl";
-  pipeline_shaders[6].num_vars = 0;
-  pipeline_shaders[7].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/vreduce_fshader.glsl";
-  pipeline_shaders[7].num_vars = 0;
-  pipeline_shaders[8].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/blur2_fshader.glsl";
+  pipeline_shaders[6].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/blur2_fshader.glsl";
+  pipeline_shaders[6].num_vars = 1;
+  pipeline_shaders[7].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/blur3_fshader.glsl";
+  pipeline_shaders[7].num_vars = 1;
+  pipeline_shaders[8].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/texture_renderer.glsl";
   pipeline_shaders[8].num_vars = 1;
-  pipeline_shaders[9].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/blur3_fshader.glsl";
-  pipeline_shaders[9].num_vars = 1;
-  pipeline_shaders[10].fragment_shader_path = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/texture_renderer.glsl";
-  pipeline_shaders[10].num_vars = 1;
 
   char *texture_renderer_vars[] = {"fps_state"};
-  pipeline_shaders[10].vars = texture_renderer_vars;
+  pipeline_shaders[8].vars = texture_renderer_vars;
   char *blur_vars[] = {"top_right_y"};
+  pipeline_shaders[2].vars = blur_vars;
   pipeline_shaders[3].vars = blur_vars;
-  pipeline_shaders[4].vars = blur_vars;
-  pipeline_shaders[8].vars = blur_vars;
-  pipeline_shaders[9].vars = blur_vars;
+  pipeline_shaders[6].vars = blur_vars;
+  pipeline_shaders[7].vars = blur_vars;
 
   init_image_processing_pipeline("/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders/flat_vshader.glsl", pipeline_shaders, NUM_SHADERS);
   register_draw_callback(lane_draw_callback);

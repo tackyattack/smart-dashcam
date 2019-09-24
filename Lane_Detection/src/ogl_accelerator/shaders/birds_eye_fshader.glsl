@@ -14,6 +14,7 @@ float current_x = gl_FragCoord.x - bottom_left_x;
 float current_y = gl_FragCoord.y - bottom_left_y;
 current_y = top_right_y - current_y;
 
+
 //it's probably better to overestimate the viewing space
 // so the angle is stronger (lanes will curve outward more then inward)
 
@@ -22,18 +23,17 @@ current_y = top_right_y - current_y;
 // then use sx to scale vertically to top and bottom (based on rotation angle in 3D space)
 // Use sy to pull it out to the edges (can use distance to camera based on angle to determine how much)
 // f can be arbitrary
-float t = (90.0 - 45.0)*3.14159/180.0;
-float sx = 7.0;
-float sy = 1.0;
-float f = 0.25;
+float t = 80.0*3.14159/180.0;
+float sx = 18.0/cos(t); // projection to scale back up to useable size
+float sy = 0.4;
+float f = 0.5;
 
 
 float w = width;
 float h = height;
-// zshift should always stay the same
-// (image height so that rotating it 90 will keep it in front of camera)
+
 float zshift = -500.0;
-float vshift = -1.0;
+float vshift = -250.0;
 float u = current_x;
 float v = current_y;
 float input_x = (2.0*h*vshift*w*sin(t) - 4.0*h*u*vshift*sin(t) + h*sy*w*w*sin(t) - 2.0*v*sy*w*w*sin(t) - 2.0*h*sx*w*zshift*cos(t) + 4.0*h*u*sx*zshift*cos(t) + f*h*sx*sy*w*w*cos(t))/(2.0*sy*w*(h*sin(t) - 2.0*v*sin(t) + f*h*sx*cos(t)));

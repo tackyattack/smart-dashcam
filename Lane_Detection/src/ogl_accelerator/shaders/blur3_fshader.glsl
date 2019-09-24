@@ -29,6 +29,6 @@ for(float i = -5.0; i < 5.0; i = i + 1.0)
 
 
 accum = accum / (kernel_size);
-color_out = vec4(accum, 0.0,0.0,1.0);
+color_out = vec4(accum,accum,accum,1.0);
 gl_FragColor = color_out;
 }
