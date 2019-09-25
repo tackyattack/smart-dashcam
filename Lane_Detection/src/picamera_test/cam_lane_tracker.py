@@ -13,8 +13,12 @@ ogl_cv_init_lane_tracker.argtypes = [ctypes.c_char_p]
 ogl_cv_init_lane_tracker.restype = None
 
 ogl_cv_detect_lanes_from_buffer = ogl_cv_lib.detect_lanes_from_buffer
-ogl_cv_detect_lanes_from_buffer.argtypes = [ctypes.POINTER(mmal.MMAL_BUFFER_HEADER_T), ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
+ogl_cv_detect_lanes_from_buffer.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
 ogl_cv_detect_lanes_from_buffer.restype = None
+
+load_egl_image_from_buffer = ogl_cv_lib.load_egl_image_from_buffer
+load_egl_image_from_buffer.argtypes = [ctypes.POINTER(mmal.MMAL_BUFFER_HEADER_T)]
+load_egl_image_from_buffer.restype = None
 # -----------------------------------
 
 class KalmanFilter(object):
@@ -62,9 +66,10 @@ class LaneTracker():
 
         self.log_count = 0
 
-        self.new_mmal_buffer = False
         self.new_buf = None
+        self.mmal_buf_header = None
         self.mmal_buffer_lock = threading.Lock()
+        self.mmal_consume_lock = threading.Lock()
 
         self.data_array = (ctypes.c_char*(1920*25))()
         self.line_data = []
@@ -94,7 +99,7 @@ class LaneTracker():
         return self.lane_departure
 
     def detect_lanes(self):
-        ogl_cv_detect_lanes_from_buffer(self.new_buf, 1, self.data_array, self.show_framebuffer)
+        ogl_cv_detect_lanes_from_buffer(1, self.data_array, self.show_framebuffer)
         line_str = ''
         self.line_data = []
         for i in range(1920):
@@ -140,25 +145,41 @@ class LaneTracker():
     def lane_tracking_thread(self):
         ogl_cv_init_lane_tracker(self.SHADER_PATH) # note: must be in same thread to keep EGL context correct
         while(not self.shutdown_lane_tracking):
-            self.mmal_buffer_lock.acquire()
-            if self.new_mmal_buffer:
-                self.detect_lanes()
-                self.new_mmal_buffer = False
-            self.mmal_buffer_lock.release()
+            #print("acquiring buffer")
+            self.mmal_consume_lock.acquire()
+            #print("I'm holding the buffer producer now")
+
+            # wait for new buffer to be produced
+            done = False
+            while(not done):
+                self.mmal_buffer_lock.acquire()
+                if(self.new_buf==True):
+                    done = True
+                self.mmal_buffer_lock.release()
+            #print(self.new_buf)
+            # load it in
+            #print("buffer loading into image")
+            load_egl_image_from_buffer(self.mmal_buf_header)
+            #sleep(3)
+            self.mmal_consume_lock.release()
+            #print("detecting lanes")
+            # now take as much time as needed to process the image (won't block producer)
+            self.detect_lanes()
+            #sleep(5)
+
     def video_callback(self, port, buf):
-        print("new buffer")
+        #print("new buffer")
+
         self.mmal_buffer_lock.acquire()
-        self.new_buf = buf._buf
-        self.new_mmal_buffer = True
+        self.mmal_buf_header = buf._buf
+        self.new_buf = True
         self.mmal_buffer_lock.release()
 
-        # wait for buffer to be consumed
-        # buffer_not_done = True
-        # while(buffer_not_done and not self.shutdown_lane_tracking):
-        #     self.mmal_buffer_lock.acquire()
-        #     if self.new_mmal_buffer == False:
-        #         buffer_not_done = False
-        #     self.mmal_buffer_lock.release()
+        self.mmal_consume_lock.acquire()
+        self.mmal_consume_lock.release()
+
+        self.new_buf = False
+
         return False # expect more buffers
 
     def calibrate(self):
@@ -171,177 +192,12 @@ class LaneTracker():
 
 camera = PiCamera()
 camera.resolution = (1920, 1080)
-camera.framerate = 30
-#lane_tracker = LaneTracker(camera=camera, debug_view=True, log=True)
+camera.framerate = 20
+lane_tracker = LaneTracker(camera=camera, debug_view=True, log=True)
 
-# try a resizer instead? Also, could be that
-# just preview is slow using splitter
-# also try opaque to opaque again. Maybe having an extra splitter
-# will retain it.
-
-sp = mmalobj.MMALSplitter()
-rs = mmalobj.MMALResizer()
-#ec = mmalobj.MMALSplitter()
-#ec.outputs[0].enable()
-def video_callback(port, buf):
-    print("buf")
-    print(buf)
-    #buf = camera._splitter.outputs[2].get_buffer(True) # then send it back when done (should be done auto after return)
-    # buf2 = sp.inputs[0].get_buffer(True)
-    # buf2.data = buf.data
-    # sp.inputs[0].send_buffer(buf2)
-    #ec.outputs[0].get_buffer()
-    #print(ec)
-    #input_buf.data = buf.data
-    #ec.inputs[0].send_buffer(input_buf)
-    #sleep(5)
-    while(1):
-        pass
-    return False
-
-def encoder_output_callback(port, buf):
-    print("image buf out")
-    print(buf)
-    #rs.outputs[0].send_buffer(buf)
-    #sleep(1)
-    while(1):
-        pass
-    return False
-
-def encoder_input_callback(port, buf):
-    print("image buf in")
-    print(buf)
-    sleep(1)
-    return False
-
-
-#camera._splitter.outputs[2].connect(sp.inputs[0])
-
-# print(camera._splitter.outputs[2])
-# print(sp.outputs[0])
-#
-# sp.connect(camera._splitter.outputs[2])
-#
-# sp.inputs[0].format = mmal.MMAL_ENCODING_I420
-# sp.inputs[0].commit()
-# camera._splitter.outputs[2].format = mmal.MMAL_ENCODING_I420
-# camera._splitter.outputs[2].commit()
-#
-# sp.connection.enable()
-#
-# sp.outputs[0].format = mmal.MMAL_ENCODING_I420
-# sp.outputs[0].commit()
-# sp.outputs[0].enable(encoder_output_callback)
-# #print(sp.outputs[0].pool)
-#
-# mmalobj.print_pipeline(sp.outputs[0])
-
-# camera._splitter.outputs[2].disable()
-# #camera._splitter.outputs[2].params[mmal.MMAL_PARAMETER_ZERO_COPY] = True
-# camera._splitter.outputs[2].format = mmal.MMAL_ENCODING_OPAQUE #
-# #camera._splitter.outputs[2].format = mmal.MMAL_ENCODING_I420
-# camera._splitter.outputs[2].commit()
-# camera._splitter.outputs[2].enable(video_callback)
-#
-#
-# rs.inputs[0].format = mmal.MMAL_ENCODING_I420
-# rs.inputs[0].commit()
-# rs.connect(camera._splitter)
-# rs.connection.enable()
-#
-# rs.outputs[0].framesize = (640, 480)
-# rs.outputs[0].framerate = 30
-# rs.outputs[0].commit()
-# rs.outputs[0].enable(encoder_input_callback)
-# rs.outputs[0].copy_from(camera._splitter.outputs[2])
-# rs.outputs[0].commit()
-# rs.outputs[0].enable(encoder_input_callback)
-# rs.outputs[0].buffer_count = 1
-# rs.outputs[0].buffer_size = camera._splitter.outputs[2].pool[0].size
-# mmalobj.MMALPortPool(rs.outputs[0])
-# rs.outputs[0].pool.resize(1, rs.outputs[0].pool[0].size)
-# rs.outputs[0].buffer_count = len(rs.outputs[0].pool)
-# rs.outputs[0].buffer_size = rs.outputs[0].pool[0].size
-# print(rs.outputs[0])
-
-
-#rs.inputs[0].enable()
-#mmalobj.print_pipeline(rs.outputs[0])
-
-#
-# camera._splitter.outputs[2].pool.resize(2, camera._splitter.outputs[2].pool[0].size)
-# camera._splitter.outputs[2].buffer_count = len(camera._splitter.outputs[2].pool)
-# camera._splitter.outputs[2].buffer_size = camera._splitter.outputs[2].pool[0].size
-#
-# mmalobj.print_pipeline(camera._splitter.outputs[2])
-#
-#
-# sp.inputs[0].copy_from(camera._splitter.outputs[2])
-# sp.inputs[0].commit()
-# sp.inputs[0].enable(encoder_input_callback)
-# sp.inputs[0].buffer_count = 2
-# sp.inputs[0].buffer_size = camera._splitter.outputs[2].pool[0].size
-# mmalobj.MMALPortPool(sp.inputs[0])
-# sp.inputs[0].pool.resize(2, sp.inputs[0].pool[0].size)
-# sp.inputs[0].buffer_count = len(sp.inputs[0].pool)
-# sp.inputs[0].buffer_size = sp.inputs[0].pool[0].size
-# print(sp.inputs[0])
-#
-#
-# sp.outputs[0].disable()
-# sp.outputs[0].params[mmal.MMAL_PARAMETER_ZERO_COPY] = True
-# sp.outputs[0].format = mmal.MMAL_ENCODING_OPAQUE
-# #camera._splitter.outputs[2].format = mmal.MMAL_ENCODING_I420
-# sp.outputs[0].commit()
-# sp.outputs[0].enable(encoder_output_callback)
-
-
-# ec.inputs[0].copy_from(camera._splitter.outputs[2])
-# ec.inputs[0].commit()
-# ec.connect(camera._splitter)
-# ec.inputs[0].enable(encoder_input_callback)
-# ec.outputs[0].enable(encoder_output_callback)
-# mmalobj.print_pipeline(ec.outputs[0])
-#
-# dc = mmalobj.MMALImageDecoder()
-# dc.outputs[0].format = mmal.MMAL_ENCODING_OPAQUE
-# dc.outputs[0].commit()
-# #dc.connect(ec)
-# mmalobj.print_pipeline(dc.outputs[0])
-
-
-# camera._camera.outputs[0].disable()
-# camera._camera.outputs[0].params[mmal.MMAL_PARAMETER_ZERO_COPY] = True
-# camera._camera.outputs[0].format = mmal.MMAL_ENCODING_OPAQUE
-# camera._camera.outputs[0].commit()
-# camera._camera.outputs[0].enable(image_callback)
-
-
-# camera._splitter.outputs[0].enable(video_callback)
-
-# cam_lib = ctypes.CDLL('../video_test/cam.so')
-# create_splitter_connections = cam_lib.create_splitter_connections
-# create_splitter_connections.argtypes = [ctypes.POINTER(mmal.MMAL_PORT_T)]
-# create_splitter_connections.restype = None
-#
-# sp = mmalobj.MMALSplitter()
-# create_splitter_connections(camera._splitter.outputs[2]._port)
-
-
-camera.start_preview()
+#camera.start_preview()
 camera.start_recording('test.h264')
 
-
-i = 0
-while(1):
-    camera.capture('imgs/foo{0}.yuv'.format(i), format = 'yuv', use_video_port=True)
-    sleep(0.1)
-    i = i + 1
-sleep(5)
-camera.stop_recording()
-
-while(1):
-    pass
 
 exit_main = False
 while(not exit_main):
@@ -350,4 +206,5 @@ while(not exit_main):
         lane_tracker.calibrate()
     except KeyboardInterrupt:
         lane_tracker.stop()
+        camera.stop_recording('test.h264')
         exit_main = True

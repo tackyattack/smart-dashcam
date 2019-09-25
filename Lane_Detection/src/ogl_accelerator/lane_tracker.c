@@ -142,12 +142,30 @@ void init_lane_tracker(const char* shader_dir_path)
   init_image_processing_pipeline(vshader_path, pipeline_shaders, NUM_SHADERS);
   register_draw_callback(lane_draw_callback);
   printf("pipeline created\n");
-  has_init = 1;
   for(int i = 0; i < NUM_SHADERS; i++) free(pipeline_shaders[i].fragment_shader_path);
   free(vshader_path);
+
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  glViewport ( 0, 0, 1920, 1080);
+  has_init = 1;
 }
 
-void detect_lanes_from_buffer(MMAL_BUFFER_HEADER_T *buf, int download, char *mem_ptr, int show)
+void load_egl_image_from_buffer(MMAL_BUFFER_HEADER_T *buf)
+{
+  if(!has_init)
+  {
+    printf("Error: init has not been called first\n");
+    return;
+  }
+  EGLBoolean result = eglMakeCurrent(egl_device.display, egl_device.surface, egl_device.surface, egl_device.context);
+  assert(EGL_FALSE != result);
+  check();
+  reset_pipeline();
+  load_mmal_buffer_to_first_stage(buf, egl_device);
+  eglMakeCurrent(NULL, NULL, NULL, NULL);
+}
+
+void detect_lanes_from_buffer(int download, char *mem_ptr, int show)
 {
 
   if(!has_init)
@@ -160,11 +178,8 @@ void detect_lanes_from_buffer(MMAL_BUFFER_HEADER_T *buf, int download, char *mem
   assert(EGL_FALSE != result);
   check();
 
-  glBindFramebuffer(GL_FRAMEBUFFER, 0);
-  glViewport ( 0, 0, 1920, 1080);
 
   reset_pipeline();
-  load_mmal_buffer_to_first_stage(buf, egl_device);
   while(process_pipeline() != PIPELINE_COMPLETED)
   {
 
