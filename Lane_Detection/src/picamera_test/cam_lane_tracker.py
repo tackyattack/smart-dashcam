@@ -174,64 +174,126 @@ camera.resolution = (1920, 1080)
 camera.framerate = 30
 #lane_tracker = LaneTracker(camera=camera, debug_view=True, log=True)
 
+# try a resizer instead? Also, could be that
+# just preview is slow using splitter
+# also try opaque to opaque again. Maybe having an extra splitter
+# will retain it.
+
 sp = mmalobj.MMALSplitter()
+rs = mmalobj.MMALResizer()
 #ec = mmalobj.MMALSplitter()
 #ec.outputs[0].enable()
 def video_callback(port, buf):
     print("buf")
     print(buf)
-    buf = camera._splitter.outputs[2].get_buffer() # then send it back when done (should be done auto after return)
-    buf2 = sp.inputs[0].get_buffer()
-    sp.inputs[0].send_buffer(buf)
+    #buf = camera._splitter.outputs[2].get_buffer(True) # then send it back when done (should be done auto after return)
+    # buf2 = sp.inputs[0].get_buffer(True)
+    # buf2.data = buf.data
+    # sp.inputs[0].send_buffer(buf2)
     #ec.outputs[0].get_buffer()
     #print(ec)
     #input_buf.data = buf.data
     #ec.inputs[0].send_buffer(input_buf)
     #sleep(5)
+    while(1):
+        pass
     return False
 
 def encoder_output_callback(port, buf):
     print("image buf out")
+    print(buf)
+    #rs.outputs[0].send_buffer(buf)
+    #sleep(1)
+    while(1):
+        pass
     return False
 
 def encoder_input_callback(port, buf):
     print("image buf in")
+    print(buf)
+    sleep(1)
     return False
 
 
-camera._splitter.outputs[2].disable()
-camera._splitter.outputs[2].params[mmal.MMAL_PARAMETER_ZERO_COPY] = True
-camera._splitter.outputs[2].format = mmal.MMAL_ENCODING_I420
-#camera._splitter.outputs[2].format = mmal.MMAL_ENCODING_I420
-camera._splitter.outputs[2].commit()
-camera._splitter.outputs[2].enable(video_callback)
+#camera._splitter.outputs[2].connect(sp.inputs[0])
+
+# print(camera._splitter.outputs[2])
+# print(sp.outputs[0])
+#
+# sp.connect(camera._splitter.outputs[2])
+#
+# sp.inputs[0].format = mmal.MMAL_ENCODING_I420
+# sp.inputs[0].commit()
+# camera._splitter.outputs[2].format = mmal.MMAL_ENCODING_I420
+# camera._splitter.outputs[2].commit()
+#
+# sp.connection.enable()
+#
+# sp.outputs[0].format = mmal.MMAL_ENCODING_I420
+# sp.outputs[0].commit()
+# sp.outputs[0].enable(encoder_output_callback)
+# #print(sp.outputs[0].pool)
+#
+# mmalobj.print_pipeline(sp.outputs[0])
+
+# camera._splitter.outputs[2].disable()
+# #camera._splitter.outputs[2].params[mmal.MMAL_PARAMETER_ZERO_COPY] = True
+# camera._splitter.outputs[2].format = mmal.MMAL_ENCODING_OPAQUE #
+# #camera._splitter.outputs[2].format = mmal.MMAL_ENCODING_I420
+# camera._splitter.outputs[2].commit()
+# camera._splitter.outputs[2].enable(video_callback)
+#
+#
+# rs.inputs[0].format = mmal.MMAL_ENCODING_I420
+# rs.inputs[0].commit()
+# rs.connect(camera._splitter)
+# rs.connection.enable()
+#
+# rs.outputs[0].framesize = (640, 480)
+# rs.outputs[0].framerate = 30
+# rs.outputs[0].commit()
+# rs.outputs[0].enable(encoder_input_callback)
+# rs.outputs[0].copy_from(camera._splitter.outputs[2])
+# rs.outputs[0].commit()
+# rs.outputs[0].enable(encoder_input_callback)
+# rs.outputs[0].buffer_count = 1
+# rs.outputs[0].buffer_size = camera._splitter.outputs[2].pool[0].size
+# mmalobj.MMALPortPool(rs.outputs[0])
+# rs.outputs[0].pool.resize(1, rs.outputs[0].pool[0].size)
+# rs.outputs[0].buffer_count = len(rs.outputs[0].pool)
+# rs.outputs[0].buffer_size = rs.outputs[0].pool[0].size
+# print(rs.outputs[0])
 
 
-camera._splitter.outputs[2].pool.resize(6, camera._splitter.outputs[2].pool[0].size)
-camera._splitter.outputs[2].buffer_count = len(camera._splitter.outputs[2].pool)
-camera._splitter.outputs[2].buffer_size = camera._splitter.outputs[2].pool[0].size
+#rs.inputs[0].enable()
+#mmalobj.print_pipeline(rs.outputs[0])
 
-mmalobj.print_pipeline(camera._splitter.outputs[2])
-
-
-sp.inputs[0].copy_from(camera._splitter.outputs[2])
-sp.inputs[0].commit()
-sp.inputs[0].enable(encoder_input_callback)
-sp.inputs[0].buffer_count = 2
-sp.inputs[0].buffer_size = camera._splitter.outputs[2].pool[0].size
-mmalobj.MMALPortPool(sp.inputs[0])
-sp.inputs[0].pool.resize(2, sp.inputs[0].pool[0].size)
-sp.inputs[0].buffer_count = len(sp.inputs[0].pool)
-sp.inputs[0].buffer_size = sp.inputs[0].pool[0].size
-print(sp.inputs[0])
-
-
-sp.outputs[0].disable()
-sp.outputs[0].params[mmal.MMAL_PARAMETER_ZERO_COPY] = True
-sp.outputs[0].format = mmal.MMAL_ENCODING_OPAQUE
-#camera._splitter.outputs[2].format = mmal.MMAL_ENCODING_I420
-sp.outputs[0].commit()
-sp.outputs[0].enable(encoder_output_callback)
+#
+# camera._splitter.outputs[2].pool.resize(2, camera._splitter.outputs[2].pool[0].size)
+# camera._splitter.outputs[2].buffer_count = len(camera._splitter.outputs[2].pool)
+# camera._splitter.outputs[2].buffer_size = camera._splitter.outputs[2].pool[0].size
+#
+# mmalobj.print_pipeline(camera._splitter.outputs[2])
+#
+#
+# sp.inputs[0].copy_from(camera._splitter.outputs[2])
+# sp.inputs[0].commit()
+# sp.inputs[0].enable(encoder_input_callback)
+# sp.inputs[0].buffer_count = 2
+# sp.inputs[0].buffer_size = camera._splitter.outputs[2].pool[0].size
+# mmalobj.MMALPortPool(sp.inputs[0])
+# sp.inputs[0].pool.resize(2, sp.inputs[0].pool[0].size)
+# sp.inputs[0].buffer_count = len(sp.inputs[0].pool)
+# sp.inputs[0].buffer_size = sp.inputs[0].pool[0].size
+# print(sp.inputs[0])
+#
+#
+# sp.outputs[0].disable()
+# sp.outputs[0].params[mmal.MMAL_PARAMETER_ZERO_COPY] = True
+# sp.outputs[0].format = mmal.MMAL_ENCODING_OPAQUE
+# #camera._splitter.outputs[2].format = mmal.MMAL_ENCODING_I420
+# sp.outputs[0].commit()
+# sp.outputs[0].enable(encoder_output_callback)
 
 
 # ec.inputs[0].copy_from(camera._splitter.outputs[2])
@@ -268,8 +330,15 @@ sp.outputs[0].enable(encoder_output_callback)
 
 camera.start_preview()
 camera.start_recording('test.h264')
-#sleep(5)
-#camera.stop_recording()
+
+
+i = 0
+while(1):
+    camera.capture('imgs/foo{0}.yuv'.format(i), format = 'yuv', use_video_port=True)
+    sleep(0.1)
+    i = i + 1
+sleep(5)
+camera.stop_recording()
 
 while(1):
     pass
