@@ -191,7 +191,7 @@ class LaneTracker():
 
 
 camera = PiCamera()
-camera.resolution = (1920, 1080)
+camera.resolution = (1640, 922)
 camera.framerate = 20
 lane_tracker = LaneTracker(camera=camera, debug_view=True, log=True)
 
