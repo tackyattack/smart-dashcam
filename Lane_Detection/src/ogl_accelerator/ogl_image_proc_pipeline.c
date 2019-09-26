@@ -191,7 +191,6 @@ void init_image_processing_pipeline(char *vertex_shader_path, IMAGE_PIPELINE_SHA
    // Since a texture is linked to this framebuffer, anything written in the shader will write to the texture
    glBindFramebuffer(GL_FRAMEBUFFER, out_fbo);
    last_offscreen_fbo = out_fbo;
-   glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertex_data), vertex_data);
 
    glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT); // Having this in there may signal to GPU that framebuffer doesn't
                                                      // need to go back to CPU
@@ -212,6 +211,7 @@ void init_image_processing_pipeline(char *vertex_shader_path, IMAGE_PIPELINE_SHA
    {
      draw_callback_p(program_ctx, current_stage);
    }
+   glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertex_data), vertex_data);
 
 
    // render the primitive from array data (triangle fan: first vertex is a hub, others fan around it)
