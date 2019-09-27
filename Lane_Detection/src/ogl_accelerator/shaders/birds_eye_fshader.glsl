@@ -2,7 +2,7 @@ uniform sampler2D input_texture;
 void main(void){
 float bottom_left_x = 0.0;
 float bottom_left_y = 0.0;
-float top_right_x = 1920.0;
+float top_right_x = 1024.0;
 float top_right_y = 500.0;
 if(!(gl_FragCoord.x > bottom_left_x && gl_FragCoord.x < top_right_x && gl_FragCoord.y < top_right_y && gl_FragCoord.y > bottom_left_y))
 {
@@ -24,8 +24,8 @@ current_y = top_right_y - current_y;
 // Use sy to pull it out to the edges (can use distance to camera based on angle to determine how much)
 // f can be arbitrary
 float t = 80.0*3.14159/180.0;
-float sx = 18.0/cos(t); // projection to scale back up to useable size
-float sy = 0.4;
+float sx = 9.0/cos(t); // projection to scale back up to useable size
+float sy = 1.5;
 float f = 0.5;
 
 
@@ -46,7 +46,7 @@ actual_y = height - actual_y;
 vec4 color_out = vec4(0.0, 0.0, 0.0, 1.0);
 if ((actual_y > 0.0) && (actual_y < top_right_y) && (input_x > 0.0) && (input_x < top_right_x))
 {
-  color_out = texture2D(input_texture, vec2(actual_x/1920.0, actual_y/1080.0));
+  color_out = texture2D(input_texture, vec2(actual_x/1024.0, actual_y/1024.0));
 }
 gl_FragColor = color_out;
 

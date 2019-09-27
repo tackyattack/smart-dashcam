@@ -3,7 +3,7 @@ void main(void)
 {
   float bottom_left_x = 0.0;
   float bottom_left_y = 0.0;
-  float top_right_x = 1920.0;
+  float top_right_x = 1024.0;
   float top_right_y = 500.0;
   if(!(gl_FragCoord.x > bottom_left_x && gl_FragCoord.x < top_right_x && gl_FragCoord.y < top_right_y && gl_FragCoord.y > bottom_left_y))
   {
@@ -24,7 +24,7 @@ void main(void)
   float accumulator = 0.0;
   for(float i = 0.0; i < 20.0; i++)
   {
-    accumulator+= texture2D(input_texture, vec2((current_x)/1920.0, (current_y+stride*i)/1080.0)).r;
+    accumulator+= texture2D(input_texture, vec2((current_x)/1024.0, (current_y+stride*i)/1024.0)).r;
   }
   accumulator = accumulator/10.0;
   // if(accumulator < 0.1)

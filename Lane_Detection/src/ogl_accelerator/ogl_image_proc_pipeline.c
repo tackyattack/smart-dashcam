@@ -169,9 +169,9 @@ void init_image_processing_pipeline(char *vertex_shader_path, IMAGE_PIPELINE_SHA
 
    }
 
-   create_fbo_tex_pair(&texture0, &fbo0, GL_TEXTURE0, 1920, 1080);
-   create_fbo_tex_pair(&texture1, &fbo1, GL_TEXTURE1, 1920, 1080);
-   create_fbo_tex_pair(&texture2, &fbo2, GL_TEXTURE2, 1920, 1080);
+   create_fbo_tex_pair(&texture0, &fbo0, GL_TEXTURE0, 1024, 1024);
+   create_fbo_tex_pair(&texture1, &fbo1, GL_TEXTURE1, 1024, 1024);
+   create_fbo_tex_pair(&texture2, &fbo2, GL_TEXTURE2, 1024, 1024);
 
    glActiveTexture(GL_TEXTURE3);
    glGenTextures(1, &cam_ytex);
@@ -267,7 +267,7 @@ int process_pipeline()
   if(current_stage != 0)
   {
     GLenum fbo_status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-    fbo_status = GL_FRAMEBUFFER_COMPLETE;
+    //fbo_status = GL_FRAMEBUFFER_COMPLETE;
     if (fbo_status != GL_FRAMEBUFFER_COMPLETE)
     {
       return PIPELINE_PROCESSING;

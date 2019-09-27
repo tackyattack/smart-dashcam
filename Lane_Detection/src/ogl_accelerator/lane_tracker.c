@@ -52,11 +52,11 @@ void lane_draw_callback(OGL_PROGRAM_CONTEXT_T *program_ctx, int current_render_s
 
   if(current_render_stage == 1)
   {
-    change_render_window(-1.0, 500.0/1080.0*2 - 1.0, 1.0, -1.0);
+    change_render_window(-1.0, 500.0/1024.0*2 - 1.0, 1.0, -1.0);
   }
   if(current_render_stage == 5)
   {
-    change_render_window(-1.0, 25.0/1080.0*2 - 1.0, 1.0, -1.0);
+    change_render_window(-1.0, 25.0/1024.0*2 - 1.0, 1.0, -1.0);
   }
 
   if(current_render_stage == 2 || current_render_stage == 3)
@@ -84,7 +84,7 @@ void lane_draw_callback(OGL_PROGRAM_CONTEXT_T *program_ctx, int current_render_s
   {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
   }
-  if(current_render_stage == 3)
+  if(current_render_stage == 1)
   {
     //glBindFramebuffer(GL_FRAMEBUFFER, 0);
   }
@@ -146,7 +146,7 @@ void init_lane_tracker(const char* shader_dir_path)
   free(vshader_path);
 
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
-  glViewport ( 0, 0, 1920, 1080);
+  glViewport ( 0, 0, 1024, 1024);
   has_init = 1;
 }
 
@@ -193,7 +193,7 @@ void detect_lanes_from_buffer(int download, char *mem_ptr, int show)
 
   if(download)
   {
-    download_fbo(data_fbo,0,10,1920,1,mem_ptr);
+    download_fbo(data_fbo,0,10,1024,1,mem_ptr);
   }
 
   eglMakeCurrent(NULL, NULL, NULL, NULL);

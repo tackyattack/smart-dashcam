@@ -59,9 +59,9 @@ class LaneTracker():
         # what percentage of lane boundary until warning is thrown
         # i.e 1.0 is very sensitive, 0.0 would have to go all the way over midline
         self.lane_tolerance = 0.75
-        self.calibrated_midline = 960
-        self.calibrated_left_boundry = 960
-        self.calibrated_right_boundry = 960
+        self.calibrated_midline = 512
+        self.calibrated_left_boundry = 512
+        self.calibrated_right_boundry = 512
         self.lane_departure = False
 
         self.log_count = 0
@@ -71,7 +71,7 @@ class LaneTracker():
         self.mmal_buffer_lock = threading.Lock()
         self.mmal_consume_lock = threading.Lock()
 
-        self.data_array = (ctypes.c_char*(1920*25))()
+        self.data_array = (ctypes.c_char*(1024*25))()
         self.line_data = []
         with open('sample_data.txt', 'w') as del_file:
             pass
@@ -102,16 +102,16 @@ class LaneTracker():
         ogl_cv_detect_lanes_from_buffer(1, self.data_array, self.show_framebuffer)
         line_str = ''
         self.line_data = []
-        for i in range(1920):
+        for i in range(1024):
             self.line_data.append(ord(self.data_array[i*4]))
             line_str += str(ord(self.data_array[i*4])) + ', '
-        left = 960
-        right = 960
+        left = 512
+        right = 512
         max_left = 0
         max_right = 0
-        for i in range(0, 960):
-            right_pos = i+960
-            left_pos = 960-i
+        for i in range(0, 512):
+            right_pos = i+512
+            left_pos = 512-i
             if self.line_data[right_pos] > max_right:
                 max_right = self.line_data[right_pos]
                 right = right_pos
