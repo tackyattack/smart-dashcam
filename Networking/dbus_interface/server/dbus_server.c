@@ -1,79 +1,11 @@
-#include <stdbool.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <dbus/dbus.h>
-#include <dbus/dbus-glib-lowlevel.h> /* for glib main loop */
 
-#include "prv_dbus.h"
+/*-------------------------------------
+|           PRIVATE INCLUDES           |
+--------------------------------------*/
 
-const char *version = "0.1";
-
-/*
- * This is the XML string describing the interfaces, methods and
- * signals implemented by our 'Server' object. It's used by the
- * 'Introspect' method of 'org.freedesktop.DBus.Introspectable'
- * interface.
- *
- * Currently our tiny server implements only 3 interfaces:
- *
- *    - org.freedesktop.DBus.Introspectable
- *    - org.freedesktop.DBus.Properties
- *    - org.example.TestInterface
- *
- * 'org.example.TestInterface' offers 3 methods:
- *
- *    - Ping(): makes the server answering the string 'Pong'.
- *              It takes no arguments.
- *
- *    - Echo(): replies the passed string argument.
- *
- *    - EmitSignal(): send a signal 'OnEmitSignal'
- *
- *    - Quit(): makes the server exit. It takes no arguments.
- */
-const char *server_introspection_xml =
-	DBUS_INTROSPECT_1_0_XML_DOCTYPE_DECL_NODE
-	"<node>\n"
-
-	"  <interface name='org.freedesktop.DBus.Introspectable'>\n"
-	"    <method name='Introspect'>\n"
-	"      <arg name='data' type='s' direction='out' />\n"
-	"    </method>\n"
-	"  </interface>\n"
-
-	"  <interface name='org.freedesktop.DBus.Properties'>\n"
-	"    <method name='Get'>\n"
-	"      <arg name='interface' type='s' direction='in' />\n"
-	"      <arg name='property'  type='s' direction='in' />\n"
-	"      <arg name='value'     type='s' direction='out' />\n"
-	"    </method>\n"
-	"    <method name='GetAll'>\n"
-	"      <arg name='interface'  type='s'     direction='in'/>\n"
-	"      <arg name='properties' type='a{sv}' direction='out'/>\n"
-	"    </method>\n"
-	"  </interface>\n"
-
-	/*"  <interface name='org.example.TestInterface'>\n" */
-	"  <interface name='" DBUS_IFACE "'>\n"
-	"    <property name='Version' type='s' access='read' />\n"
-	"    <method name='Ping' >\n"
-	"      <arg type='s' direction='out' />\n"
-	"    </method>\n"
-	"    <method name='Echo'>\n"
-	"      <arg name='string' direction='in' type='s'/>\n"
-	"      <arg type='s' direction='out' />\n"
-	"    </method>\n"
-	"    <method name='EmitSignal'>\n"
-	"    </method>\n"
-	"    <method name='Quit'>\n"
-	"    </method>\n"
-	"    <signal name='OnEmitSignal'>\n"
-	"    </signal>"
-	"  </interface>\n"
-
-	"</node>\n";
+#include "prv_dbus_srv.h"
+#include "pub_dbus_srv.h"
+#include "../pub_dbus.h"
 
 /*
  * This implements 'Get' method of DBUS_INTERFACE_PROPERTIES so a
@@ -83,7 +15,7 @@ DBusHandlerResult server_get_properties_handler(const char *property, DBusConnec
 {
 	if (!strcmp(property, "Version")) 
     {
-		dbus_message_append_args(reply, DBUS_TYPE_STRING, &version, DBUS_TYPE_INVALID);
+		dbus_message_append_args(reply, DBUS_TYPE_STRING, &srv_sftw_version, DBUS_TYPE_INVALID);
 	} 
     else
     {
@@ -123,7 +55,7 @@ DBusHandlerResult server_get_all_properties_handler(DBusConnection *conn, DBusMe
 	dbus_message_iter_open_container(&array, DBUS_TYPE_DICT_ENTRY, NULL, &dict);
 	dbus_message_iter_append_basic(&dict, DBUS_TYPE_STRING, &property);
 	dbus_message_iter_open_container(&dict, DBUS_TYPE_VARIANT, "s", &variant);
-	dbus_message_iter_append_basic(&variant, DBUS_TYPE_STRING, &version);
+	dbus_message_iter_append_basic(&variant, DBUS_TYPE_STRING, &srv_sftw_version);
 	dbus_message_iter_close_container(&dict, &variant);
 	dbus_message_iter_close_container(&array, &dict);
 
@@ -137,6 +69,60 @@ DBusHandlerResult server_get_all_properties_handler(DBusConnection *conn, DBusMe
 	return result;
 } /* server_get_all_properties_handler() */
 
+dbus_srv_id create_server()
+{
+    /*-------------------------------------
+    |              VARIABLES               |
+    --------------------------------------*/
+
+	dbus_srv_id new_srv_id;
+
+    /*-------------------------------------
+    |       FIND FIRST AVAILABLE ID        |
+    --------------------------------------*/
+
+	for(new_srv_id = 0; new_srv_id < MAX_NUM_SERVERS && SRV_CONFIGS_ARRY[new_srv_id] != NULL; new_srv_id++);
+
+    /*-------------------------------------
+    |         VERIFY ID IS AVAIBLE         |
+    --------------------------------------*/
+
+	if ( new_srv_id == MAX_NUM_SERVERS-1 && SRV_CONFIGS_ARRY[new_srv_id] == NULL )
+	{
+		printf("ERROR: attemping to create more than MAX_NUM_SERVERS!!!");
+		exit(EXIT_FAILURE);
+	}
+
+
+    /*-------------------------------------
+    |           ALLOCATE SERVER            |
+    --------------------------------------*/
+
+	SRV_CONFIGS_ARRY[new_srv_id] = malloc(sizeof(struct dbus_srv_config));
+	bzero(SRV_CONFIGS_ARRY[new_srv_id], sizeof(struct dbus_srv_config));
+
+	return new_srv_id;
+}
+
+void delete_server(dbus_srv_id server_id)
+{
+    /*-------------------------------------
+    |       VERIFY SERVER_ID EXISTS        |
+    --------------------------------------*/
+
+	if ( SRV_CONFIGS_ARRY[server_id] == NULL )
+	{
+		return;
+	}
+
+
+    /*-------------------------------------
+    |          DEALLOCATE SERVER           |
+    --------------------------------------*/
+
+	free(SRV_CONFIGS_ARRY[server_id]);
+	SRV_CONFIGS_ARRY[server_id] = NULL;
+}
 /*
  * This function implements the 'TestInterface' interface for the
  * 'Server' DBus object.
@@ -302,7 +288,7 @@ fail:
 
 void* server_thread(void *config)
 {
-    printf("Starting dbus tiny server v%s\n", version);
+    printf("Starting dbus tiny server v%s\n", srv_sftw_version);
 	/* Start the glib event loop */
 	g_main_loop_run( ((struct dbus_srv_config *)config)->loop );
     
@@ -310,14 +296,48 @@ void* server_thread(void *config)
     return NULL;
 }  /* server_thread() */
 
-int init_server(struct dbus_srv_config *config)
+int init_server(dbus_srv_id srv_id)
 {
+    /*-------------------------------------
+    |              VARIABLES               |
+    --------------------------------------*/
+
     const DBusObjectPathVTable server_vtable = {.message_function = server_message_handler};
     DBusError err;
 	int val;
+	struct dbus_srv_config *config;
 
-    bzero(config, sizeof(struct dbus_srv_config));
+
+    /*-------------------------------------
+    |           INITIALIZATIONS            |
+    --------------------------------------*/
+	config = SRV_CONFIGS_ARRY[srv_id];
     dbus_error_init(&err);
+
+    /*-------------------------------------
+    |           VERIFY VALID ID            |
+    --------------------------------------*/
+
+	if ( config == NULL )
+	{
+		printf("WARNING, called init_server for server id %d but server has not been created for that id!\n", srv_id);
+		return EXIT_FAILURE;
+	}
+
+    /*-------------------------------------
+    |  VERIFY ID NOT ALREADY INITIALIZED   |
+    --------------------------------------*/
+
+	if ( config->conn != NULL )
+	{
+		printf("WARNING, called init_server for server id %d but server was already initialized!\n", srv_id);
+		return EXIT_FAILURE;
+	}
+
+
+    /*-------------------------------------
+    |        CONNECT TO SYSTEM DBUS        |
+    --------------------------------------*/
 
 	/* connect to the daemon bus. Note, the 2 main buses are the system and session (user) buses.
 		This is connecting to the system bus. */
@@ -329,6 +349,11 @@ int init_server(struct dbus_srv_config *config)
 	    return EXIT_FAILURE;
 	}
 
+
+    /*-------------------------------------
+    |    REQUESTION COMMON NAME ON DBUS    |
+    --------------------------------------*/
+
 	val = dbus_bus_request_name(config->conn, DBUS_SERVER_NAME, DBUS_NAME_FLAG_REPLACE_EXISTING , &err);
 	if (val != DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER)
     {
@@ -337,6 +362,11 @@ int init_server(struct dbus_srv_config *config)
 	    return EXIT_FAILURE;
 	}
 
+
+    /*-------------------------------------
+    |     REGISTER SERVER OBJECT PATHS     |
+    --------------------------------------*/
+
     val = dbus_connection_register_object_path(config->conn, DBUS_OPATH, &server_vtable, (void*)config);
 	if (!val)
     {
@@ -344,6 +374,11 @@ int init_server(struct dbus_srv_config *config)
 		dbus_error_free(&err);
 	    return EXIT_FAILURE;
 	}
+
+
+    /*-------------------------------------
+    |          CREATE G_MAIN_LOOP          |
+    --------------------------------------*/
 
     /*
 	 * For the sake of simplicity we're using glib event loop to
@@ -358,32 +393,64 @@ int init_server(struct dbus_srv_config *config)
     return EXIT_SUCCESS;
 } /* init_server() */
 
-int execute_server(struct dbus_srv_config *config)
+int execute_server(dbus_srv_id srv_id)
 {
-	pthread_t thread_id;
+    /*-------------------------------------
+    |              VARIABLES               |
+    --------------------------------------*/
 
-    if ( config == NULL )
-    {
-        /* config ptr points to nothing. */
-        return EXIT_FAILURE;
-    }
+	pthread_t thread_id;
+	struct dbus_srv_config *config;
+	
+	
+    /*-------------------------------------
+    |           INITIALIZATIONS            |
+    --------------------------------------*/
+
+	config = SRV_CONFIGS_ARRY[srv_id];
+
+    /*-------------------------------------
+    |           VERIFY VALID ID            |
+    --------------------------------------*/
+
+	if ( config == NULL )
+	{
+		printf("WARNING, called execute_server for server id %d but server has not been created nor initialized for that id!\n", srv_id);
+		return EXIT_FAILURE;
+	}
+
+
+    /*-------------------------------------
+    |      VERIFY SERVER INITIALIZED,      |
+    |      CALL INIT_SERVER() IF NOT       |
+    --------------------------------------*/
 
     if ( config->conn == NULL || config->loop == NULL )
     {
         /* config hasn't been initialized, initialize config/server */
-        if( EXIT_FAILURE == init_server(config) )
+        if( EXIT_FAILURE == init_server(srv_id) )
         {
             printf("Failed to initialize server!\nExiting.....\n");
             return (EXIT_FAILURE);
         }
     }
-    
+
+
+    /*-------------------------------------
+    |         CREATE SERVER THREAD         |
+    --------------------------------------*/
+
     if ( EXIT_SUCCESS != pthread_create(&thread_id, NULL, server_thread, (void*)config) )
     {
         printf("FAILED to create thread!");
         return (EXIT_FAILURE);
     }
-    
+
+
+    /*-------------------------------------
+    |         DETACH SERVER THREAD         |
+    --------------------------------------*/
+
     printf("Detach server thread!\n");
     if ( EXIT_SUCCESS != pthread_detach(thread_id) )
     {
@@ -394,53 +461,49 @@ int execute_server(struct dbus_srv_config *config)
 	return EXIT_SUCCESS;
 } /* execute_server() */
 
-void kill_server(struct dbus_srv_config *config)
+void kill_server(dbus_srv_id srv_id)
 {
-   if ( config == NULL || config->loop == NULL )
-    {
-        return;
-    }
+    /*-------------------------------------
+    |              VARIABLES               |
+    --------------------------------------*/
+
+	struct dbus_srv_config *config;
+
+
+    /*-------------------------------------
+    |           INITIALIZATIONS            |
+    --------------------------------------*/
+
+	config = SRV_CONFIGS_ARRY[srv_id];
+   
+
+	/*-------------------------------------
+    |           VERIFY VALID ID            |
+    --------------------------------------*/
+
+	if ( config == NULL )
+	{
+		return;
+	}
+
+
+    /*-------------------------------------
+    |        VERIFY ID INITIALIZED         |
+    --------------------------------------*/
+
+	if ( config == NULL || config->loop == NULL || config->conn == NULL )
+	{
+		printf("WARNING, called kill_server() for server id %d but server was not initialized!\n", srv_id);
+		return;
+	}
+
+    /*-------------------------------------
+    |             KILL SERVER              |
+    --------------------------------------*/
 
     printf("Kill server thread\n");
     g_main_loop_quit(config->loop); /* Kill server (aka message handling thread/g_main_loop) */
     g_main_loop_unref (config->loop);
 
-    //TODO addition cleanup needed?
+    // TODO addition cleanup needed?
 } /* kill_server() */
-
-
-/* This is a test function. This function represents what would be done 
-    in the fuction/program that is using this dbus server code */
-int main(void)
-{
-    struct dbus_srv_config dbus_srv_config = {0}; /* Do not destroy this until server is killed */
-
-    if ( init_server(&dbus_srv_config) == EXIT_FAILURE )
-    {
-        printf("Failed to initialize server!\nExiting.....\n");
-        exit(EXIT_FAILURE);
-    }
-
-    if ( execute_server(&dbus_srv_config) == EXIT_FAILURE )
-    {
-        printf("Failed to execute server!\nExiting.....\n");
-        exit(EXIT_FAILURE);
-    }
-        
-
-    // for (size_t i = 0; i < 10; i++)
-    for(;;)
-    {
-        sleep(1);
-        /* Test server methods */
-        dbus_message_new_signal(DBUS_OPATH,DBUS_IFACE,"OnEmitSignal");
-        //TODO 
-    }
-
-    printf("Press enter to quit....\n");
-    getchar(); /* Block until any stdin is received */
-
-    kill_server(&dbus_srv_config);
-
-    return EXIT_SUCCESS;
-}
