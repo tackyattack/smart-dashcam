@@ -1,3 +1,6 @@
+# ignore all vscode stuff
+**.vscode**
+
 ################## C/C++ ##################
 # Prerequisites
 *.d
