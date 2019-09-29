@@ -81,4 +81,4 @@ install:
 clean :
 # make clean-all will remove all generated/downloaded files. Should essetially revert directories back to original post clone state
 clean-all:
-	sudo rm -rf $(EXE)
+	rm -rf $(EXE)

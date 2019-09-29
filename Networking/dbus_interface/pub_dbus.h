@@ -1,10 +1,6 @@
 #ifndef PUB_DBUS_INTERFACE_H
 #define PUB_DBUS_INTERFACE_H
 
-// #include <gio/gio.h>    /* GDBusProxy and GMainLoop */
-// #include <dbus/dbus.h>  /* DBusConnection */
-// #include <stdbool.h>
-
 /* Upon changing these defines, the server_introspection_xml and the
     com.dashcam.conf file must be updated to match */
 #define DBUS_SERVER_NAME    "com.dashcam.Server"
