@@ -72,6 +72,9 @@ libdashcam_dbus_server: $(conf_file)
 	# List library header files
 	ls $(SYSTEM_GLOBAL_INC_DIR)/dashcam_dbus_server/
 
+	# Clean up (I can't figure out why gcc creates the a.out file)
+	rm a.out
+
 # Create DBUS server dynamic library to be used in other programs as a library
 libdashcam_dbus_tcp: 
 	# A note for GCC, orders of the parameters matter. The wrong order can cause no errors/warnings but the resulting compiled file
@@ -108,7 +111,10 @@ libdashcam_dbus_tcp:
 	# List library header files
 	ls $(SYSTEM_GLOBAL_INC_DIR)/dashcam_dbus_tcp/
 
-clean:
+	# Clean up (I can't figure out why gcc creates the a.out file)
+	rm a.out
+
+clean-all:
 	rm -f a.out
 	rm -f $(DBUS_SERVER_DIR)/*dashcam*
 	rm -f $(DBUS_CLIENT_TCP_DIR)/*dashcam*
