@@ -108,10 +108,8 @@ libdashcam_dbus_tcp:
 	# List library header files
 	ls $(SYSTEM_GLOBAL_INC_DIR)/dashcam_dbus_tcp/
 
-# dbus-tcp-client-lib: client_tcp/dbus_client.c
-# 	gcc -c $< $(CFLAGS) $(CFLAGS_GIO) $(CFLAGS_DBUS) -o tcp_dbus_client.o
-
 clean:
+	rm -f a.out
 	rm -f $(DBUS_SERVER_DIR)/*dashcam*
 	rm -f $(DBUS_CLIENT_TCP_DIR)/*dashcam*
 	sudo rm -f $(conf_file)

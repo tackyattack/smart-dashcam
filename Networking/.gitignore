@@ -8,3 +8,6 @@ WorkingConfigs/**
 # Other
 device-id
 **.code-workspace
+**vscode*
+*.so
+*.so.*
