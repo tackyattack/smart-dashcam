@@ -52,14 +52,19 @@ int main(void)
     |            INFINITE LOOP             |
     --------------------------------------*/
 
-    for (size_t i = 0; i < 10; i++)
+    // // for (size_t i = 0; i < 10; i++)
     // for(;;)
-    {
-        sleep(1);
-        /* Test server methods */
-        // dbus_message_new_signal(DBUS_OPATH,DBUS_IFACE,"OnEmitSignal");
-        //TODO 
-    }
+    // {
+    //     sleep(1);
+    //     /* Test server methods */
+    //     // dbus_message_new_signal(DBUS_OPATH,DBUS_IFACE,"OnEmitSignal");
+    //     //TODO 
+    // }
+    
+    /* Block until input is received. 
+        Once input has been received, quit the program */
+    printf("Press enter to quit DBUS server.");
+    getchar();
 
 
     /*-------------------------------------
