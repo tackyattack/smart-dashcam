@@ -22,13 +22,13 @@ C_INC=-I$(shell pwd) #-I../../dbus_interface/
 # Set compiler flags 
 #src: https://gcc.gnu.org/onlinedocs/gcc/Option-Summary.html
 # Compiler_FLAGS:
-#	-O3:			Optimization more for code size and execution time
-#	-Wall			Enables additional compiler warnings
-#	-Wextra			Further enables addionational compiler warnings not included by -Wall
-#	-std=gnu99		Sets what language standard is used. gnu99: GNU dialect of ISO C99
-#	-ggdb			Enables debugging symbols for GDB
-#	-Werror			Treat warnings as errors
-#
+#	-O3:					Optimization more for code size and execution time
+#	-Wall					Enables additional compiler warnings
+#	-Wextra					Further enables addionational compiler warnings not included by -Wall
+#	-std=gnu99				Sets what language standard is used. gnu99: GNU dialect of ISO C99
+#	-ggdb					Enables debugging symbols for GDB
+#	-Werror					Treat warnings as errors
+#	-ldashcam_dbus_server	Include dynamic (shared) library containing the dashcam dbus server function calls
 CFLAGS= -O3 -Wall -Wextra -std=gnu99 -ggdb -Werror -ldashcam_dbus_server
 
 # Define any parameters to be passed during compile time
@@ -62,9 +62,9 @@ service_dbus: clean-all
 
 	chmod 770 $(EXE)
 
-runServer: $(EXE)
+runService_dbus: $(EXE)
 	echo "\n -----------------Executing Server-----------------\n\n"
-	./$(EXE)
+	sudo ./$(EXE)
 
 # make setup will go through the setup process needed to compile/run code
 setup: clean-all dependencies download install clean
