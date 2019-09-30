@@ -44,5 +44,7 @@ void clear_preserve_last_stage_output();
 // between the other two and accumulate.
 int get_last_output_stage_unit();
 GLuint get_last_offscreen_fbo();
+// call this during the callback to indicate that the default FBO should also be filled
+void set_screen_render();
 
 #endif

@@ -12,8 +12,9 @@ ogl_cv_init_lane_tracker = ogl_cv_lib.init_lane_tracker
 ogl_cv_init_lane_tracker.argtypes = [ctypes.c_char_p]
 ogl_cv_init_lane_tracker.restype = None
 
+# detect_lanes_from_buffer(int download, char *mem_ptr, int bottom_y_boundry, int top_y_boundry, float angle, int show, int stage_to_show)
 ogl_cv_detect_lanes_from_buffer = ogl_cv_lib.detect_lanes_from_buffer
-ogl_cv_detect_lanes_from_buffer.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
+ogl_cv_detect_lanes_from_buffer.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_int, ctypes.c_float, ctypes.c_int, ctypes.c_int]
 ogl_cv_detect_lanes_from_buffer.restype = None
 
 load_egl_image_from_buffer = ogl_cv_lib.load_egl_image_from_buffer
@@ -47,13 +48,17 @@ class LaneTracker():
     MAX_LOG_ENTRIES = 1000
     SHADER_PATH = "/home/pi/Documents/lane_detection_exp/src/ogl_accelerator/shaders"
 
-    def __init__(self, camera, debug_view, log):
+    def __init__(self, camera, bottom_y_boundry, top_y_boundry, transform_angle, debug_view, debug_view_stage, log):
         self.camera_instance = camera
         self.data_logging = log
         self.show_framebuffer = debug_view
+        self.stage_to_show = debug_view_stage
         self.shutdown_lane_tracking = False
         self.process_variance = 4**2
         self.estimated_measurement_variance = 50**2
+        self.bottom_y_boundry = bottom_y_boundry
+        self.top_y_boundry = top_y_boundry
+        self.transform_angle = transform_angle
         self.kf_left = KalmanFilter(self.process_variance, self.estimated_measurement_variance)
         self.kf_right = KalmanFilter(self.process_variance, self.estimated_measurement_variance)
         # what percentage of lane boundary until warning is thrown
@@ -99,7 +104,7 @@ class LaneTracker():
         return self.lane_departure
 
     def detect_lanes(self):
-        ogl_cv_detect_lanes_from_buffer(1, self.data_array, self.show_framebuffer)
+        ogl_cv_detect_lanes_from_buffer(1, self.data_array, self.bottom_y_boundry, self.top_y_boundry, self.transform_angle, self.show_framebuffer, self.stage_to_show)
         line_str = ''
         self.line_data = []
         for i in range(1024):
@@ -109,7 +114,9 @@ class LaneTracker():
         right = 512
         max_left = 0
         max_right = 0
-        for i in range(0, 512):
+        # don't go all the way to the edges
+        # since sobel could be picking up edges of picture
+        for i in range(0, 450):
             right_pos = i+512
             left_pos = 512-i
             if self.line_data[right_pos] > max_right:
@@ -189,11 +196,11 @@ class LaneTracker():
         print("***** midline: " + str(self.calibrated_midline))
 
 
-
 camera = PiCamera()
 camera.resolution = (1640, 922)
 camera.framerate = 20
-lane_tracker = LaneTracker(camera=camera, debug_view=True, log=True)
+lane_tracker = LaneTracker(camera=camera, bottom_y_boundry=0, top_y_boundry=250,
+                           transform_angle=45.0, debug_view=True, debug_view_stage=4, log=True)
 
 #camera.start_preview()
 camera.start_recording('test.h264')

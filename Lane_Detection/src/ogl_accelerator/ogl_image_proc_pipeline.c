@@ -78,6 +78,7 @@ static int current_stage = 0;
 static int last_stage_ran = 0;
 static int number_of_stages = 0;
 static int repeat_current_stage = 0;
+static int render_to_screen_fbo = 0; // 1 = render to default FBO, 0 = don't render
 
 static GLuint current_output_tex, current_output_fbo, current_input_tex_unit, last_output_tex_unit, last_offscreen_fbo;
 
@@ -220,6 +221,16 @@ void init_image_processing_pipeline(char *vertex_shader_path, IMAGE_PIPELINE_SHA
    glDrawArrays ( GL_TRIANGLE_FAN, 0, 4 );
    check();
 
+   if(render_to_screen_fbo)
+   {
+     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+     glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+     check();
+     glDrawArrays ( GL_TRIANGLE_FAN, 0, 4 );
+     check();
+     render_to_screen_fbo = 0;
+   }
+
 
    //glBindTexture(GL_TEXTURE_2D, input_tex_unit+1);
 
@@ -228,6 +239,11 @@ void init_image_processing_pipeline(char *vertex_shader_path, IMAGE_PIPELINE_SHA
    //glFinish();
    check();
  }
+
+void set_screen_render()
+{
+  render_to_screen_fbo = 1;
+}
 
 void set_repeat_stage()
 {
