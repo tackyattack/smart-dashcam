@@ -19,13 +19,14 @@ current_y = current_y;
 //it's probably better to overestimate the viewing space
 // so the angle is stronger (lanes will curve outward more then inward)
 
-// calculate angle based on inverse tan of
-// mounting height and distance away from top of region of interest
 // then use sx to scale vertically to top and bottom (based on rotation angle in 3D space)
-// Use sy to pull it out to the edges (can use distance to camera based on angle to determine how much)
+// sx is used to pull image out to correct size (when you got to birds eye, the image gets longer).
+// Although it gets far longer than your view window, you don't need all of it since you're only
+// interested in your ROI.
+// Use sy to pull it out to the edges
 // f can be arbitrary
 float t = transform_angle*3.14159/180.0;
-float sx = 40.0/cos(t); // projection to scale back up to useable size
+float sx = 100.0/cos(t); // projection to scale back up to useable size
 float sy = 2.0;
 float f = 0.5;
 
