@@ -103,6 +103,53 @@ class LaneTracker():
     def get_lane_stats(self):
         return self.lane_departure
 
+    def LR_peak_finder(self, lane_data, middle_point, edge_buffer):
+        left = middle_point
+        right = middle_point
+
+        # don't go all the way to the edges
+        # since sobel could be picking up edges of picture
+        extender_size = middle_point - edge_buffer
+        max_left = 0
+        max_right = 0
+        left_avg = 0.0
+        right_avg = 0.0
+
+        # find LR max, and averages for noise floor
+        for i in range(0, extender_size):
+            right_pos = i+middle_point
+            left_pos = middle_point-i
+            left_avg = left_avg + lane_data[left_pos]
+            right_avg = right_avg + lane_data[right_pos]
+            if lane_data[right_pos] > max_right:
+                max_right = lane_data[right_pos]
+            if lane_data[left_pos] > max_left:
+                max_left = lane_data[left_pos]
+
+
+        left_avg = left_avg*1.0/extender_size
+        right_avg = right_avg*1.0/extender_size
+        left_threshold  = (max_left+left_avg)/2.0
+        right_threshold = (max_right+right_avg)/2.0
+
+        # now feel forward for the first peak on L and R sides
+        for i in range(0, extender_size):
+            right_pos = i+middle_point
+            if lane_data[right_pos] > right_threshold:
+                right = right_pos
+                break
+        for i in range(0, extender_size):
+            left_pos = middle_point-i
+            if lane_data[left_pos] > left_threshold:
+                left = left_pos
+                break
+
+        if(self.data_logging):
+            print("L threshold: {0}  R threshold: {1}".format(left_threshold,right_threshold))
+
+        return left, right
+
+
     def detect_lanes(self):
         ogl_cv_detect_lanes_from_buffer(1, self.data_array, self.bottom_y_boundry, self.top_y_boundry, self.transform_angle, self.show_framebuffer, self.stage_to_show)
         line_str = ''
@@ -110,22 +157,9 @@ class LaneTracker():
         for i in range(1024):
             self.line_data.append(ord(self.data_array[i*4]))
             line_str += str(ord(self.data_array[i*4])) + ', '
-        left = 512
-        right = 512
-        max_left = 0
-        max_right = 0
-        # don't go all the way to the edges
-        # since sobel could be picking up edges of picture
-        for i in range(0, 450):
-            right_pos = i+512
-            left_pos = 512-i
-            if self.line_data[right_pos] > max_right:
-                max_right = self.line_data[right_pos]
-                right = right_pos
-            if self.line_data[left_pos] > max_left:
-                max_left = self.line_data[left_pos]
-                left = left_pos
 
+
+        left, right = self.LR_peak_finder(lane_data=self.line_data, middle_point=512, edge_buffer=60)
 
         self.kf_left.input_latest_noisy_measurement(left)
         self.kf_right.input_latest_noisy_measurement(right)
