@@ -63,15 +63,16 @@ if(y_pos < 1.0)
   v = texture2D(input_texture_v, vec2(x_pos, y_pos)).r;
 
   // YUV to RGB
-  rgb_color.r = (y + (1.370705 * (v-0.5)));
-  rgb_color.g = (y - (0.698001 * (v-0.5)) - (0.337633 * (u-0.5)));
-  rgb_color.b = (y + (1.732446 * (u-0.5)));
+  rgb_color.r = clamp((y + (1.370705 * (v-0.5))), 0.0, 1.0);
+  rgb_color.g = clamp((y - (0.698001 * (v-0.5)) - (0.337633 * (u-0.5))), 0.0, 1.0);
+  rgb_color.b = clamp((y + (1.732446 * (u-0.5))), 0.0, 1.0);
   rgb_color.a = 1.0;
 
   vec3 rgb;
   rgb.r = rgb_color.r;
   rgb.g = rgb_color.g;
   rgb.b = rgb_color.b;
+
 
   // Lane color space
   vec3 hsv;
