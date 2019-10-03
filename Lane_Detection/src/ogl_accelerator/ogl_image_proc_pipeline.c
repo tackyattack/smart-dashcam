@@ -127,6 +127,8 @@ void change_render_window(float x1, float y1, float x2, float y2)
 }
 
 static GLuint cam_ytex;
+static GLuint cam_utex;
+static GLuint cam_vtex;
 
 static GLuint vbuffer;
 void init_image_processing_pipeline(char *vertex_shader_path, IMAGE_PIPELINE_SHADER_T *pipeline_shaders, int num_stages)
@@ -177,6 +179,14 @@ void init_image_processing_pipeline(char *vertex_shader_path, IMAGE_PIPELINE_SHA
    glActiveTexture(GL_TEXTURE3);
    glGenTextures(1, &cam_ytex);
    glBindTexture(GL_TEXTURE_EXTERNAL_OES, cam_ytex);
+
+   glActiveTexture(GL_TEXTURE4);
+   glGenTextures(1, &cam_utex);
+   glBindTexture(GL_TEXTURE_EXTERNAL_OES, cam_utex);
+
+   glActiveTexture(GL_TEXTURE5);
+   glGenTextures(1, &cam_vtex);
+   glBindTexture(GL_TEXTURE_EXTERNAL_OES, cam_vtex);
 
 }
 
@@ -382,17 +392,27 @@ void load_image_to_first_stage(char *image_path)
 }
 
 static EGLImageKHR yimg = EGL_NO_IMAGE_KHR;
+static EGLImageKHR uimg = EGL_NO_IMAGE_KHR;
+static EGLImageKHR vimg = EGL_NO_IMAGE_KHR;
 void load_mmal_buffer_to_first_stage(MMAL_BUFFER_HEADER_T *buf, EGL_OBJECT_T egl_device)
 {
-  glActiveTexture(GL_TEXTURE3);
-  glBindTexture(GL_TEXTURE_EXTERNAL_OES, cam_ytex);
-  check();
 
   if(yimg != EGL_NO_IMAGE_KHR)
   {
     eglDestroyImageKHR(egl_device.display, yimg);
   }
+  if(uimg != EGL_NO_IMAGE_KHR)
+  {
+    eglDestroyImageKHR(egl_device.display, uimg);
+  }
+  if(vimg != EGL_NO_IMAGE_KHR)
+  {
+    eglDestroyImageKHR(egl_device.display, vimg);
+  }
 
+  glActiveTexture(GL_TEXTURE3);
+  glBindTexture(GL_TEXTURE_EXTERNAL_OES, cam_ytex);
+  check();
   yimg = eglCreateImageKHR(egl_device.display,
 			EGL_NO_CONTEXT,
 			EGL_IMAGE_BRCM_MULTIMEDIA_Y,
@@ -400,5 +420,29 @@ void load_mmal_buffer_to_first_stage(MMAL_BUFFER_HEADER_T *buf, EGL_OBJECT_T egl
 			NULL);
 		check();
 		glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, yimg);
+    check();
+
+  glActiveTexture(GL_TEXTURE4);
+  glBindTexture(GL_TEXTURE_EXTERNAL_OES, cam_utex);
+  check();
+  uimg = eglCreateImageKHR(egl_device.display,
+			EGL_NO_CONTEXT,
+			EGL_IMAGE_BRCM_MULTIMEDIA_U,
+			(EGLClientBuffer) buf->data,
+			NULL);
+		check();
+		glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, uimg);
+    check();
+
+  glActiveTexture(GL_TEXTURE5);
+  glBindTexture(GL_TEXTURE_EXTERNAL_OES, cam_vtex);
+  check();
+  vimg = eglCreateImageKHR(egl_device.display,
+			EGL_NO_CONTEXT,
+			EGL_IMAGE_BRCM_MULTIMEDIA_V,
+			(EGLClientBuffer) buf->data,
+			NULL);
+		check();
+		glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, vimg);
     check();
 }

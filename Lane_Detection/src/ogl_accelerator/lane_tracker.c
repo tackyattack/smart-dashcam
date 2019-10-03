@@ -50,7 +50,9 @@ void lane_draw_callback(OGL_PROGRAM_CONTEXT_T *program_ctx, int current_render_s
 {
   if(current_render_stage == 0)
   {
-    glUniform1i(get_program_var(program_ctx, "input_texture")->location, 3);
+    glUniform1i(get_program_var(program_ctx, "input_texture_y")->location, 3);
+    glUniform1i(get_program_var(program_ctx, "input_texture_u")->location, 4);
+    glUniform1i(get_program_var(program_ctx, "input_texture_v")->location, 5);
   }
 
   // camera only takes up lower half of texture
@@ -122,7 +124,7 @@ void init_lane_tracker(const char* shader_dir_path)
 
   IMAGE_PIPELINE_SHADER_T pipeline_shaders[NUM_SHADERS];
   pipeline_shaders[0].fragment_shader_path = concat(shader_dir_path, "/camera_fshader.glsl");
-  pipeline_shaders[0].num_vars = 0;
+  pipeline_shaders[0].num_vars = 3;
   pipeline_shaders[1].fragment_shader_path = concat(shader_dir_path, "/birds_eye_fshader.glsl");
   pipeline_shaders[1].num_vars = 3;
   pipeline_shaders[2].fragment_shader_path = concat(shader_dir_path, "/blur2_fshader.glsl");
@@ -140,6 +142,9 @@ void init_lane_tracker(const char* shader_dir_path)
   pipeline_shaders[8].fragment_shader_path = concat(shader_dir_path, "/texture_renderer.glsl");
   pipeline_shaders[8].num_vars = 1;
 
+
+  char *camera_vars[] = {"input_texture_y", "input_texture_u", "input_texture_v"};
+  pipeline_shaders[0].vars = camera_vars;
   char *texture_renderer_vars[] = {"fps_state"};
   pipeline_shaders[8].vars = texture_renderer_vars;
   char *global_vars[] = {"top_right_y", "bottom_left_y", "transform_angle"};

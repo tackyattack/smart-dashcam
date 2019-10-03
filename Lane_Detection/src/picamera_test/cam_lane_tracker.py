@@ -234,7 +234,7 @@ camera = PiCamera()
 camera.resolution = (1640, 922)
 camera.framerate = 20
 lane_tracker = LaneTracker(camera=camera, bottom_y_boundry=0, top_y_boundry=250,
-                           transform_angle=45.0, debug_view=True, debug_view_stage=8, log=True)
+                           transform_angle=45.0, debug_view=True, debug_view_stage=4, log=True)
 
 #camera.start_preview()
 camera.start_recording('test.h264')
