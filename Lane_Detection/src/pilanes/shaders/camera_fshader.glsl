@@ -80,13 +80,13 @@ if(y_pos < 1.0)
 
 
   // HSL best: saturation
-  // HSV best: value
+  // But if saturation is low, then lightness (true white) helps
   hsl = rgb2hsl(rgb);
-  hsv = rgb2hsv(rgb);
 
-  float v = hsv.z;
   float s = hsl.y;
-  float lane_value = (s+v)/2.0;
+  float l = hsl.z;
+  float split = 0.8;
+  float lane_value = s*split + l*(1.0-split);
 
   gl_FragColor = vec4(lane_value, lane_value, lane_value, 1.0);
 
