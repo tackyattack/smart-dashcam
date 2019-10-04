@@ -446,3 +446,38 @@ void load_mmal_buffer_to_first_stage(MMAL_BUFFER_HEADER_T *buf, EGL_OBJECT_T egl
 		glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, vimg);
     check();
 }
+
+void release_pipeline(EGL_OBJECT_T *egl_device)
+{
+  if(yimg != EGL_NO_IMAGE_KHR)
+  {
+    eglDestroyImageKHR(egl_device->display, yimg);
+  }
+  if(uimg != EGL_NO_IMAGE_KHR)
+  {
+    eglDestroyImageKHR(egl_device->display, uimg);
+  }
+  if(vimg != EGL_NO_IMAGE_KHR)
+  {
+    eglDestroyImageKHR(egl_device->display, vimg);
+  }
+
+  glDeleteTextures(1, &texture0);
+  glDeleteTextures(1, &texture1);
+  glDeleteTextures(1, &texture2);
+  glDeleteTextures(1, &cam_ytex);
+  glDeleteTextures(1, &cam_utex);
+  glDeleteTextures(1, &cam_vtex);
+
+  glDeleteFramebuffers(1, &fbo0);
+  glDeleteFramebuffers(1, &fbo1);
+  glDeleteFramebuffers(1, &fbo2);
+  eglDestroySurface( egl_device->display, egl_device->surface );
+
+
+  // Release OpenGL resources
+  eglMakeCurrent( egl_device->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT );
+  eglDestroyContext( egl_device->display, egl_device->context );
+  eglTerminate( egl_device->display );
+  printf("pipeline released\n");
+}

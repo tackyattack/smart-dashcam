@@ -228,3 +228,17 @@ void detect_lanes_from_buffer(int download, char *mem_ptr, int bottom_y_boundry,
 
   eglMakeCurrent(NULL, NULL, NULL, NULL);
 }
+
+void shutdown_lane_tracker()
+{
+  if(!has_init)
+  {
+    printf("Error: init has not been called first\n");
+    return;
+  }
+
+  EGLBoolean result = eglMakeCurrent(egl_device.display, egl_device.surface, egl_device.surface, egl_device.context);
+  assert(EGL_FALSE != result);
+  check();
+  release_pipeline(&egl_device);
+}

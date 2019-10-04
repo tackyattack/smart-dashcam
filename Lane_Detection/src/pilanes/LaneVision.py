@@ -22,6 +22,10 @@ ogl_cv_detect_lanes_from_buffer.restype = None
 load_egl_image_from_buffer = ogl_cv_lib.load_egl_image_from_buffer
 load_egl_image_from_buffer.argtypes = [ctypes.POINTER(mmal.MMAL_BUFFER_HEADER_T)]
 load_egl_image_from_buffer.restype = None
+
+shutdown_lane_tracker = ogl_cv_lib.shutdown_lane_tracker
+shutdown_lane_tracker.argtypes = None
+shutdown_lane_tracker.restype = None
 # -----------------------------------
 
 class KalmanFilter(object):
@@ -210,6 +214,7 @@ class LaneTracker():
             # now take as much time as needed to process the image (won't block producer)
             self.detect_lanes()
             #sleep(5)
+        shutdown_lane_tracker()
 
     def video_callback(self, port, buf):
         #print("new buffer")

@@ -46,5 +46,6 @@ int get_last_output_stage_unit();
 GLuint get_last_offscreen_fbo();
 // call this during the callback to indicate that the default FBO should also be filled
 void set_screen_render();
+void release_pipeline(EGL_OBJECT_T *egl_device);
 
 #endif
