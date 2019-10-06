@@ -11,7 +11,7 @@ CC=gcc
 CXX=g++
 
 # Define names of executable files
-EXE=../exe_service_comm_tcp_server
+EXE=../exe_service_tcp_server
 
 # Define location of source code files
 C_SRC=$(wildcard *.c)
@@ -22,14 +22,14 @@ C_INC=-I$(shell pwd) #-I../../dbus_interface/
 # Set compiler flags 
 #src: https://gcc.gnu.org/onlinedocs/gcc/Option-Summary.html
 # Compiler_FLAGS:
-#	-O3:					Optimization more for code size and execution time
 #	-Wall					Enables additional compiler warnings
 #	-Wextra					Further enables addionational compiler warnings not included by -Wall
 #	-std=gnu99				Sets what language standard is used. gnu99: GNU dialect of ISO C99
 #	-ggdb					Enables debugging symbols for GDB
 #	-Werror					Treat warnings as errors
-#	-ldashcam_dbus_server	Include dynamic (shared) library containing the dashcam dbus server function calls
-CFLAGS= -O3 -Wall -Wextra -std=gnu99 -ggdb -Werror -ldashcam_dbus_server
+#	-ldashcam_tcp_dbus_srv	Include dynamic (shared) library containing the dashcam dbus server (for tcp server) function calls
+#	-O3:					Optimization more for code size and execution time
+CFLAGS=-Wall -Wextra -std=gnu99 -ggdb -Werror -ldashcam_tcp_dbus_srv  -O3
 
 # Define any parameters to be passed during compile time
 # CDEFINES=
@@ -50,19 +50,19 @@ CFLAGS= -O3 -Wall -Wextra -std=gnu99 -ggdb -Werror -ldashcam_dbus_server
 #		prerequisites ->  a file that is used as input to create the target
 #		recipe -> actions taken by make. Tab is required.
 
-.PHONY: build service_dbus runService_dbus setup download dependencies install clean clean-all
+.PHONY: build service_dbus run setup download dependencies install clean clean-all
 
 # make build will compile all source code. This is the default if 'make' is run.
-build: service_dbus
+build: service_tcp_server
 	echo "\nFinished!"
 
-service_dbus: clean-all
-	# Compile service_dbus C code:
+service_tcp_server: clean-all
+	# Compile service_tcp_server C code:
 	$(CC) -o $(EXE) $(C_SRC) $(C_INC) $(CFLAGS)
 
 	chmod 770 $(EXE)
 
-runService_dbus: $(EXE)
+run: $(EXE)
 	echo "\n -----------------Executing Server-----------------\n\n"
 	sudo ./$(EXE)
 

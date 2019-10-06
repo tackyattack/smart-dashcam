@@ -10,8 +10,8 @@
 #include <stdio.h>
 
 /* includes needed for server */
-#include <dashcam_dbus_tcp/pub_tcp_dbus_clnt.h>
-#include <dashcam_dbus_tcp/pub_dbus.h>
+#include <dashcam_dbus/pub_tcp_dbus_clnt.h>
+#include <dashcam_dbus/pub_dbus.h>
 
 
 /*-------------------------------------

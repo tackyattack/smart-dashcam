@@ -202,7 +202,6 @@ int start_main_loop()
     return EXIT_SUCCESS;
 } /* start_main_loop() */
 
-// FIXME  Remove this?
 void SubscriberCallback(GDBusConnection *conn, const gchar *sender_name, const gchar *object_path, const gchar *interface_name, const gchar *signal_name, GVariant *parameters,gpointer callback_data)
 {
 	// g_printf("\n****************signal handler: OnEmitSignal received.****************\n\n");

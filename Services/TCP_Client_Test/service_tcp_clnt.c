@@ -28,7 +28,7 @@ void tcp_rx_data_callback(char* data, unsigned int data_sz)
 {
   	printf("\n****************tcp_rx_data_callback: callback activated.****************\n\n");
 
-    printf("service_tcp_clnt tcp_rc_callback!\nReceived %d bytes of string \"",data_sz);
+    printf("Received %d bytes of string \"",data_sz);
     for (size_t i = 0; i < data_sz; i++)
     {
         printf("%c",data[i]);
