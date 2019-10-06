@@ -1,3 +1,9 @@
+# objs dir
+**/objs/**
+
+# Executables
+**exe**
+
 # ignore all vscode stuff
 **.vscode**
 
