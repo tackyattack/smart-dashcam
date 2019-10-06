@@ -205,6 +205,8 @@ int start_main_loop()
 // FIXME  Remove this?
 void SubscriberCallback(GDBusConnection *conn, const gchar *sender_name, const gchar *object_path, const gchar *interface_name, const gchar *signal_name, GVariant *parameters,gpointer callback_data)
 {
+	// g_printf("\n****************signal handler: OnEmitSignal received.****************\n\n");
+    
     /*
     https://developer.gnome.org/glib/stable/gvariant-format-strings.html
     https://developer.gnome.org/glib/stable/glib-GVariant.html
@@ -274,10 +276,7 @@ void SubscriberCallback(GDBusConnection *conn, const gchar *sender_name, const g
     g_free(arry);
 #endif
 
-
-	g_printf("\n****************signal handler: OnEmitSignal received.****************\n\n");
-
-} /* SubscribeCallback */
+} /* SubscriberCallback */
 
 
 int Subscribe2Server(tcp_rx_signal_callback callback)

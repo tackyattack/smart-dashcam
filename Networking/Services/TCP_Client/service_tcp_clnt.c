@@ -24,8 +24,10 @@
  * the data in data needs to be saved, a copy of the data must be made.
  * Refer to this guide on mixing C and C++ callbacks due to ldashcam_dbus_tcp
  *  being written in C: https://isocpp.org/wiki/faq/mixing-c-and-cpp */
-void tcp_rx_signal_callback(char* data, unsigned int data_sz)
+void tcp_rx_data_callback(char* data, unsigned int data_sz)
 {
+  	printf("\n****************tcp_rx_data_callback: callback activated.****************\n\n");
+
     printf("service_tcp_clnt tcp_rc_callback!\nReceived %d bytes of string \"",data_sz);
     for (size_t i = 0; i < data_sz; i++)
     {
@@ -33,7 +35,8 @@ void tcp_rx_signal_callback(char* data, unsigned int data_sz)
     }
     printf("\"\n");
     
-} /* tcp_rx_signal_callback() */
+  	printf("\n****************END---tcp_rx_data_callback---END****************\n\n");
+} /* tcp_rx_data_callback() */
 
 
 /*-------------------------------------
@@ -70,7 +73,7 @@ int main(void)
 	test_CommandEmitSignal();
 
     printf("Subscribe to server\n");
-    if ( EXIT_FAILURE == Subscribe2Server(&tcp_rx_signal_callback) )
+    if ( EXIT_FAILURE == Subscribe2Server(&tcp_rx_data_callback) )
     {
         printf("Failed to subscribe to server!\nExiting.....\n");
         exit(EXIT_FAILURE);
@@ -88,14 +91,14 @@ int main(void)
     UnsubscribeFromServer();
     
     printf("Subscribe to server\n");
-    if ( EXIT_FAILURE == Subscribe2Server(&tcp_rx_signal_callback) )
+    if ( EXIT_FAILURE == Subscribe2Server(&tcp_rx_data_callback) )
     {
         printf("Failed to subscribe to server!\nExiting.....\n");
         exit(EXIT_FAILURE);
     }
 
     printf("Subscribe to server\n");
-    if ( EXIT_FAILURE == Subscribe2Server(&tcp_rx_signal_callback) )
+    if ( EXIT_FAILURE == Subscribe2Server(&tcp_rx_data_callback) )
     {
         printf("Failed to subscribe to server!\nExiting.....\n");
     }
