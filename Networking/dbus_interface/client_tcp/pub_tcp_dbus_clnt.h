@@ -19,6 +19,11 @@ static const char *server_version;
 //     // void* Callback_Data;
 // };
 
+/*-------------------------------------
+|    FUNCTION POINTER DECLARATIONS     |
+--------------------------------------*/
+/* https://isocpp.org/wiki/faq/mixing-c-and-cpp */
+typedef void (*tcp_rx_signal_callback)(char* data, unsigned int data_sz);
 
 /*-------------------------------------
 |    COMMAND FUNCTION DECLARATIONS     |
@@ -53,7 +58,7 @@ int init_client(void);
  * from the server, the callback function will be called from
  * separate thread. 
  */
-int Subscribe2Server(void);
+int Subscribe2Server(tcp_rx_signal_callback callback);
 
 /** Given a pointer to a dbus_subscriber struct that has been
  * passed to Subscribe2Server(), which has successfully run,

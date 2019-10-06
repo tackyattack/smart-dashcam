@@ -205,20 +205,102 @@ int start_main_loop()
 // FIXME  Remove this?
 void SubscriberCallback(GDBusConnection *conn, const gchar *sender_name, const gchar *object_path, const gchar *interface_name, const gchar *signal_name, GVariant *parameters,gpointer callback_data)
 {
+    /*
+    https://developer.gnome.org/glib/stable/gvariant-format-strings.html
+    https://developer.gnome.org/glib/stable/glib-GVariant.html
+    https://people.gnome.org/~ryanl/glib-docs/gvariant-format-strings.html#gvariant-format-strings-arrays
+    */
+#if (1) /* method 1 */
+    /*-------------------------------------
+    |              VARIABLES               |
+    --------------------------------------*/
+    
+    GVariantIter *iter;
+    gchar c;
+    gchar *arry;
+    uint i,arry_sz;
+
+    /*-------------------------------------
+    |           INITIALIZATIONS            |
+    --------------------------------------*/
+    i       = 0;
+    iter    = NULL;
+    
+
+    /*-------------------------------------
+    |        GET ITERATOR OVER DATA        |
+    --------------------------------------*/
+    
+    g_variant_get(parameters, "(ay)", &iter);
+    
+
+    /*-------------------------------------
+    |        COPY DATA TO NEW ARRAY        |
+    --------------------------------------*/
+
+    arry_sz = g_variant_iter_n_children(iter);
+    arry    = malloc(arry_sz);
+    
+    while (g_variant_iter_loop(iter, "y", &c))
+    {
+        // g_print("\t%c\n", c);
+        arry[i] = c;
+        i++;
+    }
+
+
+    /*-------------------------------------
+    |  CALL USER CALLBACK WITH ARRY DATA   |
+    --------------------------------------*/
+
+    (*(((struct dbus_subscriber*)callback_data)->user_callback))(arry, arry_sz);
+    
+    
+    /*-------------------------------------
+    |               CLEANUP                |
+    --------------------------------------*/
+    
+    g_variant_iter_free(iter);
+    free(arry);
+
+#else /* Method 2 (Currently doesn't work) */
+    gchar *arry;
+    gsize arry_len;
+
+    arry = g_variant_dup_bytestring(parameters, &arry_len);
+
+    (*(((struct dbus_subscriber*)callback_data)->user_callback))(arry, arry_len);
+
+    g_free(arry);
+#endif
+
+
 	g_printf("\n****************signal handler: OnEmitSignal received.****************\n\n");
+
 } /* SubscribeCallback */
 
 
-int Subscribe2Server(void)
+int Subscribe2Server(tcp_rx_signal_callback callback)
 {
+    /*-------------------------------------
+    |           INITIALIZATIONS            |
+    --------------------------------------*/
+    
+    tcp_sbscr.SignalName    = DBUS_TCP_RECV_SIGNAL_NAME;
+    tcp_sbscr.callback      = SubscriberCallback; /* This callback is our local callback */
+    tcp_sbscr.user_callback = callback;     /* This callback is given to us to call from our local callback */
+    tcp_sbscr.callback_data = NULL; /* This will be callback given to us as a parameter */
+    tcp_sbscr.dbus_config   = &dbus_config;
+
+
     /*-------------------------------------
     |            VERIFICATIONS             |
     -------------------------------------*/
 
-    // if ( /*tcp_sbscr.callback == NULL || */ tcp_sbscr.SignalName == NULL || tcp_sbscr.dbus_config == NULL || tcp_sbscr.dbus_config->ServerName == NULL || tcp_sbscr.dbus_config->Interface == NULL || tcp_sbscr.dbus_config->ObjectPath == NULL || tcp_sbscr.dbus_config->conn == NULL || tcp_sbscr.dbus_config->loop == NULL )
-    // {
-    //     return EXIT_FAILURE;
-    // }
+    if ( tcp_sbscr.callback == NULL ||  tcp_sbscr.SignalName == NULL || tcp_sbscr.dbus_config == NULL || tcp_sbscr.dbus_config->ServerName == NULL || tcp_sbscr.dbus_config->Interface == NULL || tcp_sbscr.dbus_config->ObjectPath == NULL || tcp_sbscr.dbus_config->conn == NULL || tcp_sbscr.dbus_config->loop == NULL )
+    {
+        return EXIT_FAILURE;
+    }
 
     if (tcp_sbscr.isSubscribed == true )
     {
@@ -226,14 +308,6 @@ int Subscribe2Server(void)
         return EXIT_FAILURE;
     }
 
-    /*-------------------------------------
-    |           INITIALIZATIONS            |
-    --------------------------------------*/
-    
-    tcp_sbscr.SignalName = DBUS_TCP_RECV_SIGNAL_NAME;
-    tcp_sbscr.callback = SubscriberCallback;
-    tcp_sbscr.callback_data = NULL; /* This will be callback given to us as a parameter */
-    tcp_sbscr.dbus_config = &dbus_config;
 
     /*-------------------------------------
     |         SUBSCRIBE TO SERVER          |
@@ -245,11 +319,11 @@ int Subscribe2Server(void)
                                                         tcp_sbscr.dbus_config->Interface,
                                                         tcp_sbscr.SignalName,
                                                         tcp_sbscr.dbus_config->ObjectPath,
-                                                        NULL, 
+                                                        NULL,
                                                         /* arg0 */G_DBUS_SIGNAL_FLAGS_NONE,
-                                                        tcp_sbscr.callback,
-                                                        tcp_sbscr.dbus_config->loop, 
-                                                        /* user data *//*struct signal callback info*/tcp_sbscr.callback_data);
+                                                        tcp_sbscr.callback /* Callback to be called */,
+                                                        &tcp_sbscr/* data passed to callback function */,
+                                                        NULL/* user data free function (called when subscr is removed) */);
     
     tcp_sbscr.isSubscribed = true;
 

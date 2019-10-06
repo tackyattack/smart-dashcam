@@ -29,6 +29,7 @@
  * 
  * SignalName    -> Set to DBUS Server's signal to subscribe to
  * callback      -> Set to GDBusSignalCallback function pointer to be called when a signal from the server has been received
+ * user_callback -> Set this to the function pointer of form tcp_rx_signal_callback that the callback should call with any data (This is the user function that will be called)
  * callback_data -> Set to as a void pointer to anything that should be passed to the callback function
  * config        -> Set to a pointer to a struct dbus_clnt_config that has been initialized with init_client() successfully
  * id            -> Set to 0
@@ -54,6 +55,7 @@ struct dbus_subscriber
     struct dbus_clnt_config *dbus_config;    /* Set this before calling subscribe function */
     char* SignalName;                        /* Set this before calling subscribe function */
     GDBusSignalCallback callback;            /* Set this before calling subscribe function */
+    tcp_rx_signal_callback user_callback;    /* Set this before calling subscribe function */
     void *callback_data;                     /* Set this before calling subscribe function. Can be NULL */
     guint id;                                /* Set to 0 */
     bool isSubscribed;                       /* Set to 0 */

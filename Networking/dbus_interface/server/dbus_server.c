@@ -218,10 +218,14 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
 	} 
     else if (dbus_message_is_method_call(message, DBUS_IFACE, "EmitSignal")) 
     {
+		const char *msg = "Test Message from server \0 send via EmitSignal (broadcast in publisher-subscriber setup)";
+
 		if (!(reply = dbus_message_new_signal(DBUS_OPATH,DBUS_IFACE,"OnEmitSignal")))
 		{
             goto fail;
-        }
+		}
+		
+		dbus_message_append_args (reply, DBUS_TYPE_ARRAY, DBUS_TYPE_BYTE, &msg, 89, DBUS_TYPE_INVALID);
 
 		if (!dbus_connection_send(conn, reply, NULL))
         {

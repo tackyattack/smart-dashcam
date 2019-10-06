@@ -28,7 +28,7 @@ CFLAGS_DBUS = $(shell pkg-config --cflags --libs dbus-1)
 CFLAGS_DBUS_GLIB = $(shell pkg-config --cflags --libs dbus-glib-1)
 CFLAGS_GIO  = $(shell pkg-config --cflags --libs gio-2.0)
 
-CFLAGS = -g -Wall -pthread -O3 -fPIC -Werror -Wl,--start-group
+CFLAGS = -g -Wall -pthread -fPIC -Werror -Wl,--start-group -O3
 
 all: libdashcam_dbus_server libdashcam_dbus_tcp
 
@@ -69,8 +69,10 @@ libdashcam_dbus_server: $(conf_file)
 	# Test library config (Warnings about "cannot find entry symbol _start; not setting start address" are ok)
 	sudo ld -ldashcam_dbus_server
 
+	echo "\n"
 	# List library header files
 	ls $(SYSTEM_GLOBAL_INC_DIR)/dashcam_dbus_server/
+	echo "\n"
 
 	# Clean up (I can't figure out why gcc creates the a.out file)
 	rm a.out
@@ -108,8 +110,10 @@ libdashcam_dbus_tcp:
 	# Test library config (Warnings about "cannot find entry symbol _start; not setting start address" are ok)
 	sudo ld -ldashcam_dbus_tcp
 
+	echo "\n"
 	# List library header files
 	ls $(SYSTEM_GLOBAL_INC_DIR)/dashcam_dbus_tcp/
+	echo "\n"
 
 	# Clean up (I can't figure out why gcc creates the a.out file)
 	rm a.out

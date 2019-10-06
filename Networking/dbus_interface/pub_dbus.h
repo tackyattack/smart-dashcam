@@ -10,6 +10,6 @@
 // #define DBUS_IFACE          "org.example.TestInterface"
 // #define DBUS_OPATH          "/org/example/TestObject"
 
-#define DBUS_TCP_RECV_SIGNAL_NAME "TCP_Recv_Signal"
+#define DBUS_TCP_RECV_SIGNAL_NAME "OnEmitSignal"
 
 #endif /* PUB_DBUS_INTERFACE_H */

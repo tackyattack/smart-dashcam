@@ -20,14 +20,25 @@
 |              CALLBACKS               |
 --------------------------------------*/
 
-// void SubscriberCallback(GDBusConnection *conn, const gchar *sender_name, const gchar *object_path, const gchar *interface_name, const gchar *signal_name, GVariant *parameters,gpointer callback_data)
-// {
-// 	g_printf("\n****************signal handler: OnEmitSignal received.****************\n\n");
-// } /* SubscribeCallback */
+/** Note that data is freed after this callback is called. As such, if 
+ * the data in data needs to be saved, a copy of the data must be made.
+ * Refer to this guide on mixing C and C++ callbacks due to ldashcam_dbus_tcp
+ *  being written in C: https://isocpp.org/wiki/faq/mixing-c-and-cpp */
+void tcp_rx_signal_callback(char* data, unsigned int data_sz)
+{
+    printf("service_tcp_clnt tcp_rc_callback!\nReceived %d bytes of string \"",data_sz);
+    for (size_t i = 0; i < data_sz; i++)
+    {
+        printf("%c",data[i]);
+    }
+    printf("\"\n");
+    
+} /* tcp_rx_signal_callback() */
 
- /* main(), */
 
-/* This is for testing */
+/*-------------------------------------
+|                 MAIN                 |
+--------------------------------------*/
 
 int main(void)
 {
@@ -59,7 +70,7 @@ int main(void)
 	test_CommandEmitSignal();
 
     printf("Subscribe to server\n");
-    if ( EXIT_FAILURE == Subscribe2Server() )
+    if ( EXIT_FAILURE == Subscribe2Server(&tcp_rx_signal_callback) )
     {
         printf("Failed to subscribe to server!\nExiting.....\n");
         exit(EXIT_FAILURE);
@@ -77,14 +88,14 @@ int main(void)
     UnsubscribeFromServer();
     
     printf("Subscribe to server\n");
-    if ( EXIT_FAILURE == Subscribe2Server() )
+    if ( EXIT_FAILURE == Subscribe2Server(&tcp_rx_signal_callback) )
     {
         printf("Failed to subscribe to server!\nExiting.....\n");
         exit(EXIT_FAILURE);
     }
 
     printf("Subscribe to server\n");
-    if ( EXIT_FAILURE == Subscribe2Server() )
+    if ( EXIT_FAILURE == Subscribe2Server(&tcp_rx_signal_callback) )
     {
         printf("Failed to subscribe to server!\nExiting.....\n");
     }
