@@ -12,7 +12,7 @@ import io
 # python DashcamRecorder.py | cvlc -vvv stream:///dev/stdin --sout '#standard{access=http,mux=ts,dst=:8090}' :demux=h264 :h264-fps=40
 # or you can use rtsp
 # python DashcamRecorder.py | cvlc -vvv stream:///dev/stdin --sout '#rtp{sdp=rtsp://:8554/}' :demux=h264 :h264-fps=40
-# You can transcode todo
+# You can transcode too, but this is only needed if the network is too slow
 # python DashcamRecorder.py | cvlc -vvv stream:///dev/stdin --sout '#transcode{vcodec=h264,vb=25,fps=20}:rtp{sdp=rtsp://:8554/}' :demux=h264 :h264-fps=40
 
 # to play back
