@@ -184,6 +184,7 @@ class Recorder:
         if buf:
             try:
                 sys.stdout.write(buf.data)
+                sys.stdout.flush()
             except IOError:
                 return True
         return False
