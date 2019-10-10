@@ -1,13 +1,23 @@
 from picamera import PiCamera
+from picamera import mmal, mmalobj as mo
 import threading
 import os
 from time import sleep
 import subprocess
 import Queue
+import sys
+import io
 
+# note: the frame rate flag for some reason has to be double the framerate
+# python DashcamRecorder.py | cvlc -vvv stream:///dev/stdin --sout '#standard{access=http,mux=ts,dst=:8090}' :demux=h264 :h264-fps=40
+# or you can use rtsp
+# python DashcamRecorder.py | cvlc -vvv stream:///dev/stdin --sout '#rtp{sdp=rtsp://:8554/}' :demux=h264 :h264-fps=40
+
+# to play back
+# omxplayer -o hdmi  rtsp://131.151.175.144:8554/
 
 class Recorder:
-    def __init__(self, record_path, recording_interval_s, max_size_mb):
+    def __init__(self, record_path, recording_interval_s, max_size_mb, stream):
         self.camera = PiCamera()
         self.camera.resolution = (1640, 922)
         self.framerate = 20
@@ -20,8 +30,27 @@ class Recorder:
         self.current_recording_name = None
         self.wrapping_queue = Queue.Queue()
         self.max_size_mb = max_size_mb
+        self.silent = False
         if not os.path.exists(self.record_path):
             os.makedirs(self.record_path)
+
+        if stream:
+            self.silent = True
+            dummy_streamA = io.BytesIO()
+            dummy_streamB = io.BytesIO()
+            # start recording to do setup
+            self.camera.start_recording(dummy_streamA, format='h264')
+            # note: the resolution should be as close to the original aspect ratio as
+            #       possible so that resizer doesn't have to work hard
+            self.camera.start_recording(dummy_streamB, format='h264', splitter_port=3, resize=(410,320), quality=1)
+
+            self.camera._encoders[3].encoder.outputs[0].disable()
+            self.camera._encoders[3].encoder.outputs[0].enable(self.video_callback)
+            self.camera.stop_recording()
+
+            #mo.print_pipeline(self.camera._encoders[2].encoder.outputs[0])
+
+
 
     def get_camera(self):
         return self.camera
@@ -105,10 +134,12 @@ class Recorder:
                 sleep(1.0)
                 sleep_cnt = sleep_cnt + 1
             self.camera.stop_recording()
-            print("DONE RECORDING " + record_name_path)
+            if(not self.silent):
+                print("DONE RECORDING " + record_name_path)
             self.wrapping_queue.put(record_name_path)
 
-        print("recording thread closed")
+        if(not self.silent):
+            print("recording thread closed")
 
     def check_reduce(self):
         size_mb = self.get_size()/1000000
@@ -119,7 +150,8 @@ class Recorder:
                 return
             # delete oldest
             file_to_delete = file_paths[0]
-            print("removing: " + file_to_delete)
+            if(not self.silent):
+                print("removing: " + file_to_delete)
             os.remove(file_to_delete)
 
 
@@ -128,7 +160,8 @@ class Recorder:
             while not self.wrapping_queue.empty():
                 # check if file is ready
                 file_to_wrap_path = self.wrapping_queue.get()
-                print("WRAPPING " + file_to_wrap_path)
+                if(not self.silent):
+                    print("WRAPPING " + file_to_wrap_path)
                 # 'xxx.h264'
                 file_out_path = file_to_wrap_path[:-4] + 'mp4'
                 cmd_str = 'ffmpeg -framerate {0} -i {1} -c:v copy -f mp4 {2}'.format(self.framerate,
@@ -142,13 +175,19 @@ class Recorder:
             self.check_reduce()
             sleep(1.0) # give the CPU some time to do other stuff
 
-        print("wrapping thread closed")
+        if(not self.silent):
+            print("wrapping thread closed")
+
+    def video_callback(self, port, buf):
+        if buf:
+            sys.stdout.write(buf.data)
+        return False
 
 
 
 if __name__ == "__main__":
     record_path = os.path.join(os.getcwd(), 'recordings')
-    record_inst = Recorder(record_path=record_path, recording_interval_s=10, max_size_mb=100)
+    record_inst = Recorder(record_path=record_path, recording_interval_s=10, max_size_mb=100, stream=True)
     record_inst.start_recorder()
     exit_main = False
     while(not exit_main):
