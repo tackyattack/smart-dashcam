@@ -66,11 +66,10 @@ class Recorder:
 
 
     def terminate(self):
-        self.cleanup()
         self.terminate_threads = True
-        self.recording_thread = None
         self.wrapping_thread = None
-        self.camera.stop_recording()
+        self.recording_thread = None
+
 
     def cleanup(self):
         for file in os.listdir(self.record_path):
@@ -179,6 +178,7 @@ class Recorder:
 
         if(not self.silent):
             print("wrapping thread closed")
+        self.cleanup()
 
     def video_callback(self, port, buf):
         if buf:
