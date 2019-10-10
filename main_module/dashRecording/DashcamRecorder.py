@@ -182,7 +182,10 @@ class Recorder:
 
     def video_callback(self, port, buf):
         if buf:
-            sys.stdout.write(buf.data)
+            try:
+                sys.stdout.write(buf.data)
+            except IOError:
+                return True
         return False
 
 
