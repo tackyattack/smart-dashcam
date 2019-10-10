@@ -131,15 +131,16 @@ class Recorder:
                 print("WRAPPING " + file_to_wrap_path)
                 # 'xxx.h264'
                 file_out_path = file_to_wrap_path[:-4] + 'mp4'
-                cmd = 'ffmpeg -framerate {0} -i \"{1}\" -c:v copy -f mp4 \"{2}\"'.format(self.framerate,
-                                                                                      file_to_wrap_path,
-                                                                                         file_out_path)
-                subprocess.call(cmd, shell=True)
+                cmd_str = 'ffmpeg -framerate {0} -i {1} -c:v copy -f mp4 {2}'.format(self.framerate,
+                                                                                     file_to_wrap_path,
+                                                                                     file_out_path)
+                cmd = cmd_str.split()
+                subprocess.call(cmd, stdout=open(os.devnull, 'wb'), stderr=open(os.devnull, 'wb'))
                 os.remove(file_to_wrap_path)
 
 
             self.check_reduce()
-            sleep(1.0) # give the CPU some time
+            sleep(1.0) # give the CPU some time to do other stuff
 
         print("wrapping thread closed")
 
@@ -147,7 +148,7 @@ class Recorder:
 
 if __name__ == "__main__":
     record_path = os.path.join(os.getcwd(), 'recordings')
-    record_inst = Recorder(record_path=record_path, recording_interval_s=10, max_size_mb=25)
+    record_inst = Recorder(record_path=record_path, recording_interval_s=10, max_size_mb=100)
     record_inst.start_recorder()
     exit_main = False
     while(not exit_main):
