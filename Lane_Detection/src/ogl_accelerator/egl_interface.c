@@ -69,11 +69,10 @@ void egl_interface_create_display(EGL_OBJECT_T *egl_obj)
   dst_rect.y = 0;
   dst_rect.width = egl_obj->screen_width;
   dst_rect.height = egl_obj->screen_height;
-
   src_rect.x = 0;
   src_rect.y = 0;
-  src_rect.width = egl_obj->screen_width << 16;
-  src_rect.height = egl_obj->screen_height << 16;
+  src_rect.width = egl_obj->fbo_width << 16;
+  src_rect.height = egl_obj->fbo_height << 16;
 
   dispman_display = vc_dispmanx_display_open( 0 /* LCD */);
   dispman_update = vc_dispmanx_update_start( 0 );
@@ -83,8 +82,8 @@ void egl_interface_create_display(EGL_OBJECT_T *egl_obj)
      &src_rect, DISPMANX_PROTECTION_NONE, 0 /*alpha*/, 0/*clamp*/, 0/*transform*/);
 
   nativewindow.element = dispman_element;
-  nativewindow.width = egl_obj->screen_width;
-  nativewindow.height = egl_obj->screen_height;
+  nativewindow.width = egl_obj->fbo_width;
+  nativewindow.height = egl_obj->fbo_height;
   vc_dispmanx_update_submit_sync( dispman_update );
 
   check();

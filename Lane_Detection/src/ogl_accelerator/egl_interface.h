@@ -11,6 +11,8 @@ typedef struct EGL_OBJECT_T
    EGLContext context;
    uint32_t screen_width;
    uint32_t screen_height;
+   uint32_t fbo_width;
+   uint32_t fbo_height;
 
 } EGL_OBJECT_T;
 

@@ -11,7 +11,7 @@ root_path = os.path.dirname(os.path.realpath(__file__))
 # ---- OGL lane tracking library ----
 ogl_cv_lib = ctypes.CDLL(os.path.join(root_path, 'ogl_cv.so'))
 ogl_cv_init_lane_tracker = ogl_cv_lib.init_lane_tracker
-ogl_cv_init_lane_tracker.argtypes = [ctypes.c_char_p]
+ogl_cv_init_lane_tracker.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int]
 ogl_cv_init_lane_tracker.restype = None
 
 # detect_lanes_from_buffer(int download, char *mem_ptr, int bottom_y_boundry, int top_y_boundry, float angle, int show, int stage_to_show)
@@ -55,10 +55,12 @@ class LaneTracker():
     SHADER_PATH = os.path.join(root_path, 'shaders')
     print("loading shaders from: {0}".format(SHADER_PATH))
 
-    def __init__(self, camera, bottom_y_boundry, top_y_boundry, transform_angle, debug_view, debug_view_stage, log):
+    def __init__(self, camera, bottom_y_boundry, top_y_boundry, transform_angle, debug_view, debug_view_stage, log, screen_width, screen_height):
         self.camera_instance = camera
         self.data_logging = log
         self.show_framebuffer = debug_view
+        self.screen_width = screen_width
+        self.screen_height = screen_height
         self.stage_to_show = debug_view_stage
         self.shutdown_lane_tracking = False
         self.process_variance = 4**2
@@ -191,7 +193,7 @@ class LaneTracker():
             self.lane_departure = False
 
     def lane_tracking_thread(self):
-        ogl_cv_init_lane_tracker(self.SHADER_PATH) # note: must be in same thread to keep EGL context correct
+        ogl_cv_init_lane_tracker(self.SHADER_PATH, self.screen_width, self.screen_height) # note: must be in same thread to keep EGL context correct
         while(not self.shutdown_lane_tracking):
             #print("acquiring buffer")
             self.mmal_consume_lock.acquire()
@@ -243,7 +245,7 @@ if __name__ == "__main__":
     camera.resolution = (1640, 922)
     camera.framerate = 20
     lane_tracker = LaneTracker(camera=camera, bottom_y_boundry=0, top_y_boundry=250,
-                               transform_angle=45.0, debug_view=True, debug_view_stage=8, log=True)
+                               transform_angle=45.0, debug_view=True, debug_view_stage=8, log=True, screen_width=480, screen_height=320)
 
     #camera.start_preview()
     camera.start_recording('test.h264')

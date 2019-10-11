@@ -26,7 +26,7 @@
 #include "interface/mmal/mmal_buffer.h"
 
 void detect_lanes_from_buffer(int download, char *mem_ptr, int bottom_y_boundry, int top_y_boundry, float angle, int show, int stage_to_show);
-void init_lane_tracker(const char* shader_dir_path);
+void init_lane_tracker(const char* shader_dir_path, const int screen_width, const int screen_height);
 void load_egl_image_from_buffer(MMAL_BUFFER_HEADER_T *buf);
 void shutdown_lane_tracker();
 

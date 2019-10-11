@@ -115,10 +115,12 @@ char* concat(const char *s1, const char *s2)
 static EGL_OBJECT_T egl_device;
 static int has_init = 0;
 
-void init_lane_tracker(const char* shader_dir_path)
+void init_lane_tracker(const char* shader_dir_path, const int screen_width, const int screen_height)
 {
-  egl_device.screen_width = 1920;
-  egl_device.screen_height = 1080;
+  egl_device.screen_width = screen_width;
+  egl_device.screen_height = screen_height;
+  egl_device.fbo_width = 1024.0;
+  egl_device.fbo_height = 1024.0;
   bcm_host_init();
   init_ogl(&egl_device);
 
