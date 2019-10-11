@@ -81,20 +81,28 @@ static const char *server_introspection_xml =
 	"  </interface>\n"
 
 	/*"  <interface name='org.example.TestInterface'>\n" */
-	"  <interface name='" DBUS_IFACE "'>\n"
+	"  <interface name='" DBUS_TCP_IFACE "'>\n"
 	"    <property name='Version' type='s' access='read' />\n"
-	"    <method name='Ping' >\n"
-	"      <arg type='s' direction='out' />\n"
-	"    </method>\n"
-	"    <method name='Echo'>\n"
+	// "    <method name='Ping' >\n"
+	// "      <arg type='s' direction='out' />\n"
+	// "    </method>\n"
+	"    <method name='"DBUS_TCP_SEND_MSG"'>\n"
 	"      <arg name='string' direction='in' type='s'/>\n"
 	"      <arg type='s' direction='out' />\n"
 	"    </method>\n"
-	"    <method name='EmitSignal'>\n"
-	"    </method>\n"
-	"    <method name='Quit'>\n"
-	"    </method>\n"
-	"    <signal name='OnEmitSignal'>\n"
+	"    <method name='EmitSignal'>\n" // FIXME REMOVE
+	"    </method>\n" // FIXME  REMOVE
+	"    <method name='EmitSignal2'>\n" // FIXME REMOVE
+	"    </method>\n" // FIXME  REMOVE
+	"    <method name='EmitSignal3'>\n" // FIXME REMOVE
+	"    </method>\n" // FIXME  REMOVE
+	// "    <method name='Quit'>\n"
+	// "    </method>\n"
+	"    <signal name='" DBUS_TCP_RECV_SIGNAL "'>\n"
+	"    </signal>"
+	"    <signal name='" DBUS_TCP_DISCONNECT_SIGNAL "'>\n"
+	"    </signal>"
+	"    <signal name='" DBUS_TCP_CONNECT_SIGNAL "'>\n"
 	"    </signal>"
 	"  </interface>\n"
 

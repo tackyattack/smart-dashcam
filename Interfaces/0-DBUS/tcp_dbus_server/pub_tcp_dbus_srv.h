@@ -67,13 +67,12 @@ int execute_server(dbus_srv_id srv_id);
  * This function should be called after init_server()
  * and execute_server() to safely quit the dbus server.
  * init_server() must be called again if desiring to 
- * restart server with same dbus_srv_id afer calling
+ * restart server with same dbus_srv_id after calling
  * kill_server()
  * 
  * Non-blocking
  */
 void kill_server(dbus_srv_id srv_id);
-
 
 /**
  * After calling create_server() and obtaining a unique ID,
@@ -85,6 +84,5 @@ void kill_server(dbus_srv_id srv_id);
  * Non-blocking
  */
 void delete_server(dbus_srv_id srv_id);
-
 
 #endif /* PUB_DBUS_SRV_INTERFACE_H */

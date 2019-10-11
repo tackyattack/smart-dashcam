@@ -5,7 +5,7 @@
 
 #include "prv_tcp_dbus_srv.h"
 
-/*
+/**
  * This implements 'Get' method of DBUS_INTERFACE_PROPERTIES so a
  * client can inspect the properties/attributes of 'TestInterface'.
  */
@@ -27,7 +27,7 @@ DBusHandlerResult server_get_properties_handler(const char *property, DBusConnec
 	return DBUS_HANDLER_RESULT_HANDLED;
 } /* server_get_properties_handler */
 
-/*
+/**
  * This implements 'GetAll' method of DBUS_INTERFACE_PROPERTIES. This
  * one seems required by g_dbus_proxy_get_cached_property().
  */
@@ -82,7 +82,7 @@ dbus_srv_id create_server()
 	for(new_srv_id = 0; new_srv_id < MAX_NUM_SERVERS && SRV_CONFIGS_ARRY[new_srv_id] != NULL; new_srv_id++);
 
     /*-------------------------------------
-    |         VERIFY ID IS AVAIBLE         |
+    |        VERIFY ID IS AVAILABLE        |
     --------------------------------------*/
 
 	if ( new_srv_id == MAX_NUM_SERVERS-1 && SRV_CONFIGS_ARRY[new_srv_id] == NULL )
@@ -100,7 +100,7 @@ dbus_srv_id create_server()
 	bzero(SRV_CONFIGS_ARRY[new_srv_id], sizeof(struct dbus_srv_config));
 
 	return new_srv_id;
-}
+} /* create_server() */
 
 void delete_server(dbus_srv_id server_id)
 {
@@ -120,8 +120,9 @@ void delete_server(dbus_srv_id server_id)
 
 	free(SRV_CONFIGS_ARRY[server_id]);
 	SRV_CONFIGS_ARRY[server_id] = NULL;
-}
-/*
+} /* delete_server() */
+
+/**
  * This function implements the 'TestInterface' interface for the
  * 'Server' DBus object.
  *
@@ -187,7 +188,7 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
 		dbus_message_unref(reply);
 		return result;
 	}
-    else if (dbus_message_is_method_call(message, DBUS_IFACE, "Ping"))
+    else if (dbus_message_is_method_call(message, DBUS_TCP_IFACE, "Ping"))
     {
 		const char *pong = "Pong";
 
@@ -198,7 +199,7 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
 
 		dbus_message_append_args(reply,DBUS_TYPE_STRING, &pong,DBUS_TYPE_INVALID);
 	}
-    else if (dbus_message_is_method_call(message, DBUS_IFACE, "Echo")) 
+    else if (dbus_message_is_method_call(message, DBUS_TCP_IFACE, "Echo")) 
     {
 		const char *msg;
 
@@ -214,11 +215,11 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
 
 		dbus_message_append_args(reply, DBUS_TYPE_STRING, &msg, DBUS_TYPE_INVALID);
 	} 
-    else if (dbus_message_is_method_call(message, DBUS_IFACE, "EmitSignal")) 
+    else if (dbus_message_is_method_call(message, DBUS_TCP_IFACE, "EmitSignal")) 
     {
 		const char *msg = "Test Message from server \0 send via EmitSignal (broadcast in publisher-subscriber setup)";
 
-		if (!(reply = dbus_message_new_signal(DBUS_OPATH,DBUS_IFACE,"OnEmitSignal")))
+		if (!(reply = dbus_message_new_signal(DBUS_TCP_OPATH,DBUS_TCP_IFACE,DBUS_TCP_RECV_SIGNAL)))
 		{
             goto fail;
 		}
@@ -233,7 +234,45 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
 		/* Send a METHOD_RETURN reply. */
 		reply = dbus_message_new_method_return(message);
 	}
-    else if (dbus_message_is_method_call(message, DBUS_IFACE, "Quit")) 
+    else if (dbus_message_is_method_call(message, DBUS_TCP_IFACE, "EmitSignal2")) 
+    {
+		const char *msg = "Test Message from server \0 send via EmitSignal2 (broadcast in publisher-subscriber setup)";
+
+		if (!(reply = dbus_message_new_signal(DBUS_TCP_OPATH,DBUS_TCP_IFACE,DBUS_TCP_CONNECT_SIGNAL)))
+		{
+            goto fail;
+		}
+		
+		dbus_message_append_args (reply, DBUS_TYPE_ARRAY, DBUS_TYPE_BYTE, &msg, 90, DBUS_TYPE_INVALID);
+
+		if (!dbus_connection_send(conn, reply, NULL))
+        {
+            return DBUS_HANDLER_RESULT_NEED_MEMORY;
+        }
+
+		/* Send a METHOD_RETURN reply. */
+		reply = dbus_message_new_method_return(message);
+	}
+    else if (dbus_message_is_method_call(message, DBUS_TCP_IFACE, "EmitSignal3")) 
+    {
+		const char *msg = "Test Message from server \0 send via EmitSignal3 (broadcast in publisher-subscriber setup)";
+
+		if (!(reply = dbus_message_new_signal(DBUS_TCP_OPATH,DBUS_TCP_IFACE,DBUS_TCP_DISCONNECT_SIGNAL)))
+		{
+            goto fail;
+		}
+		
+		dbus_message_append_args (reply, DBUS_TYPE_ARRAY, DBUS_TYPE_BYTE, &msg, 90, DBUS_TYPE_INVALID);
+
+		if (!dbus_connection_send(conn, reply, NULL))
+        {
+            return DBUS_HANDLER_RESULT_NEED_MEMORY;
+        }
+
+		/* Send a METHOD_RETURN reply. */
+		reply = dbus_message_new_method_return(message);
+	}
+    else if (dbus_message_is_method_call(message, DBUS_TCP_IFACE, "Quit")) 
     {
 		/*
 		 * Quit() has no return values but a METHOD_RETURN
@@ -356,7 +395,7 @@ int init_server(dbus_srv_id srv_id)
     |    REQUESTION COMMON NAME ON DBUS    |
     --------------------------------------*/
 
-	val = dbus_bus_request_name(config->conn, DBUS_SERVER_NAME, DBUS_NAME_FLAG_REPLACE_EXISTING , &err);
+	val = dbus_bus_request_name(config->conn, DBUS_TCP_SERVER_NAME, DBUS_NAME_FLAG_REPLACE_EXISTING , &err);
 	if (val != DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER)
     {
 		fprintf(stderr, "-----Note: This service is required to be run as root-----\nFailed to request name on bus: %s. Be sure to execute as root\n", err.message);
@@ -369,10 +408,10 @@ int init_server(dbus_srv_id srv_id)
     |     REGISTER SERVER OBJECT PATHS     |
     --------------------------------------*/
 
-    val = dbus_connection_register_object_path(config->conn, DBUS_OPATH, &server_vtable, (void*)config);
+    val = dbus_connection_register_object_path(config->conn, DBUS_TCP_OPATH, &server_vtable, (void*)config);
 	if (!val)
     {
-		fprintf(stderr, "Failed to register object path for '%s'\n", DBUS_OPATH);
+		fprintf(stderr, "Failed to register object path for '%s'\n", DBUS_TCP_OPATH);
 		dbus_error_free(&err);
 	    return EXIT_FAILURE;
 	}

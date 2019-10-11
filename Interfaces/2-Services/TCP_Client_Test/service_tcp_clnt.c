@@ -38,6 +38,42 @@ void tcp_rx_data_callback(char* data, unsigned int data_sz)
   	printf("\n****************END---tcp_rx_data_callback---END****************\n\n");
 } /* tcp_rx_data_callback() */
 
+/** Note that data is freed after this callback is called. As such, if 
+ * the data in data needs to be saved, a copy of the data must be made.
+ * Refer to this guide on mixing C and C++ callbacks due to ldashcam_dbus_tcp
+ *  being written in C: https://isocpp.org/wiki/faq/mixing-c-and-cpp */
+void tcp_clnt_connect_callback(char* clnt_uuid, unsigned int clnt_uuid_sz)
+{
+  	printf("\n****************tcp_clnt_connect_callback: callback activated.****************\n\n");
+
+    printf("Client uuid is %d bytes with uuid \"",clnt_uuid_sz);
+    for (size_t i = 0; i < clnt_uuid_sz; i++)
+    {
+        printf("%c",clnt_uuid[i]);
+    }
+    printf("\"\n");
+    
+  	printf("\n****************END---tcp_clnt_connect_callback---END****************\n\n");
+} /* tcp_clnt_connect_callback() */
+
+/** Note that data is freed after this callback is called. As such, if 
+ * the data in data needs to be saved, a copy of the data must be made.
+ * Refer to this guide on mixing C and C++ callbacks due to ldashcam_dbus_tcp
+ *  being written in C: https://isocpp.org/wiki/faq/mixing-c-and-cpp */
+void tcp_clnt_disconnect_callback(char* clnt_uuid, unsigned int clnt_uuid_sz)
+{
+  	printf("\n****************tcp_clnt_disconnect_callback: callback activated.****************\n\n");
+
+    printf("Client uuid is %d bytes with uuid \"",clnt_uuid_sz);
+    for (size_t i = 0; i < clnt_uuid_sz; i++)
+    {
+        printf("%c",clnt_uuid[i]);
+    }
+    printf("\"\n");
+    
+  	printf("\n****************END---tcp_clnt_disconnect_callback---END****************\n\n");
+} /* tcp_clnt_disconnect_callback() */
+
 
 /*-------------------------------------
 |                 MAIN                 |
@@ -48,14 +84,16 @@ int main(void)
     /*-------------------------------------
     |              VARIABLES               |
     -------------------------------------*/
+    dbus_clnt_id id;
 
-    
+
     /*-------------------------------------
     |           INITIALIZATIONS            |
     -------------------------------------*/
 
+    id = tcp_dbus_client_create();
 
-    if ( EXIT_FAILURE == init_client() )
+    if ( EXIT_FAILURE == tcp_dbus_client_init(id) )
     {
         printf("Failed to initialize client!\nExiting.....\n");
         exit(EXIT_FAILURE);
@@ -68,52 +106,72 @@ int main(void)
 
 	/* Test server methods */
 	printf("Testing server interface v%s\n", server_version);
-	test_Ping();
-	test_Echo();
-	test_CommandEmitSignal();
+	// test_Ping();
+	// test_Echo();
+	tcp_dbus_send_msg(id);
+    test_CommandEmitSignal2(id);
+    test_CommandEmitSignal3(id);
 
-    printf("Subscribe to server\n");
-    if ( EXIT_FAILURE == Subscribe2Server(&tcp_rx_data_callback) )
+    printf("Subscribe to DBUS_TCP_RECV_SIGNAL signal\n");
+    if ( EXIT_FAILURE == tcp_dbus_client_Subscribe2Recv( id, DBUS_TCP_RECV_SIGNAL, &tcp_rx_data_callback) )
     {
-        printf("Failed to subscribe to server!\nExiting.....\n");
+        printf("Failed to subscribe to DBUS_TCP_RECV_SIGNAL signal!\nExiting.....\n");
         exit(EXIT_FAILURE);
     }
 
-	test_CommandEmitSignal( );
+	tcp_dbus_send_msg( id );
+    test_CommandEmitSignal2(id);
+    test_CommandEmitSignal3(id);
     sleep(2);
 
-    printf("Unsubscribe from server\n");
-    UnsubscribeFromServer();
+    printf("Unsubscribe from DBUS_TCP_RECV_SIGNAL signal\n");
+    tcp_dbus_client_UnsubscribeRecv(id,DBUS_TCP_RECV_SIGNAL);
     
     sleep(2);
 
-    printf("Unsubscribe from server\n");
-    UnsubscribeFromServer();
-    
-    printf("Subscribe to server\n");
-    if ( EXIT_FAILURE == Subscribe2Server(&tcp_rx_data_callback) )
+    printf("Unsubscribe from DBUS_TCP_RECV_SIGNAL signal\n");
+    tcp_dbus_client_UnsubscribeRecv(id,DBUS_TCP_RECV_SIGNAL);
+
+    printf("Subscribe to DBUS_TCP_RECV_SIGNAL signal\n");
+    if ( EXIT_FAILURE == tcp_dbus_client_Subscribe2Recv(id,DBUS_TCP_RECV_SIGNAL,&tcp_rx_data_callback) )
     {
-        printf("Failed to subscribe to server!\nExiting.....\n");
+        printf("Failed to subscribe to DBUS_TCP_RECV_SIGNAL signal!\nExiting.....\n");
         exit(EXIT_FAILURE);
     }
 
-    printf("Subscribe to server\n");
-    if ( EXIT_FAILURE == Subscribe2Server(&tcp_rx_data_callback) )
+    printf("Subscribe to DBUS_TCP_RECV_SIGNAL signal\n");
+    if ( EXIT_FAILURE == tcp_dbus_client_Subscribe2Recv(id,DBUS_TCP_RECV_SIGNAL,&tcp_rx_data_callback) )
     {
-        printf("Failed to subscribe to server!\nExiting.....\n");
+        printf("Failed to subscribe to DBUS_TCP_RECV_SIGNAL signal!\n \tEXPECTED THIS\n");
+    }
+    printf("Subscribe to DBUS_TCP_CONNECT_SIGNAL signal\n");
+    if ( EXIT_FAILURE == tcp_dbus_client_Subscribe2Recv(id,DBUS_TCP_CONNECT_SIGNAL,&tcp_clnt_connect_callback) )
+    {
+        printf("Failed to subscribe to DBUS_TCP_CONNECT_SIGNAL signal!\nExiting.....\n");
+        EXIT_FAILURE;
+    }
+    printf("Subscribe to DBUS_TCP_DISCONNECT_SIGNAL signal\n");
+    if ( EXIT_FAILURE == tcp_dbus_client_Subscribe2Recv(id,DBUS_TCP_DISCONNECT_SIGNAL,&tcp_clnt_disconnect_callback) )
+    {
+        printf("Failed to subscribe to DBUS_TCP_DISCONNECT_SIGNAL signal!\nExiting.....\n");
+        EXIT_FAILURE;
     }
 
     for (size_t i = 0; i < 5; i++)
     {
         sleep(1);
         /* Test server methods */
-	    test_Ping( );
-	    test_Echo( );
-        test_CommandEmitSignal( );
+	    // test_Ping( );
+	    // test_Echo( );
+        tcp_dbus_send_msg( id );
+        test_CommandEmitSignal2(id);
+        test_CommandEmitSignal3(id);
     }
-    
-    printf("Unsubscribe from server\n");
-    UnsubscribeFromServer();
+
+    printf("Unsubscribe from signals\n");
+    tcp_dbus_client_UnsubscribeRecv(id,DBUS_TCP_RECV_SIGNAL);
+    tcp_dbus_client_UnsubscribeRecv(id,DBUS_TCP_CONNECT_SIGNAL);
+    tcp_dbus_client_UnsubscribeRecv(id,DBUS_TCP_DISCONNECT_SIGNAL);
 
     printf("Press enter to quit....\n");
     getchar(); /* Block until any stdin is received */
@@ -125,7 +183,8 @@ int main(void)
     /*-------------------------------------
     |               SHUTDOWN               |
     -------------------------------------*/
-    disconnect_client();
+    tcp_dbus_client_disconnect(id);
+    tcp_dbus_client_delete(id);
 
 	return 0;
 }

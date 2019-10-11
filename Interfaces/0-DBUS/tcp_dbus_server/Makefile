@@ -168,13 +168,3 @@ clean-all: clean
     sudo rm -f $(SYSTEM_GLOBAL_LIB_DIR)/$(LIB_NAME)*
     sudo rm -rf $(SYS_INC_DIR)
     sudo ldconfig -p $(SYSTEM_GLOBAL_LIB_DIR)
-
-
-#Dependancies
-# 	Alpine Linux:
-#		dbus-dev
-#		dbus-glib-dev
-#		?more?
-#	Raspbian:
-#		libdbus-1-dev
-#		libdbus-glib-1-dev
