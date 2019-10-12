@@ -1,3 +1,9 @@
+#!/usr/bin/env python
+
+# for help:
+# ./DashcamRecorder.py -h
+
+import argparse
 from picamera import PiCamera
 from picamera import mmal, mmalobj as mo
 import threading
@@ -9,17 +15,18 @@ import sys
 import io
 
 # note: the frame rate flag for some reason has to be double the framerate
-# python DashcamRecorder.py | cvlc -vvv stream:///dev/stdin --sout '#standard{access=http,mux=ts,dst=:8090}' :demux=h264 :h264-fps=40
+# ./DashcamRecorder.py --stream | cvlc -vvv stream:///dev/stdin --sout '#standard{access=http,mux=ts,dst=:8090}' :demux=h264 :h264-fps=40
 # or you can use rtsp
-# python DashcamRecorder.py | cvlc -vvv stream:///dev/stdin --sout '#rtp{sdp=rtsp://:8554/}' :demux=h264 :h264-fps=40
+# ./DashcamRecorder.py --stream | cvlc -vvv stream:///dev/stdin --sout '#rtp{sdp=rtsp://:8554/}' :demux=h264 :h264-fps=40
 # You can transcode too, but this is only needed if the network is too slow
-# python DashcamRecorder.py | cvlc -vvv stream:///dev/stdin --sout '#transcode{vcodec=h264,vb=25,fps=20}:rtp{sdp=rtsp://:8554/}' :demux=h264 :h264-fps=40
+# ./DashcamRecorder.py --stream | cvlc -vvv stream:///dev/stdin --sout '#transcode{vcodec=h264,vb=25,fps=20}:rtp{sdp=rtsp://:8554/}' :demux=h264 :h264-fps=40
 
 # to play back
 # omxplayer -o hdmi  rtsp://131.151.175.144:8554/
 
 class Recorder:
-    def __init__(self, record_path, recording_interval_s, max_size_mb, stream):
+    def __init__(self, record_path, recording_interval_s, max_size_mb, stream, stream_width=410,
+                 stream_height=320, stream_quality=1):
         self.camera = PiCamera()
         self.camera.resolution = (1640, 922)
         self.framerate = 20
@@ -32,6 +39,9 @@ class Recorder:
         self.current_recording_name = None
         self.wrapping_queue = Queue.Queue()
         self.max_size_mb = max_size_mb
+        self.stream_width = stream_width
+        self.stream_height = stream_height
+        self.stream_quality = stream_quality
         self.silent = False
         if not os.path.exists(self.record_path):
             os.makedirs(self.record_path)
@@ -44,7 +54,8 @@ class Recorder:
             self.camera.start_recording(dummy_streamA, format='h264')
             # note: the resolution should be as close to the original aspect ratio as
             #       possible so that resizer doesn't have to work hard
-            self.camera.start_recording(dummy_streamB, format='h264', splitter_port=3, resize=(410,320), quality=1)
+            self.camera.start_recording(dummy_streamB, format='h264', splitter_port=3,
+                                    resize=(self.stream_width,self.stream_height), quality=self.stream_quality)
 
             self.camera._encoders[3].encoder.outputs[0].disable()
             self.camera._encoders[3].encoder.outputs[0].enable(self.video_callback)
@@ -185,15 +196,26 @@ class Recorder:
             try:
                 sys.stdout.write(buf.data)
                 sys.stdout.flush()
+
             except IOError:
                 return True
         return False
 
+def start_recording_command_line():
+    parser = argparse.ArgumentParser(description='recording and streaming module for camera')
+    parser.add_argument("-t", default=10, type=int, help='sets the recording interval between clips')
+    parser.add_argument("-m", default=100, type=int, help='sets the max MB size of the record folder')
+    parser.add_argument("-o", default='', help='sets the location for recordings folder')
+    parser.add_argument("-sw", default=410, type=int, help='sets the stream width')
+    parser.add_argument("-sh", default=320, type=int, help='sets the stream height')
+    parser.add_argument("-sq", default=1, type=int, help='sets the stream quality (1:highest 40:lowest)')
+    parser.add_argument("--stream", action='store_true', help='stream h264 through stdout')
+    args = parser.parse_args()
 
-
-if __name__ == "__main__":
-    record_path = os.path.join(os.getcwd(), 'recordings')
-    record_inst = Recorder(record_path=record_path, recording_interval_s=10, max_size_mb=100, stream=True)
+    record_path = os.path.join(args.o, 'recordings')
+    record_inst = Recorder(record_path=record_path, recording_interval_s=args.t,
+                           max_size_mb=args.m, stream=args.stream, stream_width=args.sw,
+                           stream_height=args.sh, stream_quality=args.sq)
     record_inst.start_recorder()
     exit_main = False
     while(not exit_main):
@@ -202,3 +224,6 @@ if __name__ == "__main__":
         except:
             record_inst.terminate()
             exit_main = True
+
+if __name__ == "__main__":
+    start_recording_command_line()
