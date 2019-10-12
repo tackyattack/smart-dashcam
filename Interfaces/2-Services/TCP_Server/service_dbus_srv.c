@@ -27,7 +27,7 @@ int main(void)
     |            CREATE SERVER             |
     --------------------------------------*/
 
-    srv_id = create_server();
+    srv_id = tcp_dbus_srv_create();
 
     printf("DBUS Server service v%s\n", srv_sftw_version);
 
@@ -35,13 +35,13 @@ int main(void)
     |           START THE SERVER           |
     --------------------------------------*/
 
-    if ( init_server(srv_id) == EXIT_FAILURE )
+    if ( tcp_dbus_srv_init(srv_id) == EXIT_FAILURE )
     {
         printf("Failed to initialize server!\nExiting.....\n");
         exit(EXIT_FAILURE);
     }
 
-    if ( execute_server(srv_id) == EXIT_FAILURE )
+    if ( tcp_dbus_srv_execute(srv_id) == EXIT_FAILURE )
     {
         printf("Failed to execute server!\nExiting.....\n");
         exit(EXIT_FAILURE);
@@ -62,14 +62,14 @@ int main(void)
     |           STOP THE SERVER            |
     --------------------------------------*/
 
-    kill_server(srv_id);
+    tcp_dbus_srv_kill(srv_id);
 
 
     /*-------------------------------------
     |          DELETE THE SERVER           |
     --------------------------------------*/
 
-    delete_server(srv_id);
+    tcp_dbus_srv_delete(srv_id);
 
     return EXIT_SUCCESS;
 } 

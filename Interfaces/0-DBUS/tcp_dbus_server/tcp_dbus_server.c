@@ -67,7 +67,7 @@ DBusHandlerResult server_get_all_properties_handler(DBusConnection *conn, DBusMe
     return result;
 } /* server_get_all_properties_handler() */
 
-dbus_srv_id create_server()
+dbus_srv_id tcp_dbus_srv_create()
 {
     /*-------------------------------------
     |              VARIABLES               |
@@ -100,9 +100,9 @@ dbus_srv_id create_server()
     bzero(SRV_CONFIGS_ARRY[new_srv_id], sizeof(struct dbus_srv_config));
 
     return new_srv_id;
-} /* create_server() */
+} /* tcp_dbus_srv_create() */
 
-void delete_server(dbus_srv_id server_id)
+void tcp_dbus_srv_delete(dbus_srv_id server_id)
 {
     /*-------------------------------------
     |       VERIFY SERVER_ID EXISTS        |
@@ -120,7 +120,7 @@ void delete_server(dbus_srv_id server_id)
 
     free(SRV_CONFIGS_ARRY[server_id]);
     SRV_CONFIGS_ARRY[server_id] = NULL;
-} /* delete_server() */
+} /* tcp_dbus_srv_delete() */
 
 /**
  * This function implements the 'TestInterface' interface for the
@@ -372,7 +372,7 @@ void* server_thread(void *config)
     return NULL;
 }  /* server_thread() */
 
-int init_server(dbus_srv_id srv_id)
+int tcp_dbus_srv_init(dbus_srv_id srv_id)
 {
     /*-------------------------------------
     |              VARIABLES               |
@@ -396,7 +396,7 @@ int init_server(dbus_srv_id srv_id)
 
     if ( config == NULL )
     {
-        printf("WARNING, called init_server for server id %d but server has not been created for that id!\n", srv_id);
+        printf("WARNING, called tcp_dbus_srv_init for server id %d but server has not been created for that id!\n", srv_id);
         return EXIT_FAILURE;
     }
 
@@ -406,7 +406,7 @@ int init_server(dbus_srv_id srv_id)
 
     if ( config->conn != NULL )
     {
-        printf("WARNING, called init_server for server id %d but server was already initialized!\n", srv_id);
+        printf("WARNING, called tcp_dbus_srv_init for server id %d but server was already initialized!\n", srv_id);
         return EXIT_FAILURE;
     }
 
@@ -467,9 +467,9 @@ int init_server(dbus_srv_id srv_id)
     dbus_connection_setup_with_g_main(config->conn, NULL);
 
     return EXIT_SUCCESS;
-} /* init_server() */
+} /* tcp_dbus_srv_init() */
 
-int execute_server(dbus_srv_id srv_id)
+int tcp_dbus_srv_execute(dbus_srv_id srv_id)
 {
     /*-------------------------------------
     |              VARIABLES               |
@@ -491,20 +491,20 @@ int execute_server(dbus_srv_id srv_id)
 
     if ( config == NULL )
     {
-        printf("WARNING, called execute_server for server id %d but server has not been created nor initialized for that id!\n", srv_id);
+        printf("WARNING, called tcp_dbus_srv_execute for server id %d but server has not been created nor initialized for that id!\n", srv_id);
         return EXIT_FAILURE;
     }
 
 
     /*-------------------------------------
     |      VERIFY SERVER INITIALIZED,      |
-    |      CALL INIT_SERVER() IF NOT       |
+    |      CALL tcp_dbus_srv_init() IF NOT       |
     --------------------------------------*/
 
     if ( config->conn == NULL || config->loop == NULL )
     {
         /* config hasn't been initialized, initialize config/server */
-        if( EXIT_FAILURE == init_server(srv_id) )
+        if( EXIT_FAILURE == tcp_dbus_srv_init(srv_id) )
         {
             printf("Failed to initialize server!\nExiting.....\n");
             return (EXIT_FAILURE);
@@ -535,9 +535,9 @@ int execute_server(dbus_srv_id srv_id)
     }
 
     return EXIT_SUCCESS;
-} /* execute_server() */
+} /* tcp_dbus_srv_execute() */
 
-void kill_server(dbus_srv_id srv_id)
+void tcp_dbus_srv_kill(dbus_srv_id srv_id)
 {
     /*-------------------------------------
     |              VARIABLES               |
@@ -569,7 +569,7 @@ void kill_server(dbus_srv_id srv_id)
 
     if ( config == NULL || config->loop == NULL || config->conn == NULL )
     {
-        printf("WARNING, called kill_server() for server id %d but server was not initialized!\n", srv_id);
+        printf("WARNING, called tcp_dbus_srv_kill() for server id %d but server was not initialized!\n", srv_id);
         return;
     }
 
@@ -582,4 +582,4 @@ void kill_server(dbus_srv_id srv_id)
     g_main_loop_unref (config->loop);
 
     // TODO addition cleanup needed?
-} /* kill_server() */
+} /* tcp_dbus_srv_kill() */

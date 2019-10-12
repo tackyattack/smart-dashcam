@@ -32,7 +32,7 @@ struct dbus_srv_config
 |           PRIVATE STATICS            |
 --------------------------------------*/
 
-/* Contains the dbus_srv_config struct for every server created with create_server() */
+/* Contains the dbus_srv_config struct for every server created with tcp_dbus_srv_create() */
 static struct dbus_srv_config *SRV_CONFIGS_ARRY[MAX_NUM_SERVERS] = {0};
 
 /*
@@ -140,7 +140,7 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
  * This function runs in a separate thread and contains the g_main_loop. 
  * The g_main_loop handles receiving and processing all messages via DBUS.
  * This function is essentially an infinite loop that will only exit if 
- * g_main_loop_quit is called, which is what the kill_server function does.
+ * g_main_loop_quit is called, which is what the tcp_dbus_srv_kill function does.
  * 
  * This is a Blocking function
  */
