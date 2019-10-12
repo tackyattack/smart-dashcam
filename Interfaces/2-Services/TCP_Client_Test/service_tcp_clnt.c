@@ -85,7 +85,8 @@ int main(void)
     |              VARIABLES               |
     -------------------------------------*/
     dbus_clnt_id id;
-
+    char msg[] = "Message to send over\0TCP\n";
+    uint msg_sz = sizeof(msg);
 
     /*-------------------------------------
     |           INITIALIZATIONS            |
@@ -108,9 +109,9 @@ int main(void)
 	printf("Testing server interface v%s\n", server_version);
 	// test_Ping();
 	// test_Echo();
-	tcp_dbus_send_msg(id);
-    test_CommandEmitSignal2(id);
-    test_CommandEmitSignal3(id);
+	tcp_dbus_send_msg( id,msg, msg_sz );
+    // test_CommandEmitSignal2(id);
+    // test_CommandEmitSignal3(id);
 
     printf("Subscribe to DBUS_TCP_RECV_SIGNAL signal\n");
     if ( EXIT_FAILURE == tcp_dbus_client_Subscribe2Recv( id, DBUS_TCP_RECV_SIGNAL, &tcp_rx_data_callback) )
@@ -119,9 +120,9 @@ int main(void)
         exit(EXIT_FAILURE);
     }
 
-	tcp_dbus_send_msg( id );
-    test_CommandEmitSignal2(id);
-    test_CommandEmitSignal3(id);
+	tcp_dbus_send_msg( id,msg, msg_sz );
+    // test_CommandEmitSignal2(id);
+    // test_CommandEmitSignal3(id);
     sleep(2);
 
     printf("Unsubscribe from DBUS_TCP_RECV_SIGNAL signal\n");
@@ -163,9 +164,9 @@ int main(void)
         /* Test server methods */
 	    // test_Ping( );
 	    // test_Echo( );
-        tcp_dbus_send_msg( id );
-        test_CommandEmitSignal2(id);
-        test_CommandEmitSignal3(id);
+        tcp_dbus_send_msg( id,msg, msg_sz );
+        // test_CommandEmitSignal2(id);
+        // test_CommandEmitSignal3(id);
     }
 
     printf("Unsubscribe from signals\n");

@@ -45,68 +45,58 @@ static struct dbus_srv_config *SRV_CONFIGS_ARRY[MAX_NUM_SERVERS] = {0};
  *
  *    - org.freedesktop.DBus.Introspectable
  *    - org.freedesktop.DBus.Properties
- *    - org.example.TestInterface
+ *    - com.dashcam.tcp_iface
  *
- * 'org.example.TestInterface' offers 3 methods:
+ * 'com.dashcam.tcp_iface' offers 1 method(s) and 3 signal(s):
  *
- *    - Ping(): makes the server answering the string 'Pong'.
- *              It takes no arguments.
- *
- *    - Echo(): replies the passed string argument.
- *
- *    - EmitSignal(): send a signal 'OnEmitSignal'
- *
- *    - Quit(): makes the server exit. It takes no arguments.
+ *    	- TCP_SEND_MSG(): 	    Send the given data over TCP
+ * 	  	- TCP_RECV_SIGNAL:	    Signal is emitted when data is received over TCP. 
+ * 							    	Data is passed with signal to all subscribers
+ * 		-TCP_CONNECT_SIGNAL:    A signal is emitted when tcp client connects with clients uuid
+ * 		-TCP_DISCONNECT_SIGNAL: A signal is emitted when tcp client disconnects with clients uuid
  */
 static const char *server_introspection_xml =
-	DBUS_INTROSPECT_1_0_XML_DOCTYPE_DECL_NODE
-	"<node>\n"
+    DBUS_INTROSPECT_1_0_XML_DOCTYPE_DECL_NODE
+    "<node>\n"
 
-	"  <interface name='org.freedesktop.DBus.Introspectable'>\n"
-	"    <method name='Introspect'>\n"
-	"      <arg name='data' type='s' direction='out' />\n"
-	"    </method>\n"
-	"  </interface>\n"
+    "  <interface name='org.freedesktop.DBus.Introspectable'>\n"
+    "    <method name='Introspect'>\n"
+    "      <arg name='data' type='s' direction='out' />\n"
+    "    </method>\n"
+    "  </interface>\n"
 
-	"  <interface name='org.freedesktop.DBus.Properties'>\n"
-	"    <method name='Get'>\n"
-	"      <arg name='interface' type='s' direction='in' />\n"
-	"      <arg name='property'  type='s' direction='in' />\n"
-	"      <arg name='value'     type='s' direction='out' />\n"
-	"    </method>\n"
-	"    <method name='GetAll'>\n"
-	"      <arg name='interface'  type='s'     direction='in'/>\n"
-	"      <arg name='properties' type='a{sv}' direction='out'/>\n"
-	"    </method>\n"
-	"  </interface>\n"
+    "  <interface name='org.freedesktop.DBus.Properties'>\n"
+    "    <method name='Get'>\n"
+    "      <arg name='interface' type='s' direction='in' />\n"
+    "      <arg name='property'  type='s' direction='in' />\n"
+    "      <arg name='value'     type='s' direction='out' />\n"
+    "    </method>\n"
+    "    <method name='GetAll'>\n"
+    "      <arg name='interface'  type='s'     direction='in'/>\n"
+    "      <arg name='properties' type='a{sv}' direction='out'/>\n"
+    "    </method>\n"
+    "  </interface>\n"
 
-	/*"  <interface name='org.example.TestInterface'>\n" */
-	"  <interface name='" DBUS_TCP_IFACE "'>\n"
-	"    <property name='Version' type='s' access='read' />\n"
-	// "    <method name='Ping' >\n"
-	// "      <arg type='s' direction='out' />\n"
-	// "    </method>\n"
-	"    <method name='"DBUS_TCP_SEND_MSG"'>\n"
-	"      <arg name='string' direction='in' type='s'/>\n"
-	"      <arg type='s' direction='out' />\n"
-	"    </method>\n"
-	"    <method name='EmitSignal'>\n" // FIXME REMOVE
-	"    </method>\n" // FIXME  REMOVE
-	"    <method name='EmitSignal2'>\n" // FIXME REMOVE
-	"    </method>\n" // FIXME  REMOVE
-	"    <method name='EmitSignal3'>\n" // FIXME REMOVE
-	"    </method>\n" // FIXME  REMOVE
-	// "    <method name='Quit'>\n"
-	// "    </method>\n"
-	"    <signal name='" DBUS_TCP_RECV_SIGNAL "'>\n"
-	"    </signal>"
-	"    <signal name='" DBUS_TCP_DISCONNECT_SIGNAL "'>\n"
-	"    </signal>"
-	"    <signal name='" DBUS_TCP_CONNECT_SIGNAL "'>\n"
-	"    </signal>"
-	"  </interface>\n"
+    "  <interface name='" DBUS_TCP_IFACE "'>\n"
+    "    <property name='Version' type='s' access='read' />\n"
 
-	"</node>\n";
+    "    <method name='"DBUS_TCP_SEND_MSG"'>\n"
+    "      <arg name='string' direction='in' type=\"(ay)\" />\n"
+    "      <arg type='b' direction='out' />\n"
+    "    </method>\n"
+    
+    "    <signal name='" DBUS_TCP_RECV_SIGNAL "'>\n"
+    "    </signal>"
+    
+    "    <signal name='" DBUS_TCP_DISCONNECT_SIGNAL "'>\n"
+    "    </signal>"
+    
+    "    <signal name='" DBUS_TCP_CONNECT_SIGNAL "'>\n"
+    "    </signal>"
+    
+    "  </interface>\n"
+
+    "</node>\n";
 
 
 /*-------------------------------------

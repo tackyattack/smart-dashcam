@@ -22,80 +22,57 @@
  |      IMPLEMENTED BY THE SERVER       |
  -------------------------------------*/
 
-// void test_Ping(dbus_clnt_id clnt_id)
-// {
-// 	GVariant *result;
-// 	GError *error = NULL;
-// 	const gchar *str;
-
-// 	g_printf("Calling Ping()...\n");
-// 	result = g_dbus_proxy_call_sync(dbus_config[clnt_id]->proxy, "Ping",NULL, G_DBUS_CALL_FLAGS_NONE,	-1,	NULL, &error);
-// 	g_assert_no_error(error);
-// 	g_variant_get(result, "(&s)", &str);
-// 	g_printf("The server answered: '%s'\n", str);
-// 	g_variant_unref(result);
-// } /* test_Ping() */
-
-
-void tcp_dbus_send_msg(dbus_clnt_id clnt_id)/*, char* data, uint data_sz)*/
+int tcp_dbus_send_msg(dbus_clnt_id clnt_id, char* data, uint data_sz)
 {
-    test_CommandEmitSignal(clnt_id); // FIXME  REMOVE
-	// GVariant *result;
-	// GError *error = NULL;
-	// const gchar *str;
+    /*-------------------------------------
+    |              VARIABLES               |
+    --------------------------------------*/
 
-	// g_printf("Calling tcp_dbus_send_msg('1234')...\n");
-	// result = g_dbus_proxy_call_sync(dbus_config[clnt_id]->proxy,DBUS_TCP_SEND_MSG,g_variant_new ("(s)", "1234"),G_DBUS_CALL_FLAGS_NONE,-1,NULL,&error);
-	// g_assert_no_error(error);
-	// g_variant_get(result, "(&s)", &str);
-	// g_printf("The server answered: '%s'\n", str);
-	// g_variant_unref(result);
+    bool send_status;
+    GVariant *temp;
+    GError *error = NULL;
+
+    /*-------------------------------------
+    |             VERIFICATION             |
+    --------------------------------------*/
+
+    if( data == NULL || data_sz == 0)
+    {
+        printf("WARNING: Attempting to send_msg with NULL or empty data array!\n");
+        return EXIT_FAILURE;
+    }
+
+    /*-------------------------------------
+    |           CREATE G_VARIANT           |
+    --------------------------------------*/
+
+    temp = g_variant_new_from_data( G_VARIANT_TYPE ("(ay)"), data, data_sz, true, NULL, NULL );
+    /* g_printf("\n%s\n",g_variant_get_type_string(temp)); */
+
+
+    /*-------------------------------------
+    |         SEND DATA OVER DBUS          |
+    --------------------------------------*/
+
+    temp = g_dbus_proxy_call_sync(dbus_config[clnt_id]->proxy, DBUS_TCP_SEND_MSG, temp, G_DBUS_CALL_FLAGS_NONE, -1, NULL, &error);
+
+
+    /*-------------------------------------
+    |            VERIFY RESULTS            |
+    --------------------------------------*/
+
+    g_assert_no_error(error);
+
+
+    /*--------------------------------------------
+    |  RECEIVE RESPONSE INDICATING IF SUCCESSFUL  |
+    ---------------------------------------------*/
+
+    g_variant_get(temp, "(b)", &send_status);
+    g_variant_unref(temp);
+
+    return send_status;
 } /* tcp_dbus_send_msg() */
-
-// FIXME  REMOVE FUNCTION
-void test_CommandEmitSignal(dbus_clnt_id clnt_id)
-{
-	GVariant *result;
-	GError *error = NULL;
-
-	g_printf("Calling method EmitSignal() for DBUS_TCP_RECV_SIGNAL...\n");
-	result = g_dbus_proxy_call_sync(dbus_config[clnt_id]->proxy,"EmitSignal",NULL,/* no arguments */G_DBUS_CALL_FLAGS_NONE,-1, NULL,&error);
-	g_assert_no_error(error);
-	g_variant_unref(result);
-} /* test_CommandEmitSignal() */
-// FIXME  REMOVE FUNCTION
-void test_CommandEmitSignal2(dbus_clnt_id clnt_id)
-{
-	GVariant *result;
-	GError *error = NULL;
-
-	g_printf("Calling method EmitSignal2() for DBUS_TCP_CONNECT_SIGNAL...\n");
-	result = g_dbus_proxy_call_sync(dbus_config[clnt_id]->proxy,"EmitSignal2",NULL,/* no arguments */G_DBUS_CALL_FLAGS_NONE,-1, NULL,&error);
-	g_assert_no_error(error);
-	g_variant_unref(result);
-} /* test_CommandEmitSignal() */
-// FIXME  REMOVE FUNCTION
-void test_CommandEmitSignal3(dbus_clnt_id clnt_id)
-{
-	GVariant *result;
-	GError *error = NULL;
-
-	g_printf("Calling method EmitSignal3() for DBUS_TCP_DISCONNECT_SIGNAL...\n");
-	result = g_dbus_proxy_call_sync(dbus_config[clnt_id]->proxy,"EmitSignal3",NULL,/* no arguments */G_DBUS_CALL_FLAGS_NONE,-1, NULL,&error);
-	g_assert_no_error(error);
-	g_variant_unref(result);
-} /* test_CommandEmitSignal() */
-
-// void test_Quit(dbus_clnt_id clnt_id)
-// {
-// 	GVariant *result;
-// 	GError *error = NULL;
-
-// 	g_printf("Calling method Quit()...\n");
-// 	result = g_dbus_proxy_call_sync(dbus_config[clnt_id]->proxy,"Quit",NULL,G_DBUS_CALL_FLAGS_NONE,-1,NULL,&error);
-// 	g_assert_no_error(error);
-// 	g_variant_unref(result);
-// } /* test_Quit() */
 
 
 /*-------------------------------------
@@ -109,36 +86,36 @@ dbus_clnt_id tcp_dbus_client_create()
     |              VARIABLES               |
     --------------------------------------*/
 
-	dbus_clnt_id new_clnt_id;
+    dbus_clnt_id new_clnt_id;
 
     /*-------------------------------------
     |       FIND FIRST AVAILABLE ID        |
     --------------------------------------*/
 
-	for(new_clnt_id = 0; new_clnt_id < MAX_NUM_CLIENTS && dbus_config[new_clnt_id] != NULL; new_clnt_id++);
+    for(new_clnt_id = 0; new_clnt_id < MAX_NUM_CLIENTS && dbus_config[new_clnt_id] != NULL; new_clnt_id++);
 
     /*-------------------------------------
     |        VERIFY ID IS AVAILABLE        |
     --------------------------------------*/
 
-	if ( new_clnt_id == MAX_NUM_CLIENTS-1 && dbus_config[new_clnt_id] == NULL )
-	{
-		printf("ERROR: attemping to create more than MAX_NUM_CLIENTS!!!");
-		exit(EXIT_FAILURE);
-	}
+    if ( new_clnt_id == MAX_NUM_CLIENTS-1 && dbus_config[new_clnt_id] == NULL )
+    {
+        printf("ERROR: attemping to create more than MAX_NUM_CLIENTS!!!");
+        exit(EXIT_FAILURE);
+    }
 
 
     /*-------------------------------------
     |           ALLOCATE CLIENT            |
     --------------------------------------*/
 
-	dbus_config[new_clnt_id] = malloc(sizeof(struct dbus_clnt_config));
-	bzero(dbus_config[new_clnt_id], sizeof(struct dbus_clnt_config));
+    dbus_config[new_clnt_id] = malloc(sizeof(struct dbus_clnt_config));
+    bzero(dbus_config[new_clnt_id], sizeof(struct dbus_clnt_config));
     
     // tcp_sbscr[new_clnt_id] = malloc(sizeof(struct dbus_subscriber));
-	// bzero(tcp_sbscr[new_clnt_id], sizeof(struct dbus_subscriber));
+    // bzero(tcp_sbscr[new_clnt_id], sizeof(struct dbus_subscriber));
 
-	return new_clnt_id;
+    return new_clnt_id;
 }
 
 void tcp_dbus_client_delete(dbus_clnt_id clnt_id)
@@ -147,21 +124,21 @@ void tcp_dbus_client_delete(dbus_clnt_id clnt_id)
     |        VERIFY CLNT_ID EXISTS         |
     --------------------------------------*/
 
-	if ( dbus_config[clnt_id] == NULL )
-	{
-		return;
-	}
+    if ( dbus_config[clnt_id] == NULL )
+    {
+        return;
+    }
 
 
     /*-------------------------------------
     |          DEALLOCATE SERVER           |
     --------------------------------------*/
 
-	free(dbus_config[clnt_id]);
-	dbus_config[clnt_id] = NULL;
-	
+    free(dbus_config[clnt_id]);
+    dbus_config[clnt_id] = NULL;
+    
     // free(tcp_sbscr[clnt_id]);
-	// tcp_sbscr[clnt_id] = NULL;
+    // tcp_sbscr[clnt_id] = NULL;
 }
 
 int tcp_dbus_client_init(dbus_clnt_id clnt_id)
@@ -171,7 +148,7 @@ int tcp_dbus_client_init(dbus_clnt_id clnt_id)
     -------------------------------------*/
 
     GError *error;
-	GVariant *variant;
+    GVariant *variant;
 
 
     /*-------------------------------------
@@ -204,19 +181,19 @@ int tcp_dbus_client_init(dbus_clnt_id clnt_id)
     -------------------------------------*/
     
     /* Note, the 2 main buses are the system (G_BUS_TYPE_SYSTEM) and session/user (G_BUS_TYPE_SESSION) buses. */
-	dbus_config[clnt_id]->conn = g_bus_get_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
-	g_assert_no_error(error);
+    dbus_config[clnt_id]->conn = g_bus_get_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
+    g_assert_no_error(error);
 
 
-	dbus_config[clnt_id]->proxy = g_dbus_proxy_new_sync(dbus_config[clnt_id]->conn,
-				                    G_DBUS_PROXY_FLAGS_NONE,
-				                    NULL,				            /* GDBusInterfaceInfo */
-				                    dbus_config[clnt_id]->ServerName,		/* name */
-				                    dbus_config[clnt_id]->ObjectPath,	    /* object path */
-				                    dbus_config[clnt_id]->Interface,	        /* interface */
-				                    NULL,				            /* GCancellable */
-				                    &error);
-	g_assert_no_error(error);
+    dbus_config[clnt_id]->proxy = g_dbus_proxy_new_sync(dbus_config[clnt_id]->conn,
+                                    G_DBUS_PROXY_FLAGS_NONE,
+                                    NULL,				            /* GDBusInterfaceInfo */
+                                    dbus_config[clnt_id]->ServerName,		/* name */
+                                    dbus_config[clnt_id]->ObjectPath,	    /* object path */
+                                    dbus_config[clnt_id]->Interface,	        /* interface */
+                                    NULL,				            /* GCancellable */
+                                    &error);
+    g_assert_no_error(error);
 
 
     /*-------------------------------------
@@ -225,18 +202,18 @@ int tcp_dbus_client_init(dbus_clnt_id clnt_id)
 
     // FIXME Do we need a different loop for every client? Or just one global loop
     dbus_config[clnt_id]->loop = g_main_loop_new(NULL, false);
-	g_assert_no_error(error);
+    g_assert_no_error(error);
 
 
     /*-------------------------------------
     |     GET SERVER SOFTWARE VERSION      |
     -------------------------------------*/
 
-	/* read the version property of the interface */
-	variant = g_dbus_proxy_get_cached_property(dbus_config[clnt_id]->proxy, "Version");
-	g_assert(variant != NULL);
-	g_variant_get(variant, "s", &server_version);
-	g_variant_unref(variant);
+    /* read the version property of the interface */
+    variant = g_dbus_proxy_get_cached_property(dbus_config[clnt_id]->proxy, "Version");
+    g_assert(variant != NULL);
+    g_variant_get(variant, "s", &server_version);
+    g_variant_unref(variant);
 
     return EXIT_SUCCESS;
 } /* tcp_dbus_client_init() */
@@ -252,10 +229,10 @@ void* GMainLoop_Thread(void *loop)
     -------------------------------------*/
  
     /*
-	 * The only way to break the loop is to call
+     * The only way to break the loop is to call
      * g_main_loop_quit(dbus_config[clnt_id]->loop) from any thread
-	 */
-	g_main_loop_run( (GMainLoop*) loop );
+     */
+    g_main_loop_run( (GMainLoop*) loop );
 
     printf("GMainLoop_Thread is exiting...\n");
 
@@ -291,7 +268,7 @@ int start_main_loop(dbus_clnt_id clnt_id)
 
 void SubscriberCallback(GDBusConnection *conn, const gchar *sender_name, const gchar *object_path, const gchar *interface_name, const gchar *signal_name, GVariant *parameters,gpointer callback_data)
 {
-	// g_printf("\n****************SubscriberCallback: signal \"%s\" received.****************\n\n", signal_name);
+    // g_printf("\n****************SubscriberCallback: signal \"%s\" received.****************\n\n", signal_name);
     /* RESOURCES
     https://developer.gnome.org/glib/stable/gvariant-format-strings.html
     https://developer.gnome.org/glib/stable/glib-GVariant.html
@@ -434,7 +411,7 @@ int tcp_dbus_client_Subscribe2Recv(dbus_clnt_id clnt_id, char* signal, tcp_rx_si
     -------------------------------------*/
 
     printf("Adding signal %s subscription to main loop...\n", tcp_sbscr->SignalName);
-	tcp_sbscr->subscription_id = g_dbus_connection_signal_subscribe( tcp_sbscr->dbus_config->conn,
+    tcp_sbscr->subscription_id = g_dbus_connection_signal_subscribe( tcp_sbscr->dbus_config->conn,
                                                                      tcp_sbscr->dbus_config->ServerName,
                                                                      tcp_sbscr->dbus_config->Interface,
                                                                      tcp_sbscr->SignalName,

@@ -42,7 +42,7 @@ struct dbus_clnt_config;
                                      const gchar      *interface_name,
                                      const gchar      *signal_name,
                                      GVariant         *parameters,
-                                     gpointer          user_data);
+                                     gpointer          user_data;
  * 
  * For more information see the pub_dbus.h file for #defines
  */

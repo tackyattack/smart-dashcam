@@ -43,16 +43,15 @@ typedef void (*tcp_rx_signal_callback)(char* data, unsigned int data_sz);
 |    COMMAND FUNCTION DECLARATIONS     |
 -------------------------------------*/
 
-// void test_Ping(dbus_clnt_id clnt_id);
+/**
+ * This function may be called only after tcp_dbus_client_create() and
+ * tcp_dbus_client_init(). Calling this function with the client ID,
+ * a data array, and the size of that array (including any termination
+ * characters) will send the data to the tcp DBUS server and therefore
+ * send the data array over tcp to all tcp clients.
+ */
+int tcp_dbus_send_msg(dbus_clnt_id clnt_id, char* data, uint data_sz);
 
-// void test_Echo(dbus_clnt_id clnt_id);
-void tcp_dbus_send_msg(dbus_clnt_id clnt_id);/*, char* data, uint data_sz)*/
-
-void test_CommandEmitSignal(dbus_clnt_id clnt_id); // FIXME  REMOVE
-void test_CommandEmitSignal2(dbus_clnt_id clnt_id); // FIXME  REMOVE
-void test_CommandEmitSignal3(dbus_clnt_id clnt_id); // FIXME  REMOVE
-
-// void test_Quit(dbus_clnt_id clnt_id);
 
 
 /*-------------------------------------

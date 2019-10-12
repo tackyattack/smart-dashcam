@@ -6,6 +6,7 @@
 --------------------------------------*/
 
 #include <stdlib.h>
+#include <stdint.h>
 #include <unistd.h> /* for sleep */
 #include <stdio.h>
 
