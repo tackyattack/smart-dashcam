@@ -16,8 +16,13 @@
 
 /** Because there can only be one server for a given unique server name, 
  * and because the server_init function doesn't take server name parameters, 
- * we can only have one server at a time */
-#define MAX_NUM_SERVERS     (1) /* (__UINT8_MAX__) */
+ * we can only have one server at a time. This is the max number of dbus 
+ * servers allowed per process. */
+#define MAX_NUM_SERVERS             (1) /* (__UINT8_MAX__) */
+
+/* This value is returned by the tcp_dbus_srv_init() function is 
+dbus srv name is taken by another process on the bus */
+#define DBUS_SRV_NAME_UNAVAILABLE   (-1)
 
 
 /*-------------------------------------
@@ -72,9 +77,13 @@ int tcp_dbus_srv_init(dbus_srv_id srv_id, tcp_send_msg_callback callback);
  * This function, given a dbus_srv_id that has 
  * been created by tcp_dbus_srv_create(), will run 
  * the g_main_loop() required for the server to 
- * send/receive dbus messages.
+ * send/receive dbus messages. Returns DBUS_NAME_TAKEN
+ * if the dbus name requested on the bus is taken by 
+ * another process.
  * 
  * Non-blocking
+ * 
+ * Returns EXIT_FAILURE, EXIT_SUCCESS, or DBUS_SRV_NAME_UNAVAILABLE
  */
 int tcp_dbus_srv_execute(dbus_srv_id srv_id);
 
@@ -86,6 +95,8 @@ int tcp_dbus_srv_execute(dbus_srv_id srv_id);
  * tcp_dbus_srv_kill()
  * 
  * Non-blocking
+ * 
+ * Returns EXIT_FAILURE, EXIT_SUCCESS
  */
 void tcp_dbus_srv_kill(dbus_srv_id srv_id);
 
@@ -114,6 +125,8 @@ void tcp_dbus_srv_delete(dbus_srv_id srv_id);
  * and passes that message to all subscribers (subscriber-publisher setup).
  * 
  * Non-blocking
+ * 
+ * Returns EXIT_FAILURE or EXIT_SUCCESS
  */
 bool tcp_dbus_srv_emit_msg_recv_signal(dbus_srv_id srv_id, const char *msg, uint msg_sz);
 
@@ -142,6 +155,8 @@ bool tcp_dbus_srv_emit_connect_signal(dbus_srv_id srv_id, const char *tcp_clnt_i
  * subscribers (subscriber-publisher setup).
  * 
  * Non-blocking
+ * 
+ * Returns EXIT_FAILURE or EXIT_SUCCESS
  */
 bool tcp_dbus_srv_emit_disconnect_signal(dbus_srv_id srv_id, const char *tcp_clnt_id, uint size);
 

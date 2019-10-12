@@ -433,13 +433,26 @@ int tcp_dbus_srv_init(dbus_srv_id srv_id, tcp_send_msg_callback callback)
 
 
     /*-------------------------------------
-    |    REQUESTION COMMON NAME ON DBUS    |
+    |     VERIFY BUS NAME IS AVAILABLE     |
+    --------------------------------------*/
+
+    val = dbus_bus_name_has_owner(config->conn, DBUS_TCP_SERVER_NAME, &err);
+    if ( val == true )
+    {
+        fprintf(stderr, "-----Failed to request name \"%s\" on bus. The dbus name is taken by another process!-----\n\n", DBUS_TCP_SERVER_NAME);
+        dbus_error_free(&err);
+        return DBUS_SRV_NAME_UNAVAILABLE;
+    }
+
+
+    /*-------------------------------------
+    |      REQUEST COMMON NAME ON DBUS     |
     --------------------------------------*/
 
     val = dbus_bus_request_name(config->conn, DBUS_TCP_SERVER_NAME, DBUS_NAME_FLAG_REPLACE_EXISTING , &err);
     if (val != DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER)
     {
-        fprintf(stderr, "-----Note: This service is required to be run as root-----\nFailed to request name on bus: %s. Be sure to execute as root\n", err.message);
+        fprintf(stderr, "-----Note: This service is required to be run as root-----\nFailed to request name on bus: %s. Be sure to execute as root\n\n", err.message);
         dbus_error_free(&err);
         return EXIT_FAILURE;
     }

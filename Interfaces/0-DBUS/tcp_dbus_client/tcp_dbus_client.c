@@ -10,7 +10,7 @@
 
 /*-------------------------------------
 |           PRIVATE INCLUDES           |
--------------------------------------*/
+--------------------------------------*/
 
 #include "../pub_dbus.h"
 #include "pub_tcp_dbus_clnt.h"
@@ -78,7 +78,7 @@ int tcp_dbus_send_msg(dbus_clnt_id clnt_id, char* data, uint data_sz)
 /*-------------------------------------
 |         DBUS CLIENT-SPECIFIC         |
 |         FUNCTION DEFINITIONS         |
--------------------------------------*/
+--------------------------------------*/
 
 dbus_clnt_id tcp_dbus_client_create()
 {
@@ -112,9 +112,6 @@ dbus_clnt_id tcp_dbus_client_create()
     dbus_config[new_clnt_id] = malloc(sizeof(struct dbus_clnt_config));
     bzero(dbus_config[new_clnt_id], sizeof(struct dbus_clnt_config));
     
-    // tcp_sbscr[new_clnt_id] = malloc(sizeof(struct dbus_subscriber));
-    // bzero(tcp_sbscr[new_clnt_id], sizeof(struct dbus_subscriber));
-
     return new_clnt_id;
 }
 
@@ -137,15 +134,13 @@ void tcp_dbus_client_delete(dbus_clnt_id clnt_id)
     free(dbus_config[clnt_id]);
     dbus_config[clnt_id] = NULL;
     
-    // free(tcp_sbscr[clnt_id]);
-    // tcp_sbscr[clnt_id] = NULL;
 }
 
-int tcp_dbus_client_init(dbus_clnt_id clnt_id)
+int tcp_dbus_client_init(dbus_clnt_id clnt_id, char const ** srv_version)
 {
     /*-------------------------------------
     |              VARIABLES               |
-    -------------------------------------*/
+    --------------------------------------*/
 
     GError *error;
     GVariant *variant;
@@ -153,7 +148,7 @@ int tcp_dbus_client_init(dbus_clnt_id clnt_id)
 
     /*-------------------------------------
     |           INITIALIZATIONS            |
-    -------------------------------------*/
+    --------------------------------------*/
 
      error = NULL;
 
@@ -167,7 +162,7 @@ int tcp_dbus_client_init(dbus_clnt_id clnt_id)
 
      /*-------------------------------------
      |            VERIFICATIONS             |
-     -------------------------------------*/
+     --------------------------------------*/
 
     if ( dbus_config[clnt_id]->conn != NULL )
     {
@@ -178,7 +173,7 @@ int tcp_dbus_client_init(dbus_clnt_id clnt_id)
 
     /*-------------------------------------
     |           CONNECT TO DBUS            |
-    -------------------------------------*/
+    --------------------------------------*/
     
     /* Note, the 2 main buses are the system (G_BUS_TYPE_SYSTEM) and session/user (G_BUS_TYPE_SESSION) buses. */
     dbus_config[clnt_id]->conn = g_bus_get_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
@@ -198,7 +193,7 @@ int tcp_dbus_client_init(dbus_clnt_id clnt_id)
 
     /*-------------------------------------
     |          CREATE G_MAIN_LOOP          |
-    -------------------------------------*/
+    --------------------------------------*/
 
     // FIXME Do we need a different loop for every client? Or just one global loop
     dbus_config[clnt_id]->loop = g_main_loop_new(NULL, false);
@@ -207,13 +202,30 @@ int tcp_dbus_client_init(dbus_clnt_id clnt_id)
 
     /*-------------------------------------
     |     GET SERVER SOFTWARE VERSION      |
-    -------------------------------------*/
+    --------------------------------------*/
 
     /* read the version property of the interface */
     variant = g_dbus_proxy_get_cached_property(dbus_config[clnt_id]->proxy, "Version");
-    g_assert(variant != NULL);
+
+    // TODO FIXME  setup tcp_service to automatically be started if it's not running rather than us continueally attempting to connect
+    if ( variant == NULL )
+    {
+        printf("------FAILED: DBUS server is not running!------\n");
+        // g_assert(variant != NULL);
+        // tcp_dbus_client_disconnect(clnt_id);
+        g_main_loop_unref (dbus_config[clnt_id]->loop);
+        g_object_unref(dbus_config[clnt_id]->proxy);
+        g_object_unref(dbus_config[clnt_id]->conn);
+        return DBUS_SRV_NOT_EXECUTING;
+    }
+
     g_variant_get(variant, "s", &server_version);
     g_variant_unref(variant);
+
+    if( srv_version != NULL )
+    {
+        *srv_version = server_version;
+    }
 
     return EXIT_SUCCESS;
 } /* tcp_dbus_client_init() */
@@ -226,7 +238,7 @@ void* GMainLoop_Thread(void *loop)
 
     /*-------------------------------------
     |   EXECUTE G_MAIN_LOOP INDEFINITELY   |
-    -------------------------------------*/
+    --------------------------------------*/
  
     /*
      * The only way to break the loop is to call
@@ -243,7 +255,7 @@ int start_main_loop(dbus_clnt_id clnt_id)
 {
     /*-------------------------------------
     |              VARIABLES               |
-    -------------------------------------*/
+    --------------------------------------*/
 
     pthread_t thread_id;
     
@@ -392,7 +404,7 @@ int tcp_dbus_client_Subscribe2Recv(dbus_clnt_id clnt_id, char* signal, tcp_rx_si
 
     /*-------------------------------------
     |            VERIFICATIONS             |
-    -------------------------------------*/
+    --------------------------------------*/
 
     if ( tcp_sbscr->callback == NULL ||  tcp_sbscr->SignalName == NULL || tcp_sbscr->dbus_config == NULL || tcp_sbscr->dbus_config->ServerName == NULL || tcp_sbscr->dbus_config->Interface == NULL || tcp_sbscr->dbus_config->ObjectPath == NULL || tcp_sbscr->dbus_config->conn == NULL || tcp_sbscr->dbus_config->loop == NULL )
     {
@@ -408,7 +420,7 @@ int tcp_dbus_client_Subscribe2Recv(dbus_clnt_id clnt_id, char* signal, tcp_rx_si
 
     /*-------------------------------------
     |         SUBSCRIBE TO SERVER          |
-    -------------------------------------*/
+    --------------------------------------*/
 
     printf("Adding signal %s subscription to main loop...\n", tcp_sbscr->SignalName);
     tcp_sbscr->subscription_id = g_dbus_connection_signal_subscribe( tcp_sbscr->dbus_config->conn,
@@ -427,7 +439,7 @@ int tcp_dbus_client_Subscribe2Recv(dbus_clnt_id clnt_id, char* signal, tcp_rx_si
 
     /*-------------------------------------
     |        CONFIGURE G_MAIN_LOOP         |
-    -------------------------------------*/
+    --------------------------------------*/
 
     g_main_loop_ref(tcp_sbscr->dbus_config->loop);
 
@@ -446,7 +458,7 @@ int tcp_dbus_client_Subscribe2Recv(dbus_clnt_id clnt_id, char* signal, tcp_rx_si
 
 int tcp_dbus_client_UnsubscribeRecv(dbus_clnt_id clnt_id, char* signal)
 {
-    /*-------------------------------------
+    /*--------------------------------------
     |              VARIABLES               |
     --------------------------------------*/
 
@@ -481,7 +493,7 @@ int tcp_dbus_client_UnsubscribeRecv(dbus_clnt_id clnt_id, char* signal)
 
     /*-------------------------------------
     |            VERIFICATIONS             |
-    -------------------------------------*/
+    --------------------------------------*/
     
     if ( i >= NUM_SIGNALS || dbus_config[clnt_id]->tcp_sbscr[i].isSubscribed == false )
     {
@@ -499,7 +511,7 @@ int tcp_dbus_client_UnsubscribeRecv(dbus_clnt_id clnt_id, char* signal)
 
     /*-------------------------------------
     |          CANCEL SUBSCRIBER           |
-    -------------------------------------*/
+    --------------------------------------*/
 
     g_dbus_connection_signal_unsubscribe(tcp_sbscr->dbus_config->conn,tcp_sbscr->subscription_id);
     g_main_loop_unref(tcp_sbscr->dbus_config->loop);
@@ -521,7 +533,7 @@ void tcp_dbus_client_disconnect(dbus_clnt_id clnt_id)
 
     /*-------------------------------------
     |            VERIFICATIONS             |
-    -------------------------------------*/
+    --------------------------------------*/
 
     if ( dbus_config[clnt_id]->conn == NULL || dbus_config[clnt_id]->proxy == NULL || dbus_config[clnt_id]->loop == NULL )
     {
@@ -531,7 +543,7 @@ void tcp_dbus_client_disconnect(dbus_clnt_id clnt_id)
 
     /*-------------------------------------
     |           INITIALIZATIONS            |
-    -------------------------------------*/
+    --------------------------------------*/
 
     GError *err = NULL;
 
@@ -549,7 +561,7 @@ void tcp_dbus_client_disconnect(dbus_clnt_id clnt_id)
 
     /*-------------------------------------
     |         DISCONNECT PROCEDURE         |
-    -------------------------------------*/
+    --------------------------------------*/
 
     printf("Disconnect client and kill client thread\n");
     /* Not sure how many/which of these are needed */
@@ -561,7 +573,7 @@ void tcp_dbus_client_disconnect(dbus_clnt_id clnt_id)
 
     /*-------------------------------------
     |               CLEANUP                |
-    -------------------------------------*/
+    --------------------------------------*/
 
     g_object_unref(dbus_config[clnt_id]->proxy);
     g_object_unref(dbus_config[clnt_id]->conn);

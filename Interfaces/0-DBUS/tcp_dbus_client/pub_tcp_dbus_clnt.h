@@ -13,22 +13,15 @@
 |            PUBLIC DEFINES            |
 --------------------------------------*/
 
-#define MAX_NUM_CLIENTS     __UINT8_MAX__
-#define NUM_SIGNALS         3 /* This should match the signals defined in pub_dbus.h and with the server */
-
+#define MAX_NUM_CLIENTS             (__UINT8_MAX__) /* Max number of dbus clients (instances) a process can have */
+#define NUM_SIGNALS                 (3)             /* This should match the signals defined in pub_dbus.h and with the server */
+#define DBUS_SRV_NOT_EXECUTING      (-1)            /* This is returned by tcp_dbus_client_init() if dbus server is not active */
 
 /*-------------------------------------
 |           PUBLIC TYPEDEFS            |
 --------------------------------------*/
 
 typedef uint8_t dbus_clnt_id;
-
-
-/*-------------------------------------
-|           STATIC CONSTANTS           |
---------------------------------------*/
-
-static const char *server_version;
 
 
 /*-------------------------------------
@@ -70,10 +63,12 @@ dbus_clnt_id tcp_dbus_client_create();
 /** 
  * Given a dbus_clnt_id, will initialize the
  * tcp dbus client by connecting to the server.
+ * srv_version is an optionally NULL paramter that
+ * returns a pointer to the dbus server's version.
  * 
  * Non-blocking call
  */
-int tcp_dbus_client_init(dbus_clnt_id clnt_id);
+int tcp_dbus_client_init(dbus_clnt_id clnt_id, char const ** srv_version);
 
 /**
  * Given a dbus_clnt_id, the signal name, and a callback, 

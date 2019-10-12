@@ -87,6 +87,8 @@ int main(void)
     dbus_clnt_id id;
     char msg[] = "Message to send over\0TCP\n";
     uint msg_sz = sizeof(msg);
+    int val;
+    const char* server_version;
 
     /*-------------------------------------
     |           INITIALIZATIONS            |
@@ -94,11 +96,21 @@ int main(void)
 
     id = tcp_dbus_client_create();
 
-    if ( EXIT_FAILURE == tcp_dbus_client_init(id) )
+    do
     {
-        printf("Failed to initialize client!\nExiting.....\n");
-        exit(EXIT_FAILURE);
-    }
+        val = tcp_dbus_client_init(id, &server_version);
+        if ( EXIT_FAILURE == val )
+        {
+            printf("Failed to initialize client!\nExiting.....\n");
+            exit(EXIT_FAILURE);
+        }
+        else if ( val == DBUS_SRV_NOT_EXECUTING )
+        {
+            printf("WARNING: DBUS server is unavailable. Trying again in 2 seconds...\n");
+            sleep(2);
+        }
+    }while( EXIT_SUCCESS != val );
+    
 
 
     /*-------------------------------------
