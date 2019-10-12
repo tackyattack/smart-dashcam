@@ -52,10 +52,32 @@ int main(void)
     |            INFINITE LOOP             |
     --------------------------------------*/
     
+    do{
+        for (size_t i = 0; i < 5; i++)
+        // for ( ; ; )
+        {
+            printf("Emit signals\n");
+            if ( 0 != tcp_dbus_srv_emit_msg_recv_signal(srv_id, "TCP\0 has received a message and emitted a signal.\n", 51) )
+            {
+                printf("ERROR: raising signal tcp_dbus_srv_emit_msg_recv_signal() FAILED!\n");
+            }
+            if ( 0 != tcp_dbus_srv_emit_connect_signal(srv_id, "TCP\0 client has connected.\n", 28) )
+            {
+                printf("ERROR: raising signal tcp_dbus_srv_emit_connect_signal() FAILED!\n");
+            }
+            if ( 0 != tcp_dbus_srv_emit_disconnect_signal(srv_id, "TCP\0 client has disconnected.\n", 31) )
+            {
+                printf("ERROR: raising signal tcp_dbus_srv_emit_disconnect_signal() FAILED!\n");
+            }
+            // sleep(1);
+        }
+        printf("\n\nEnter 'c' to run loop again, else press enter to quit server.\n\n");
+    }while( getchar() == 'c' && getchar() == '\n' );
+
     /* Block until input is received. 
         Once input has been received, quit the program */
-    printf("Press enter to quit DBUS server.");
-    getchar();
+    // printf("Press enter to quit DBUS server.");
+    // getchar();
 
 
     /*-------------------------------------

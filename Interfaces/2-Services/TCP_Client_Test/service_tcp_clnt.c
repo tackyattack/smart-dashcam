@@ -174,6 +174,26 @@ int main(void)
     tcp_dbus_client_UnsubscribeRecv(id,DBUS_TCP_CONNECT_SIGNAL);
     tcp_dbus_client_UnsubscribeRecv(id,DBUS_TCP_DISCONNECT_SIGNAL);
 
+    // sleep(10);
+
+    printf("Subscribe to DBUS_TCP_RECV_SIGNAL signal\n");
+    if ( EXIT_FAILURE == tcp_dbus_client_Subscribe2Recv(id,DBUS_TCP_RECV_SIGNAL,&tcp_rx_data_callback) )
+    {
+        printf("Failed to subscribe to DBUS_TCP_RECV_SIGNAL signal!\n \tEXPECTED THIS\n");
+    }
+    printf("Subscribe to DBUS_TCP_CONNECT_SIGNAL signal\n");
+    if ( EXIT_FAILURE == tcp_dbus_client_Subscribe2Recv(id,DBUS_TCP_CONNECT_SIGNAL,&tcp_clnt_connect_callback) )
+    {
+        printf("Failed to subscribe to DBUS_TCP_CONNECT_SIGNAL signal!\nExiting.....\n");
+        EXIT_FAILURE;
+    }
+    printf("Subscribe to DBUS_TCP_DISCONNECT_SIGNAL signal\n");
+    if ( EXIT_FAILURE == tcp_dbus_client_Subscribe2Recv(id,DBUS_TCP_DISCONNECT_SIGNAL,&tcp_clnt_disconnect_callback) )
+    {
+        printf("Failed to subscribe to DBUS_TCP_DISCONNECT_SIGNAL signal!\nExiting.....\n");
+        EXIT_FAILURE;
+    }
+
     printf("Press enter to quit....\n");
     getchar(); /* Block until any stdin is received */
 

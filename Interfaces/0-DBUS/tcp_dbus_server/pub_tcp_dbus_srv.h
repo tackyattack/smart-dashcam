@@ -7,6 +7,7 @@
 
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 
 /*-------------------------------------
@@ -84,5 +85,51 @@ void tcp_dbus_srv_kill(dbus_srv_id srv_id);
  * Non-blocking
  */
 void tcp_dbus_srv_delete(dbus_srv_id srv_id);
+
+
+/*-------------------------------------
+|     PUBLIC EMIT SIGNAL FUNCTIONS     |
+--------------------------------------*/
+
+/**
+ * Calling this function (with a valid created, initialized, and executing 
+ * dbus_srv_id from tcp_dbus_srv_create(), tcp_dbus_srv_init(), and 
+ * tcp_dbus_srv_execute() functions) will emit a signal to all tcp dbus clients
+ * who are subscribed to this signal. The signal emitted contains the msg given 
+ * to this function. This signal represents the tcp server receiving a tcp message,
+ * and passes that message to all subscribers (subscriber-publisher setup).
+ * 
+ * Non-blocking
+ */
+bool tcp_dbus_srv_emit_msg_recv_signal(dbus_srv_id srv_id, const char *msg, uint msg_sz);
+
+/**
+ * Calling this function (with a valid created, initialized, and executing 
+ * dbus_srv_id from tcp_dbus_srv_create(), tcp_dbus_srv_init(), and 
+ * tcp_dbus_srv_execute() functions) will emit a signal to all tcp 
+ * dbus clients who are subscribed to this signal. The signal emitted to
+ * tcp dbus clients  contains the tcp client id for the client that connected 
+ * to the tcp server given to this function. This signal represents a new tcp
+ * client connection to the tcp server and passes that new clients id to all
+ * subscribers (subscriber-publisher setup).
+ * 
+ * Non-blocking
+ */
+bool tcp_dbus_srv_emit_connect_signal(dbus_srv_id srv_id, const char *tcp_clnt_id, uint size);
+
+/**
+ * Calling this function (with a valid created, initialized, and executing 
+ * dbus_srv_id from tcp_dbus_srv_create(), tcp_dbus_srv_init(), and 
+ * tcp_dbus_srv_execute() functions) will emit a signal to all tcp 
+ * dbus clients who are subscribed to this signal. The signal emitted to
+ * tcp dbus clients  contains the tcp client id for the client that disconnected 
+ * to the tcp server given to this function. This signal represents a new tcp
+ * client disconnection to the tcp server and passes that new clients id to all
+ * subscribers (subscriber-publisher setup).
+ * 
+ * Non-blocking
+ */
+bool tcp_dbus_srv_emit_disconnect_signal(dbus_srv_id srv_id, const char *tcp_clnt_id, uint size);
+
 
 #endif /* PUB_DBUS_SRV_INTERFACE_H */

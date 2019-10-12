@@ -222,6 +222,7 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
 
         if( DBUS_TYPE_ARRAY != dbus_message_iter_get_arg_type(&iter) || DBUS_TYPE_BYTE != dbus_message_iter_get_arg_type(&subiter) )
         {
+            printf("ERROR: method %s() was given incorrect arguments. Expected DBUS_TYPE_ARRAY of DBUS_TYPE_BYTE -> \"(ay)\"", DBUS_TCP_SEND_MSG);
             return EXIT_FAILURE;
         }
 
@@ -261,20 +262,23 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
         //TODO implement callback
 
     #else /* So instead, we use this method. Less efficient iterating through all the elements, but accurate */
-
+        
         /*-------------------------------------
-        |       GET ARRAY OF DATA BYTES        |
+        |         ADDITIONAL VARIABLES         |
         --------------------------------------*/
 
         char data[data_sz];
         bzero(data,data_sz);
 
-        printf( "\n\nArg 1 Type: %c\n", dbus_message_iter_get_arg_type(&iter) );
-        printf( "Arg 1 SubType: %c\n\n", dbus_message_iter_get_arg_type(&subiter) );
-
         printf("\n****************tcp_dbus_server.c: send_msg function****************\n\n");
 
         printf("Received %d bytes. Data as follows:\n\"",data_sz);
+        
+
+        /*-------------------------------------
+        |       GET ARRAY OF DATA BYTES        |
+        --------------------------------------*/
+        
         do
         {
             dbus_message_iter_get_basic(&subiter, &data[i]);
@@ -289,6 +293,11 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
 
         printf("\n****************END---tcp_dbus_server.c: send_msg function---END****************\n\n");
 
+
+
+        /*-------------------------------------
+        |         CREATE METHOD REPLY          |
+        --------------------------------------*/
 
         if (!(reply = dbus_message_new_method_return(message)))
         {
@@ -360,8 +369,6 @@ fail:
     return result;
 } /* server_message_handler() */
 
-
-
 void* server_thread(void *config)
 {
     printf("Starting dbus tiny server v%s\n", srv_sftw_version);
@@ -387,6 +394,7 @@ int tcp_dbus_srv_init(dbus_srv_id srv_id)
     /*-------------------------------------
     |           INITIALIZATIONS            |
     --------------------------------------*/
+
     config = SRV_CONFIGS_ARRY[srv_id];
     dbus_error_init(&err);
 
@@ -485,6 +493,7 @@ int tcp_dbus_srv_execute(dbus_srv_id srv_id)
 
     config = SRV_CONFIGS_ARRY[srv_id];
 
+
     /*-------------------------------------
     |           VERIFY VALID ID            |
     --------------------------------------*/
@@ -569,7 +578,7 @@ void tcp_dbus_srv_kill(dbus_srv_id srv_id)
 
     if ( config == NULL || config->loop == NULL || config->conn == NULL )
     {
-        printf("WARNING, called tcp_dbus_srv_kill() for server id %d but server was not initialized!\n", srv_id);
+        printf("WARNING, called tcp_dbus_srv_kill() for server id %d but server is not created/initialized!\n", srv_id);
         return;
     }
 
@@ -583,3 +592,258 @@ void tcp_dbus_srv_kill(dbus_srv_id srv_id)
 
     // TODO addition cleanup needed?
 } /* tcp_dbus_srv_kill() */
+
+bool tcp_dbus_srv_emit_msg_recv_signal(dbus_srv_id srv_id, const char *msg, uint msg_sz)
+{
+    /*-------------------------------------
+    |              VARIABLES               |
+    --------------------------------------*/
+
+    bool return_val;
+    DBusMessage *dbus_msg;
+    struct dbus_srv_config *config;
+
+
+    /*-------------------------------------
+    |           INITIALIZATIONS            |
+    --------------------------------------*/
+
+    config = SRV_CONFIGS_ARRY[srv_id];
+    return_val = EXIT_SUCCESS;
+    dbus_msg = NULL;
+
+
+    /*-------------------------------------
+    |        VERIFY ID INITIALIZED         |
+    --------------------------------------*/
+
+    if ( config == NULL || config->loop == NULL || config->conn == NULL )
+    {
+        printf("WARNING, called tcp_dbus_srv_emit_msg_recv_signal() for server id %d but server is not created/initialized!\n", srv_id);
+        return EXIT_FAILURE;
+    }
+
+
+    /*-------------------------------------
+    |          VERIFY PARAMETERS           |
+    --------------------------------------*/
+
+    if ( msg == NULL || msg_sz == 0 )
+    {
+        printf("WARNING, called tcp_dbus_srv_emit_msg_recv_signal() for server id %d but  msg == NULL or msg_sz == 0!\n", srv_id);
+        return EXIT_FAILURE;
+    }
+
+
+    /*-------------------------------------
+    |             SEND SIGNAL              |
+    --------------------------------------*/
+
+    if ( (dbus_msg = dbus_message_new_signal(DBUS_TCP_OPATH, DBUS_TCP_IFACE, DBUS_TCP_RECV_SIGNAL)) )
+    {
+        dbus_message_append_args (dbus_msg, DBUS_TYPE_ARRAY, DBUS_TYPE_BYTE, &msg, msg_sz, DBUS_TYPE_INVALID);
+
+        if ( dbus_connection_send(config->conn, dbus_msg, NULL) )
+        {
+            /* Send a METHOD_RETURN dbus_msg. */
+            dbus_msg = dbus_message_new_method_return(dbus_msg);
+        }
+        else
+        {
+            /* return DBUS_HANDLER_RESULT_NEED_MEMORY; */
+            return_val = EXIT_FAILURE;
+        }
+    }
+
+
+    /*-------------------------------------
+    |             VERIFICATION             |
+    --------------------------------------*/
+
+    /* Send the reply which might be an error one too. */
+    if (dbus_msg == NULL || !dbus_connection_send(config->conn, dbus_msg, NULL))
+    {
+        /* result = DBUS_HANDLER_RESULT_NEED_MEMORY; */
+        dbus_message_unref(dbus_msg);
+        return EXIT_FAILURE;
+    }
+
+
+    /*-------------------------------------
+    |               CLEANUP                |
+    --------------------------------------*/
+
+    dbus_message_unref(dbus_msg);
+
+    return return_val;
+}
+
+bool tcp_dbus_srv_emit_connect_signal(dbus_srv_id srv_id, const char *tcp_clnt_id, uint size)
+{
+    /*-------------------------------------
+    |              VARIABLES               |
+    --------------------------------------*/
+
+    bool return_val;
+    DBusMessage *dbus_msg;
+    struct dbus_srv_config *config;
+
+
+    /*-------------------------------------
+    |           INITIALIZATIONS            |
+    --------------------------------------*/
+
+    config = SRV_CONFIGS_ARRY[srv_id];
+    return_val = EXIT_SUCCESS;
+    dbus_msg = NULL;
+
+
+    /*-------------------------------------
+    |        VERIFY ID INITIALIZED         |
+    --------------------------------------*/
+
+    if ( config == NULL || config->loop == NULL || config->conn == NULL )
+    {
+        printf("WARNING, called tcp_dbus_srv_emit_connect_signal() for server id %d but server is not created/initialized!\n", srv_id);
+        return EXIT_FAILURE;
+    }
+
+
+    /*-------------------------------------
+    |          VERIFY PARAMETERS           |
+    --------------------------------------*/
+
+    if ( tcp_clnt_id == NULL || size == 0 )
+    {
+        printf("WARNING, called tcp_dbus_srv_emit_connect_signal() for server id %d but  tcp_clnt_id == NULL or size == 0!\n", srv_id);
+        return EXIT_FAILURE;
+    }
+
+
+    /*-------------------------------------
+    |             SEND SIGNAL              |
+    --------------------------------------*/
+
+    if ( (dbus_msg = dbus_message_new_signal(DBUS_TCP_OPATH, DBUS_TCP_IFACE, DBUS_TCP_CONNECT_SIGNAL)) )
+    {
+        dbus_message_append_args (dbus_msg, DBUS_TYPE_ARRAY, DBUS_TYPE_BYTE, &tcp_clnt_id, size, DBUS_TYPE_INVALID);
+
+        if ( dbus_connection_send(config->conn, dbus_msg, NULL) )
+        {
+            /* Send a METHOD_RETURN dbus_msg. */
+            dbus_msg = dbus_message_new_method_return(dbus_msg);
+        }
+        else
+        {
+            /* return DBUS_HANDLER_RESULT_NEED_MEMORY; */
+            return_val = EXIT_FAILURE;
+        }
+    }
+
+
+    /*-------------------------------------
+    |             VERIFICATION             |
+    --------------------------------------*/
+
+    /* Send the reply which might be an error one too. */
+    if (dbus_msg == NULL || !dbus_connection_send(config->conn, dbus_msg, NULL))
+    {
+        /* result = DBUS_HANDLER_RESULT_NEED_MEMORY; */
+        dbus_message_unref(dbus_msg);
+        return EXIT_FAILURE;
+    }
+
+
+    /*-------------------------------------
+    |               CLEANUP                |
+    --------------------------------------*/
+
+    dbus_message_unref(dbus_msg);
+
+    return return_val;
+}
+
+bool tcp_dbus_srv_emit_disconnect_signal(dbus_srv_id srv_id, const char *tcp_clnt_id, uint size)
+{
+    /*-------------------------------------
+    |              VARIABLES               |
+    --------------------------------------*/
+
+    bool return_val;
+    DBusMessage *dbus_msg;
+    struct dbus_srv_config *config;
+
+
+    /*-------------------------------------
+    |           INITIALIZATIONS            |
+    --------------------------------------*/
+
+    config = SRV_CONFIGS_ARRY[srv_id];
+    return_val = EXIT_SUCCESS;
+    dbus_msg = NULL;
+
+
+    /*-------------------------------------
+    |        VERIFY ID INITIALIZED         |
+    --------------------------------------*/
+
+    if ( config == NULL || config->loop == NULL || config->conn == NULL )
+    {
+        printf("WARNING, called tcp_dbus_srv_emit_disconnect_signal() for server id %d but server is not created/initialized!\n", srv_id);
+        return EXIT_FAILURE;
+    }
+
+
+    /*-------------------------------------
+    |          VERIFY PARAMETERS           |
+    --------------------------------------*/
+
+    if ( tcp_clnt_id == NULL || size == 0 )
+    {
+        printf("WARNING, called tcp_dbus_srv_emit_disconnect_signal() for server id %d but  tcp_clnt_id == NULL or size == 0!\n", srv_id);
+        return EXIT_FAILURE;
+    }
+
+
+    /*-------------------------------------
+    |             SEND SIGNAL              |
+    --------------------------------------*/
+
+    if ( (dbus_msg = dbus_message_new_signal(DBUS_TCP_OPATH, DBUS_TCP_IFACE, DBUS_TCP_DISCONNECT_SIGNAL)) )
+    {
+        dbus_message_append_args (dbus_msg, DBUS_TYPE_ARRAY, DBUS_TYPE_BYTE, &tcp_clnt_id, size, DBUS_TYPE_INVALID);
+
+        if ( dbus_connection_send(config->conn, dbus_msg, NULL) )
+        {
+            /* Send a METHOD_RETURN dbus_msg. */
+            dbus_msg = dbus_message_new_method_return(dbus_msg);
+        }
+        else
+        {
+            /* return DBUS_HANDLER_RESULT_NEED_MEMORY; */
+            return_val = EXIT_FAILURE;
+        }
+    }
+
+
+    /*-------------------------------------
+    |             VERIFICATION             |
+    --------------------------------------*/
+
+    /* Send the reply which might be an error one too. */
+    if (dbus_msg == NULL || !dbus_connection_send(config->conn, dbus_msg, NULL))
+    {
+        /* result = DBUS_HANDLER_RESULT_NEED_MEMORY; */
+        dbus_message_unref(dbus_msg);
+        return EXIT_FAILURE;
+    }
+
+
+    /*-------------------------------------
+    |               CLEANUP                |
+    --------------------------------------*/
+
+    dbus_message_unref(dbus_msg);
+
+    return return_val;
+}
