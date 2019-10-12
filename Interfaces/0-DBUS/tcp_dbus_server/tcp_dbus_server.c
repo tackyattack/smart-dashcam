@@ -74,17 +74,19 @@ dbus_srv_id tcp_dbus_srv_create()
 
     dbus_srv_id new_srv_id;
 
+
     /*-------------------------------------
     |       FIND FIRST AVAILABLE ID        |
     --------------------------------------*/
 
     for(new_srv_id = 0; new_srv_id < MAX_NUM_SERVERS && SRV_CONFIGS_ARRY[new_srv_id] != NULL; new_srv_id++);
 
+
     /*-------------------------------------
     |        VERIFY ID IS AVAILABLE        |
     --------------------------------------*/
 
-    if ( new_srv_id == MAX_NUM_SERVERS && SRV_CONFIGS_ARRY[new_srv_id] == NULL )
+    if ( new_srv_id == MAX_NUM_SERVERS || SRV_CONFIGS_ARRY[new_srv_id] != NULL )
     {
         printf("ERROR: attemping to create more than MAX_NUM_SERVERS!!!");
         exit(EXIT_FAILURE);
