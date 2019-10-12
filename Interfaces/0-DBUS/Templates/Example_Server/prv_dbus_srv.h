@@ -149,8 +149,4 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
 void* server_thread(void *config);
 
 
-struct dbus_srv_config* get_srv_config(dbus_srv_id srv_id);
-
-int set_srv_config(dbus_srv_id srv_id, struct dbus_srv_config* config);
-
 #endif /* PRV_DBUS_SRV_H */

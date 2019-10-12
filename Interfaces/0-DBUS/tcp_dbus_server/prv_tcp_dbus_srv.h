@@ -23,8 +23,9 @@
     represents a configuration set.*/
 struct dbus_srv_config
 {
-    DBusConnection *conn; /* Do not set this value */
-    GMainLoop *loop;      /* Do not set this value */
+    DBusConnection *conn;               /* DBUS bus connection */
+    GMainLoop *loop;                    /* Loop that executes server */
+    tcp_send_msg_callback callback;     /* Callback for method DBUS_TCP_SEND_MSG */
 };
 
 
@@ -146,9 +147,5 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
  */
 void* server_thread(void *config);
 
-
-struct dbus_srv_config* get_srv_config(dbus_srv_id srv_id);
-
-int set_srv_config(dbus_srv_id srv_id, struct dbus_srv_config* config);
 
 #endif /* PRV_DBUS_SRV_H */

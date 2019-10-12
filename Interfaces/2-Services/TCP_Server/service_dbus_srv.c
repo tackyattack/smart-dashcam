@@ -12,6 +12,29 @@
 
 
 /*-------------------------------------
+|          CALLBACK FUNCTIONS          |
+--------------------------------------*/
+
+/** Note that data is freed after this callback is called. As such, if 
+ * the data in data needs to be saved, a copy of the data must be made.
+ * Refer to this guide on mixing C and C++ callbacks due to ldashcam_tcp_dbus_srv
+ *  being written in C: https://isocpp.org/wiki/faq/mixing-c-and-cpp */
+void tcp_msg_to_tx_callback(char *data, unsigned int data_sz)
+{
+  	printf("\n****************tcp_msg_to_tx_callback: callback activated.****************\n\n");
+
+    printf("Received %d bytes as follows:\n\"",data_sz);
+    for (size_t i = 0; i < data_sz; i++)
+    {
+        printf("%c",data[i]);
+    }
+    printf("\"\n");
+    
+  	printf("\n****************END---tcp_msg_to_tx_callback---END****************\n\n");
+} /* tcp_msg_to_tx_callback() */
+
+
+/*-------------------------------------
 |     MAIN FUNCTION OF THE SERVICE     |
 --------------------------------------*/
 
@@ -35,7 +58,7 @@ int main(void)
     |           START THE SERVER           |
     --------------------------------------*/
 
-    if ( tcp_dbus_srv_init(srv_id) == EXIT_FAILURE )
+    if ( tcp_dbus_srv_init(srv_id, tcp_msg_to_tx_callback) == EXIT_FAILURE )
     {
         printf("Failed to initialize server!\nExiting.....\n");
         exit(EXIT_FAILURE);

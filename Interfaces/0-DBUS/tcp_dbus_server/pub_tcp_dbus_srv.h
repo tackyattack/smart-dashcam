@@ -14,7 +14,10 @@
 |            PUBLIC DEFINES            |
 --------------------------------------*/
 
-#define MAX_NUM_SERVERS __UINT8_MAX__
+/** Because there can only be one server for a given unique server name, 
+ * and because the server_init function doesn't take server name parameters, 
+ * we can only have one server at a time */
+#define MAX_NUM_SERVERS     (1) /* (__UINT8_MAX__) */
 
 
 /*-------------------------------------
@@ -22,6 +25,14 @@
 --------------------------------------*/
 
 typedef uint8_t dbus_srv_id;
+
+
+/*-------------------------------------
+|    FUNCTION POINTER DECLARATIONS     |
+--------------------------------------*/
+
+/* https://isocpp.org/wiki/faq/mixing-c-and-cpp */
+typedef void (*tcp_send_msg_callback)(char* data, unsigned int data_sz);
 
 
 /*-------------------------------------
@@ -40,25 +51,28 @@ static const char *srv_sftw_version = "0.1";
  * and returns that servers unique ID. tcp_dbus_srv_init must be called 
  * with the return unique ID to initialize the server. This function
  * will assert if attempting to create more than MAX_NUM_SERVERS.
+ * 
  * Non-blocking
  */
 dbus_srv_id tcp_dbus_srv_create();
 
 /**
- * initializes a DBUS server for the config passed in.
- * config should be a pointer to an allocated dbus_srv_config 
- * struct that contains null entries and should exist until 
- * tcp_dbus_srv_kill() is called.
- * Each struct dbus_srv_config represents a unique and 
- * independent server.
+ * Initializes a DBUS server for a given dbus_srv_id 
+ * give by tcp_dbus_srv_create() and optionally NULL callback
+ * Each dbus_srv_id represents a unique and independent server.
+ * callback parameter is a function pointer to the user callback
+ * that will be called when the send_msg() method is called by a 
+ * tcp dbus client.
+ * 
  * Non-blocking
  */
-int tcp_dbus_srv_init(dbus_srv_id srv_id);
+int tcp_dbus_srv_init(dbus_srv_id srv_id, tcp_send_msg_callback callback);
 
 /**
- * This function, given a struct dbus_srv_config that has 
- * been setup by tcp_dbus_srv_init(), will run the g_main_loop()
- * required for the server to send/receive dbus messages.
+ * This function, given a dbus_srv_id that has 
+ * been created by tcp_dbus_srv_create(), will run 
+ * the g_main_loop() required for the server to 
+ * send/receive dbus messages.
  * 
  * Non-blocking
  */

@@ -1,4 +1,3 @@
-
 /*-------------------------------------
 |           PRIVATE INCLUDES           |
 --------------------------------------*/
@@ -85,7 +84,7 @@ dbus_srv_id tcp_dbus_srv_create()
     |        VERIFY ID IS AVAILABLE        |
     --------------------------------------*/
 
-    if ( new_srv_id == MAX_NUM_SERVERS-1 && SRV_CONFIGS_ARRY[new_srv_id] == NULL )
+    if ( new_srv_id == MAX_NUM_SERVERS && SRV_CONFIGS_ARRY[new_srv_id] == NULL )
     {
         printf("ERROR: attemping to create more than MAX_NUM_SERVERS!!!");
         exit(EXIT_FAILURE);
@@ -270,9 +269,8 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
         char data[data_sz];
         bzero(data,data_sz);
 
-        printf("\n****************tcp_dbus_server.c: send_msg function****************\n\n");
-
-        printf("Received %d bytes. Data as follows:\n\"",data_sz);
+        // printf("\n****************tcp_dbus_server.c: send_msg function****************\n\n");
+        // printf("Received %d bytes. Data as follows:\n\"",data_sz);
         
 
         /*-------------------------------------
@@ -282,16 +280,25 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
         do
         {
             dbus_message_iter_get_basic(&subiter, &data[i]);
-            printf("%c",data[i]);
+            // printf("%c",data[i]);
             i+=1;
         }while (dbus_message_iter_next(&subiter) == true &&  i < data_sz);
 
-        //TODO implement callback
+
+        /*-------------------------------------
+        |   CALL USER CALLBACK WITH MSG DATA   |
+        --------------------------------------*/
+
+        if( ((struct dbus_srv_config*)config)->callback != NULL )
+        {
+            (*(((struct dbus_srv_config*)config)->callback))(data, data_sz);
+        }
+        
+
     #endif
 
-        printf("\"\n");
-
-        printf("\n****************END---tcp_dbus_server.c: send_msg function---END****************\n\n");
+        // printf("\"\n");
+        // printf("\n****************END---tcp_dbus_server.c: send_msg function---END****************\n\n");
 
 
 
@@ -307,25 +314,6 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
         dbus_message_append_args(reply, DBUS_TYPE_BOOLEAN, &return_val, DBUS_TYPE_INVALID);
 
     } 
-    // else if (dbus_message_is_method_call(message, DBUS_TCP_IFACE, "EmitSignal")) 
-    // {
-    //     const char *msg = "Test Message from server \0 send via EmitSignal (broadcast in publisher-subscriber setup)";
-
-    //     if (!(reply = dbus_message_new_signal(DBUS_TCP_OPATH,DBUS_TCP_IFACE,DBUS_TCP_RECV_SIGNAL)))
-    //     {
-    //         goto fail;
-    //     }
-        
-    //     dbus_message_append_args (reply, DBUS_TYPE_ARRAY, DBUS_TYPE_BYTE, &msg, 89, DBUS_TYPE_INVALID);
-
-    //     if (!dbus_connection_send(conn, reply, NULL))
-    //     {
-    //         return DBUS_HANDLER_RESULT_NEED_MEMORY;
-    //     }
-
-    //     /* Send a METHOD_RETURN reply. */
-    //     reply = dbus_message_new_method_return(message);
-    // }
     else
     {
         return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
@@ -379,7 +367,7 @@ void* server_thread(void *config)
     return NULL;
 }  /* server_thread() */
 
-int tcp_dbus_srv_init(dbus_srv_id srv_id)
+int tcp_dbus_srv_init(dbus_srv_id srv_id, tcp_send_msg_callback callback)
 {
     /*-------------------------------------
     |              VARIABLES               |
@@ -397,6 +385,7 @@ int tcp_dbus_srv_init(dbus_srv_id srv_id)
 
     config = SRV_CONFIGS_ARRY[srv_id];
     dbus_error_init(&err);
+
 
     /*-------------------------------------
     |           VERIFY VALID ID            |
@@ -417,6 +406,13 @@ int tcp_dbus_srv_init(dbus_srv_id srv_id)
         printf("WARNING, called tcp_dbus_srv_init for server id %d but server was already initialized!\n", srv_id);
         return EXIT_FAILURE;
     }
+
+
+    /*-------------------------------------
+    |        SET SEND_MSG CALLBACK         |
+    --------------------------------------*/
+
+    config->callback = callback;
 
 
     /*-------------------------------------
@@ -506,18 +502,13 @@ int tcp_dbus_srv_execute(dbus_srv_id srv_id)
 
 
     /*-------------------------------------
-    |      VERIFY SERVER INITIALIZED,      |
-    |      CALL tcp_dbus_srv_init() IF NOT       |
+    |       VERIFY SERVER INITIALIZED      |
     --------------------------------------*/
 
     if ( config->conn == NULL || config->loop == NULL )
     {
-        /* config hasn't been initialized, initialize config/server */
-        if( EXIT_FAILURE == tcp_dbus_srv_init(srv_id) )
-        {
-            printf("Failed to initialize server!\nExiting.....\n");
-            return (EXIT_FAILURE);
-        }
+        printf("ERROR: Failed to execute server. Server %d has not been created/initialized!\nExiting.....\n", srv_id);
+        return (EXIT_FAILURE);
     }
 
 
