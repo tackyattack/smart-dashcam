@@ -141,6 +141,22 @@ int send_uuid()
 
 int socket_client_init(char *port)
 {
+    /*-------------------------------------
+    |       LOAD AND OR CREATE UUID        |
+    --------------------------------------*/
+    load_uuid();
+
+
+    /*-------------------------------------
+    |             VERIFICATION             |
+    --------------------------------------*/
+    if ( atoi(port) < 0 || atoi(port) > 65535 )
+    {
+        printf("ERROR: invalid port number %s!",port);
+        return RETURN_SUCCESS;
+    }
+
+
     /*----------------------------------
     |        LOOP UNTIL CONNECTED       |
     ------------------------------------*/
@@ -152,8 +168,19 @@ int socket_client_init(char *port)
         sleep(TIME_BETWEEN_CONNECTION_ATTEMPTS);
         client_fd = socket_create_socket(port, DEFAULT_SOCKET_TYPE, SERVER_ADDR, IS_SOCKET_CLIENT);
     } while (client_fd < 0);
+
+
+    /*-------------------------------------
+    |         SEND UUID AND VERIFY         |
+    --------------------------------------*/
+
+    if( send_uuid(port) != UUID_SZ+sizeof(COMMAND_UUID) )
+    {
+        close(client_fd);
+        return RETURN_FAILED;
+    }
     
-    return send_uuid();
+    return RETURN_SUCCESS;
 } /* socket_client_init() */
 
 void process_recv_msg(const char* buffer, const int buffer_sz)
@@ -259,6 +286,14 @@ void socket_client_execute()
 
 } /* socket_client_execute() */
 
+void socket_client_quit(const int socket_fd)
+{
+    if ( -1 == close(socket_fd) )
+    {
+        exit(EXIT_FAILURE);
+    }
+} /* socket_client_quit() */
+
 int main(int argc, char *argv[])
 {
     /*----------------------------------
@@ -266,19 +301,11 @@ int main(int argc, char *argv[])
     ------------------------------------*/
     char* port = check_parameters(argc, argv);
 
-
-    /*----------------------------------
-    |          INITIALIZATIONS          |
-    ------------------------------------*/
-    load_uuid();
-
-
     while(1)
     {
         /* This call will attempt to connect with the server infinitely */
-        if( socket_client_init(port) != UUID_SZ+sizeof(COMMAND_UUID) )
+        if( socket_client_init(port) != RETURN_SUCCESS )
         {
-            close(client_fd);
             break;
         }
 
@@ -290,7 +317,7 @@ int main(int argc, char *argv[])
     }
 
     /* Close socket */
-    close(client_fd);
+    socket_client_quit(client_fd);
     
     return 0;
 } /* main() */

@@ -53,6 +53,14 @@ void socket_client_execute();
  */
 extern int socket_send_data ( const int socket_fd, const char * data, const uint16_t data_sz );
 
+/**
+ * Given an initialied socket fd, closes the socket connection.
+ * If fails, program will exit.
+ * 
+ * Blocking.
+ */
+void socket_client_quit(const int socket_fd);
+
 //TODO Function to stop client.
 //TODO execute should be non-blocking
 
