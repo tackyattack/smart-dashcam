@@ -135,7 +135,7 @@ char* check_parameters(int argc, char *argv[])
     return port;
 } /* check_parameters() */
 
-int init_server(char* port)
+int socket_server_init(char* port)
 {
     /*----------------------------------
     |             VARIABLES             |
@@ -149,7 +149,7 @@ int init_server(char* port)
 
     /* Info print */
     printf("Creating server on port %s\n", port);
-    server_socket_fd = make_socket(port, DEFAULT_SOCKET_TYPE, (const char*)SERVER_ADDR, IS_SOCKET_SERVER);
+    server_socket_fd = socket_create_socket(port, DEFAULT_SOCKET_TYPE, (const char*)SERVER_ADDR, IS_SOCKET_SERVER);
 
     /*----------------------------------
     |       VERIFY SERVER CREATED       |
@@ -327,7 +327,7 @@ int process_recv_msg(int client_fd)
     bzero(buffer,BUFFER_SZ);
 
     /* Receive data from client. Returns number of bytes received. */
-    n_recv_bytes = receive_data( client_fd, buffer, BUFFER_SZ );
+    n_recv_bytes = socket_receive_data( client_fd, buffer, BUFFER_SZ );
     
     if(n_recv_bytes < 0)
     {
@@ -361,7 +361,7 @@ int process_recv_msg(int client_fd)
     return n_recv_bytes;
 } /* process_recv_msg */
 
-int send_to_all(const char* buffer, const int buffer_sz)
+int socket_server_send_data_all(const char* buffer, const int buffer_sz)
 {
     /*----------------------------------
     |             VARIABLES             |
@@ -381,7 +381,7 @@ int send_to_all(const char* buffer, const int buffer_sz)
     ------------------------------------*/
     for(client=client_infos; client!=NULL; client=client->next)
     {
-        n = send_data(client->fd,buffer,buffer_sz);
+        n = socket_send_data(client->fd,buffer,buffer_sz);
         if( n < 1 )
         {
             /* Disconnect client if failed to send message */
@@ -396,7 +396,7 @@ int send_to_all(const char* buffer, const int buffer_sz)
     } /* for */
 
     return returnval;
-} /* send_to_all */
+} /* socket_server_send_data_all */
 
 void service_sockets(const fd_set *read_fd_set)
 {
@@ -436,7 +436,7 @@ void service_sockets(const fd_set *read_fd_set)
 
 } /* service_sockets */
 
-void execute_server()
+void socket_server_execute()
 {
     /*----------------------------------
     |             VARIABLES             |
@@ -497,7 +497,7 @@ void execute_server()
             bzero(pingCommand,sizeof(COMMAND_PING));
             pingCommand[0] = COMMAND_PING;
 
-            send_to_all(pingCommand, sizeof(COMMAND_PING));
+            socket_server_send_data_all(pingCommand, sizeof(COMMAND_PING));
             lastPing = time(NULL);
         }
 
@@ -505,7 +505,7 @@ void execute_server()
 
     free(pingCommand);
 
-} /* execute_server() */
+} /* socket_server_execute() */
 
 int main(int argc, char *argv[])
 {
@@ -533,12 +533,12 @@ int main(int argc, char *argv[])
     /*----------------------------------
     |            START SERVER           |
     ------------------------------------*/
-    server_socket_fd = init_server(port);
+    server_socket_fd = socket_server_init(port);
 
     /* Run the server.  Accept connection requests, 
         and receive messages. Run forever. */
-    execute_server();
+    socket_server_execute();
 
-    /* If we ever return from execute_server, there was a serious error */
+    /* If we ever return from socket_server_execute, there was a serious error */
     return 1;
 } /* main() */

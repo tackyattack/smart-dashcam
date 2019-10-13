@@ -54,7 +54,7 @@ int server_bind(struct addrinfo *address_info_set);
 int client_connect(struct addrinfo *address_info_set);
 
 /**
- * Removes message headers from the buffer string. Called by receive_data().
+ * Removes message headers from the buffer string. Called by socket_receive_data().
  * 
  * @Returns the length of the payload (which is message data without headers)
  *  or -1 if data received is invalid (invalid message headers).

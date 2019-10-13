@@ -27,7 +27,7 @@
  * 
  * Blocking Function
  */
-int client_init(char *port);
+int socket_client_init(char *port);
 
 /**
  * Calling this function will run the socket client. Includes
@@ -36,7 +36,7 @@ int client_init(char *port);
  * 
  * Blocking Function
  */
-void execute_client();
+void socket_client_execute();
 
 /**
  * This function is part of the libcommon in the common folder.
@@ -51,7 +51,7 @@ void execute_client();
  * 
  * @Returns number of bytes sent or RETURN_FAILED or 0 if there's an error.
  */
-extern int send_data ( const int socket_fd, const char * data, const uint16_t data_sz );
+extern int socket_send_data ( const int socket_fd, const char * data, const uint16_t data_sz );
 
 //TODO Function to stop client.
 //TODO execute should be non-blocking

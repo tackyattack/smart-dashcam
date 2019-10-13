@@ -26,7 +26,7 @@
  * 
  * Blocking Function
  */
-int init_server(char* port);
+int socket_server_init(char* port);
 
 /**
  * Sends a message via the socket connection to all
@@ -40,7 +40,7 @@ int init_server(char* port);
  *
  * Thread Safe: For messages smaller than MAX_MSG_SZ
  */
-int send_to_all(const char* buffer, const int buffer_sz);
+int socket_server_send_data_all(const char* buffer, const int buffer_sz);
 
 /**
  * Calling this function will run the socket server. Includes
@@ -51,7 +51,7 @@ int send_to_all(const char* buffer, const int buffer_sz);
  * 
  * Blocking Function
  */
-void execute_server();
+void socket_server_execute();
 
 //TODO Function to stop server. Look at INThandler to see how to safely close server
 //TODO add callbacks for client connected, disconnected, and message received

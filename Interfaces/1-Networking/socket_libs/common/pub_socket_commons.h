@@ -66,7 +66,7 @@
  * Function will print the host IP address and port number of a
  * given addrinfo struct
  */
-void print_addrinfo(const struct addrinfo *addr);
+void socket_print_addrinfo(const struct addrinfo *addr);
 
 /**
  * Given a port number, socket type, an address (this can be IP or hostname),
@@ -79,7 +79,7 @@ void print_addrinfo(const struct addrinfo *addr);
  * 
  * @Returns the socket or RETURN_FAILED if failed.
  */
-int make_socket(char* port, uint8_t socket_type,  const char *addr, uint8_t type_serv_client);
+int socket_create_socket(char* port, uint8_t socket_type,  const char *addr, uint8_t type_serv_client);
 
 /**
  * Given a socket file descriptor and buffer, receives data from socket.
@@ -90,7 +90,7 @@ int make_socket(char* port, uint8_t socket_type,  const char *addr, uint8_t type
  *          Note: Receiving 0 bytes is generally indicative of the 
  *          transmitter closing their socket and hence connection.
  */
-int receive_data(int socket_fd, char* buffer, const size_t buffer_sz);
+int socket_receive_data(int socket_fd, char* buffer, const size_t buffer_sz);
 
 /**
  * Given a char* data array up to 2^16 in size and a socket_fd,
@@ -103,7 +103,7 @@ int receive_data(int socket_fd, char* buffer, const size_t buffer_sz);
  * 
  * @Returns number of bytes sent or RETURN_FAILED or 0 if there's an error.
  */
-int send_data ( const int socket_fd, const char * data, const uint16_t data_sz );
+int socket_send_data ( const int socket_fd, const char * data, const uint16_t data_sz );
 
 
 #endif /* PUB_SOCK_COMMONS_H */

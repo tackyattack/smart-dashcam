@@ -55,7 +55,7 @@ int hostname_to_ip(const char * hostname , char* ip)
     return RETURN_FAILED;
 } /* hostname_to_ip() */
 
-void print_addrinfo(const struct addrinfo *addr)
+void socket_print_addrinfo(const struct addrinfo *addr)
 {
     /*----------------------------------
     |             VARIABLES             |
@@ -71,7 +71,7 @@ void print_addrinfo(const struct addrinfo *addr)
         printf("host=%s, serv=%s\n", hbuf, sbuf);
     }
 
-} /* print_addrinfo() */
+} /* socket_print_addrinfo() */
 
 int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t timeout)
 {
@@ -275,12 +275,12 @@ int client_connect(struct addrinfo *address_info_set)
     }
 
     /* Print info */
-    print_addrinfo(i);
+    socket_print_addrinfo(i);
 
     return client_fd;
 } /* client_connect() */
 
-int make_socket(char* port, uint8_t socket_type,  const char *addr, uint8_t type_serv_client)
+int socket_create_socket(char* port, uint8_t socket_type,  const char *addr, uint8_t type_serv_client)
 {
     /*----------------------------------
     |             VARIABLES             |
@@ -353,7 +353,7 @@ int make_socket(char* port, uint8_t socket_type,  const char *addr, uint8_t type
     freeaddrinfo(name);
 
     return socket_fd;
-} /* make_socket() */
+} /* socket_create_socket() */
 
 int remove_msg_header(char *buffer, int buffer_sz)
 {
@@ -403,7 +403,7 @@ int remove_msg_header(char *buffer, int buffer_sz)
     return (int)(buffer_sz-MSG_HEADER_SZ);
 } /* remove_msg_header */
 
-int receive_data(int socket_fd, char* buffer, const size_t buffer_sz)
+int socket_receive_data(int socket_fd, char* buffer, const size_t buffer_sz)
 {
     //TODO see if data received is broken into MAX_MSG_SZ chucks or is received in its entirety
     /*----------------------------------
@@ -442,9 +442,9 @@ int receive_data(int socket_fd, char* buffer, const size_t buffer_sz)
     
     return remove_msg_header(buffer, bytes_read);
 
-} /* receive_data() */
+} /* socket_receive_data() */
 
-int send_data ( const int socket_fd, const char * data, const uint16_t data_sz )
+int socket_send_data ( const int socket_fd, const char * data, const uint16_t data_sz )
 {
     /*----------------------------------
     |             VARIABLES             |
@@ -552,4 +552,4 @@ int send_data ( const int socket_fd, const char * data, const uint16_t data_sz )
     }
 
     return data_sz;
-} /* send_data */
+} /* socket_send_data */

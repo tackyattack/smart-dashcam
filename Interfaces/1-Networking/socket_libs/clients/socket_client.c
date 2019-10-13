@@ -130,7 +130,7 @@ int send_uuid()
     /*----------------------------------
     |             SEND UUID             |
     ------------------------------------*/
-    sent_bytes = send_data(client_fd, temp, UUID_SZ+sizeof(COMMAND_UUID));   /* Send UUID plus UUID command to server to identify ourselves */
+    sent_bytes = socket_send_data(client_fd, temp, UUID_SZ+sizeof(COMMAND_UUID));   /* Send UUID plus UUID command to server to identify ourselves */
     if(sent_bytes != UUID_SZ+sizeof(COMMAND_UUID))
     {
         printf("ERROR: failed to send UUID correctly to server...\n");
@@ -139,7 +139,7 @@ int send_uuid()
     return sent_bytes;
 } /* send_uuid() */
 
-int client_init(char *port)
+int socket_client_init(char *port)
 {
     /*----------------------------------
     |        LOOP UNTIL CONNECTED       |
@@ -150,11 +150,11 @@ int client_init(char *port)
         printf ("\nAttempt to open socket to server....\n");
 
         sleep(TIME_BETWEEN_CONNECTION_ATTEMPTS);
-        client_fd = make_socket(port, DEFAULT_SOCKET_TYPE, SERVER_ADDR, IS_SOCKET_CLIENT);
+        client_fd = socket_create_socket(port, DEFAULT_SOCKET_TYPE, SERVER_ADDR, IS_SOCKET_CLIENT);
     } while (client_fd < 0);
     
     return send_uuid();
-} /* client_init() */
+} /* socket_client_init() */
 
 void process_recv_msg(const char* buffer, const int buffer_sz)
 {
@@ -177,7 +177,7 @@ void process_recv_msg(const char* buffer, const int buffer_sz)
 
 } /* process_recv_msg() */
 
-void execute_client()
+void socket_client_execute()
 {
     /*----------------------------------
     |             VARIABLES             |
@@ -242,7 +242,7 @@ void execute_client()
         /*----------------------------------
         |     RECEIVE DATA FROM SERVER      |
         ------------------------------------*/
-        n_recv_bytes = receive_data(client_fd,buffer,MAX_MSG_SZ);
+        n_recv_bytes = socket_receive_data(client_fd,buffer,MAX_MSG_SZ);
         if (n_recv_bytes < 0)
         {
             printf("\nClient received invalid msg.....Close connection to server....\n");
@@ -257,7 +257,7 @@ void execute_client()
         
     } /* while(1) */
 
-} /* execute_client() */
+} /* socket_client_execute() */
 
 int main(int argc, char *argv[])
 {
@@ -276,7 +276,7 @@ int main(int argc, char *argv[])
     while(1)
     {
         /* This call will attempt to connect with the server infinitely */
-        if( client_init(port) != UUID_SZ+sizeof(COMMAND_UUID) )
+        if( socket_client_init(port) != UUID_SZ+sizeof(COMMAND_UUID) )
         {
             close(client_fd);
             break;
@@ -286,7 +286,7 @@ int main(int argc, char *argv[])
         printf ("Successfully opened socket to server \"%s\" on port %s.\n", SERVER_ADDR, port);
         
         /* Main loop for client to receive/process data */
-        execute_client();
+        socket_client_execute();
     }
 
     /* Close socket */
