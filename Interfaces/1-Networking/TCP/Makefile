@@ -17,14 +17,20 @@ ID_FILE=device-id
 EXE_SERV=exe_comm_tcp_server
 EXE_CLIENT=exe_comm_tcp_client
 
+# Define library names
+COMMON_LIB_DIR=common/libs/
+COMMON_LIB_NAME=libcommon.a
+LIB_COMMON=-lcommon
+
 # Define location of source code files
 C_SERV_SRC=$(wildcard server/*.c)
 C_CLIENT_SRC=$(wildcard clients/*.c)
+C_COMMON_SRC=$(wildcard common/*.c)
 
 # Define any directories containing header files other than /usr/include
-C_INC=-I$(shell pwd)
-# C_CLIENT_INC=-Iclients/private_includes/
-# C_SERV_INC=$server/private_includes/
+C_INC=-I$(shell pwd) -I$(COMMON_LIB_DIR)
+# C_CLIENT_INC=-Icommon/libs/
+# C_SERV_INC=-Iserver/private_includes/
 
 # Set compiler flags 
 #src: https://gcc.gnu.org/onlinedocs/gcc/Option-Summary.html
@@ -32,10 +38,17 @@ C_INC=-I$(shell pwd)
 #	-O3:			Optimization more for code size and execution time
 #	-Wall			Enables additional compiler warnings
 #	-Wextra			Further enables addionational compiler warnings not included by -Wall
+#	-Werror			Treat warnings as errors
 #	-std=gnu99		Sets what language standard is used. gnu99: GNU dialect of ISO C99
 #	-ggdb			Enables debugging symbols for GDB
 #	-luuid			Use the uuid library. Note that this will need to be installed on the system.
-CFLAGS= -O3 -Wall -Wextra -std=gnu99 -ggdb -luuid
+CFLAGS= -O3 -Wall -Wextra -std=gnu99 -ggdb -luuid -Werror
+
+# Flags for static library code
+# src: https://gcc.gnu.org/onlinedocs/gcc/Option-Summary.html
+#	   https://renenyffenegger.ch/notes/development/languages/C-C-plus-plus/GCC/create-libraries/index
+#	-fPIC			Generate position-independent code (PIC) suitable for use in a shared library
+STATIC_LIB_CFLAGS = -fPIC
 
 # Define any parameters to be passed during compile time
 CDEFINES= -DUUID_FILE_NAME=\"$(ID_FILE)\"
@@ -44,7 +57,7 @@ CDEFINES= -DUUID_FILE_NAME=\"$(ID_FILE)\"
 # Define library paths in addition to /usr/lib
 #   if I wanted to include libraries not in /usr/lib I'd specify
 #   their path using -Lpath:
-# LDFLAGS=
+LDFLAGS=-L$(COMMON_LIB_DIR) $(LIB_COMMON)
 
 
 
@@ -56,29 +69,40 @@ CDEFINES= -DUUID_FILE_NAME=\"$(ID_FILE)\"
 #		prerequisites ->  a file that is used as input to create the target
 #		recipe -> actions taken by make. Tab is required.
 
-.PHONY: build server client runServer runClient debugServer debugClient setup download dependencies install clean clean-all
+.PHONY: build commons server client runServer runClient debugServer debugClient setup download dependencies install clean clean-all
 
 # make build will compile all source code. This is the default if 'make' is run.
-build: server client
-	echo "\nFinished!"
+build: commons server client clean
+	@echo "\nFinished!"
 
-server: clean-all
-	# Compile server C code:
-	$(CC) $(C_SERV_SRC) $(C_INC) $(CFLAGS) -o $(EXE_SERV)
+commons: clean
+	@echo "\n -----------------Building commons lib-----------------\n"
+	mkdir -p $(COMMON_LIB_DIR)
+
+	# Create static library for server/client codes
+	$(CC) -c $(C_COMMON_SRC) -o common/$(COMMON_LIB_NAME).o $(C_INC) $(CFLAGS) $(STATIC_LIB_CFLAGS)
+	ar rcs $(COMMON_LIB_DIR)/$(COMMON_LIB_NAME) common/*.o
+	cp common/pub*.h $(COMMON_LIB_DIR)
+
+server: clean
+	@echo "\n -----------------Building Socket Server-----------------\n"
+	@# Compile server C code:
+	$(CC) $(C_SERV_SRC) -o $(EXE_SERV) $(C_INC) $(CFLAGS) $(LDFLAGS)
 
 	chmod 770 $(EXE_SERV)
 
-client: clean-all
-	# Compile client C code:
-	$(CC) $(C_CLIENT_SRC) $(C_INC) $(CFLAGS) $(CDEFINES) -o $(EXE_CLIENT)
+client: clean
+	@echo "\n -----------------Building Socket Client-----------------\n"
+	@# Compile client C code:
+	$(CC) $(C_CLIENT_SRC) -o $(EXE_CLIENT) $(C_INC) $(LDFLAGS) $(CFLAGS) $(CDEFINES)
 	chmod 770 $(EXE_CLIENT)
 
 runServer: $(EXE_SERV)
-	echo "\n -----------------Executing Server-----------------\n\n"
+	@echo "\n -----------------Executing Server-----------------\n"
 	./$(EXE_SERV)
 
 runClient: $(EXE_CLIENT)
-	echo "\n-----------------Executing Client-----------------\n\n"
+	@echo "\n-----------------Executing Client-----------------\n"
 	./$(EXE_CLIENT)
 
 debugClient: $(EXE_CLIENT)
@@ -112,4 +136,4 @@ install:
 clean :
 # make clean-all will remove all generated/downloaded files. Should essetially revert directories back to original post clone state
 clean-all:
-	rm -rf $(EXE_SERV) $(EXE_CLIENT) $(ID_FILE)
+	rm -rf $(EXE_SERV) $(EXE_CLIENT) $(ID_FILE) common/libs/ common/*.o

@@ -13,12 +13,12 @@
 #include <time.h>
 #include  <signal.h>
 
-#include "../comm_tcp.h"
+#include "pub_socket_commons.h" /* From static library */
 
 #define MAX_PENDING_CONNECTIONS  (5)        /* 5 is a standard value for the max backlogged connection requests */
 #define SERVER_ADDR              NULL       /* Set this value to a string that is the IP address, hostname or the server you're creating or set to NULL (0) to use this machines address (NULL recommended) */
 #define BUFFER_SZ                (1024)     /* Size of the buffer we use to send/receive data */
-#define SELECT_TIMEOUT_TIME      (100)       /* How long Select() will block if no message is received */
+#define SELECT_TIMEOUT_TIME      (100)      /* How long Select() will block if no message is received */
 
 struct client_info
 {
@@ -32,9 +32,9 @@ struct client_info
 /*----------------------------------
 |         STATIC VARIABLES          |
 ------------------------------------*/
-static int server_socket_fd = -1;                   /* The socket file descriptor for the server (the local machine) */      
-static struct client_info *client_infos = NULL;      /* struct pointer to struct that is a linked list of structs that contain info on the clients */
-static fd_set active_fd_set={0};                    /*  */
+static int server_socket_fd             = -1;       /* The socket file descriptor for the server (the local machine) */      
+static struct client_info *client_infos = NULL;     /* struct pointer to struct that is a linked list of structs that contain info on the clients */
+static fd_set active_fd_set             = {0};      /*  */
 
 /* Handle signal interupt (ctrl + c) */
 void  INThandler(int sig)
@@ -179,7 +179,7 @@ int init_server(char* port)
 
     /* Info print */
     printf("Creating server on port %s\n", port);
-    server_socket_fd = make_socket(port, DEFAULT_SOCKET_TYPE, (const char*)SERVER_ADDR, IS_SERVER);
+    server_socket_fd = make_socket(port, DEFAULT_SOCKET_TYPE, (const char*)SERVER_ADDR, IS_SOCKET_SERVER);
 
     /*----------------------------------
     |       VERIFY SERVER CREATED       |

@@ -1,4 +1,4 @@
-#include "../comm_tcp.h"
+#include "pub_socket_commons.h" /* From static library */
 
 #include <uuid/uuid.h>
 #include <unistd.h>
@@ -154,7 +154,7 @@ int client_init(char *port)
         printf ("\nAttempt to open socket to server....\n");
 
         sleep(TIME_BETWEEN_CONNECTION_ATTEMPTS);
-        client_fd = make_socket(port, DEFAULT_SOCKET_TYPE, SERVER_ADDR, IS_CLIENT);
+        client_fd = make_socket(port, DEFAULT_SOCKET_TYPE, SERVER_ADDR, IS_SOCKET_CLIENT);
     } while (client_fd < 0);
     
     return send_uuid();
@@ -167,7 +167,7 @@ void process_recv_msg(const char* buffer, const int buffer_sz)
     /*----------------------------------
     |          CHECK PARAMETERS         |
     ------------------------------------*/
-    if(buffer == NULL)
+    if(buffer == NULL || buffer_sz == 0)
     {
         return;
     }

@@ -1,100 +1,60 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netdb.h>
-#include <arpa/inet.h>
-#include <unistd.h>
-#include <sys/select.h>
-#include <fcntl.h>
-#include <sys/time.h>
-#include <sys/ioctl.h>
-#include <assert.h>
+/*-------------------------------------
+|               INCLUDES               |
+--------------------------------------*/
 
-#ifndef COMM_TCP_H
-#define COMM_TCP_H
-
-/* Define shortnames */
-#define SOCKET_TYPE_TCP SOCK_STREAM
-#define SOCKET_TYPE_UDP SOCK_DGRAM
-
-#define IS_SERVER (0)
-#define IS_CLIENT (1)
-
-/* First/Last byte received is msg start/end/cont indicator */
-#define MSG_START                (uint8_t)0x0F                       /* Message separator. Used to detect begining of message */
-#define MSG_END                  (uint8_t)0x0E                       /* Message separator. Used to detect end of message */
-#define MSG_HEADER_SZ            (sizeof(MSG_START)+sizeof(MSG_END)) /* Total size used by the message headers */
-
-/* 2nd byte is a command indicator */
-#define COMMAND_PING             (uint8_t)0x0F                       /* If this is received, we have been pinged and request this msg be echoed back */
-#define COMMAND_UUID             (uint8_t)0x0E                       /* If received, signals msg data is our UUID */
+#include "pub_socket_commons.h"
+#include "prv_socket_commons.h"
 
 
-/* Defaults */
-#define DEFAULT_CONN_TYPE        AF_UNSPEC                           /* PF_LOCAL for a local only connection, or AF_INET for IP connection or AF_INET6 for ipv6 or AF_UNSPEC for ipv4 or piv6 */
-#define DEFAULT_SOCKET_TYPE      SOCKET_TYPE_TCP                     /* */
-#define DEFAULT_PORT             "5555"                              /* Port number to use if none are given */
-#define MAX_HOSTNAME_SZ          (255)                               /* Max size/length a hostname can be */
-#define MAX_TX_MSG_SZ            (512)                               /* max size of the message that will be sent over socket. NOTE, this should not be used outside of this file */
-#define MAX_MSG_SZ               (MAX_TX_MSG_SZ-MSG_HEADER_SZ)       /* max size of the message payload that can be sent */
-#define CONNECT_TIMEOUT          (1)                                 /* Set a timeout of 1 second for socket client connect attempt */
-#define UUID_SZ                  (36)                                /* UUID is 4 hyphens + 32 digits */
-#define TIME_BETWEEN_PINGS       (1)                                 /* Time (in seconds) between pings from the server. The server sends a ping to all clients every TIME_BETWEEN_PINGS seconds */
 
-/* Modifies ip string to be IP address of hostname.
-    IP must be a char string of length MAX_HOSTNAME_SZ.
-    Return -1 if hostname not found. Note that hostname
-    can be the hostname of ip of a machine. 
-    -returns -1 if failed to find hostname and leaves ip
-        string untouched. Returns 0 if found hostname. */
+
+/*-------------------------------------
+|         FUNCTION DEFINITIONS         |
+--------------------------------------*/
+
 int hostname_to_ip(const char * hostname , char* ip)
 {
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
-	struct hostent *he;
-	struct in_addr **addr_list;
-	int i;
+    struct hostent *he;
+    struct in_addr **addr_list;
+    int i;
     
     /*----------------------------------
     |          INITIALIZATIONS          |
     ------------------------------------*/
     bzero(ip, MAX_HOSTNAME_SZ);
-		
+        
 
     /*----------------------------------
     |       GET IP FROM HOSTNAME        |
     ------------------------------------*/
-	he = gethostbyname( hostname );
+    he = gethostbyname( hostname );
     if ( he == NULL) 
-	{
-		herror("gethostbyname");
-		return -1;
-	}
+    {
+        herror("gethostbyname");
+        return -1;
+    }
 
-	addr_list = (struct in_addr **) he->h_addr_list;
-	
+    addr_list = (struct in_addr **) he->h_addr_list;
+    
     /*----------------------------------
     |            RETURN IP              |
     ------------------------------------*/
-	for(i = 0; addr_list[i] != NULL; i++) 
-	{
-		//Return the first one;
-		strcpy(ip , inet_ntoa(*addr_list[i]) );
-		printf("Found IP address \"%s\" for hostname \"%s\"\n",ip,hostname);
+    for(i = 0; addr_list[i] != NULL; i++) 
+    {
+        //Return the first one;
+        strcpy(ip , inet_ntoa(*addr_list[i]) );
+        printf("Found IP address \"%s\" for hostname \"%s\"\n",ip,hostname);
 
         /* Return successfully */
-		return 0;
-	}
+        return 0;
+    }
 
-	return -1;
+    return -1;
 } /* hostname_to_ip() */
 
-/* print_addrinfo will print the host IP address and port number 
-    of a passed addrinfo struct */
 void print_addrinfo(const struct addrinfo *addr)
 {
     /*----------------------------------
@@ -237,7 +197,6 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
     return returnval;
 } /* connect_timeout() */
 
-/* Returns the server_fd. Returns -1 if failed to connect. */
 int server_bind(struct addrinfo *address_info_set)
 {
     /*----------------------------------
@@ -278,8 +237,6 @@ int server_bind(struct addrinfo *address_info_set)
     return server_fd;
 } /* server_bind() */
 
-/* Returns the client_fd. 
-    -Returns -1 if failed to connect. */
 int client_connect(struct addrinfo *address_info_set)
 {
     /*----------------------------------
@@ -323,11 +280,6 @@ int client_connect(struct addrinfo *address_info_set)
     return client_fd;
 } /* client_connect() */
 
-/* Given a port number, socket type, an address (this can be IP or hostname), 
-    and a value for the type_serv_client parameter, this will return a socket.
-    If setting up a Server use IS_SERVER. Else use IS_CLIENT for the type_serv_client parameter.
-    If setting up a server, addr can be NULL.  
-    Returns -1 if failed. */
 int make_socket(char* port, uint8_t socket_type,  const char *addr, uint8_t type_serv_client)
 {
     /*----------------------------------
@@ -356,7 +308,7 @@ int make_socket(char* port, uint8_t socket_type,  const char *addr, uint8_t type
         addr = ip;
     } 
 
-    if ( type_serv_client == IS_SERVER )
+    if ( type_serv_client == IS_SOCKET_SERVER )
     {
         /* Set passive flag on server to signify we want to use this machine's IP/addr */
         hints.ai_flags = AI_PASSIVE;
@@ -385,7 +337,7 @@ int make_socket(char* port, uint8_t socket_type,  const char *addr, uint8_t type
     /*----------------------------------
     |   GET SOCKET_FD AND BIND/CONNECT  |
     ------------------------------------*/
-    if ( type_serv_client == IS_SERVER )
+    if ( type_serv_client == IS_SOCKET_SERVER )
     {
         socket_fd = server_bind( name );
     } 
@@ -403,9 +355,6 @@ int make_socket(char* port, uint8_t socket_type,  const char *addr, uint8_t type
     return socket_fd;
 } /* make_socket() */
 
-/* Removes message headers from the buffer string. 
-    -Returns -1 if data received is invalid (invalid message headers), 
-        else the length of the payload */
 int remove_msg_header(char *buffer, int buffer_sz)
 {
     /*----------------------------------
@@ -454,11 +403,6 @@ int remove_msg_header(char *buffer, int buffer_sz)
     return (int)(buffer_sz-MSG_HEADER_SZ);
 } /* remove_msg_header */
 
-
-/* Given a socket file descriptor and buffer, receives data received. 
-    This is a blocking call. 
-    -Returns negative number if failed to receive data else number of bytes received. 
-        Receiving 0 bytes is generally indicative of the sending closing their socket. */
 int receive_data(int socket_fd, char* buffer, const size_t buffer_sz)
 {
     //TODO see if data received is broken into MAX_MSG_SZ chucks or is received in its entirety
@@ -500,11 +444,6 @@ int receive_data(int socket_fd, char* buffer, const size_t buffer_sz)
 
 } /* receive_data() */
 
-
-/*  Sends a char* up to 2^16 in size given a socket_fd and data string
-    Note that data_sz should include a termination character if applicable.
-    Note that calls to this are thread safe as long as the size of data is less than MAX_MSG_SZ
-    -Returns number of bytes sent or -1 or 0 if there's an error. */
 int send_data ( const int socket_fd, const char * data, const uint16_t data_sz )
 {
     /*----------------------------------
@@ -614,5 +553,3 @@ int send_data ( const int socket_fd, const char * data, const uint16_t data_sz )
 
     return data_sz;
 } /* send_data */
-
-#endif
