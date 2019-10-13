@@ -170,7 +170,6 @@ int init_server(char* port)
     |             VARIABLES             |
     ------------------------------------*/
     int server_socket_fd;      /* generic socket variable */
-       
 
 
     /*----------------------------------
