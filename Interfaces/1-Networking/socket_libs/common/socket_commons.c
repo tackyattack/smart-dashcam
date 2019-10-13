@@ -34,7 +34,7 @@ int hostname_to_ip(const char * hostname , char* ip)
     if ( he == NULL) 
     {
         herror("gethostbyname");
-        return -1;
+        return RETURN_FAILED;
     }
 
     addr_list = (struct in_addr **) he->h_addr_list;
@@ -52,7 +52,7 @@ int hostname_to_ip(const char * hostname , char* ip)
         return 0;
     }
 
-    return -1;
+    return RETURN_FAILED;
 } /* hostname_to_ip() */
 
 void print_addrinfo(const struct addrinfo *addr)
@@ -155,7 +155,7 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
                     {
                         fprintf(stderr, "Error in delayed connection() %d - %s\n", valopt, strerror(valopt));
                         // exit(EXIT_FAILURE);
-                        returnval = -1;
+                        returnval = RETURN_FAILED;
                         break;
                     }
                     break;
@@ -163,7 +163,7 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
                 else
                 {
                     fprintf(stderr, "Timed out while attempting to connect to server!\n");
-                    returnval = -1;
+                    returnval = RETURN_FAILED;
                     break;
                     // exit(EXIT_FAILURE);
                 }
@@ -231,7 +231,7 @@ int server_bind(struct addrinfo *address_info_set)
     if (i == NULL)
     {
         fprintf(stderr, "Could not bind\n");
-        return -1;
+        return RETURN_FAILED;
     }
 
     return server_fd;
@@ -256,7 +256,7 @@ int client_connect(struct addrinfo *address_info_set)
         {
             continue;
         }
-        if (connect_timeout(client_fd, i->ai_addr, i->ai_addrlen, CONNECT_TIMEOUT) != -1)
+        if (connect_timeout(client_fd, i->ai_addr, i->ai_addrlen, CONNECT_TIMEOUT) != RETURN_FAILED)
         {
             break; /* Success */
         }
@@ -271,7 +271,7 @@ int client_connect(struct addrinfo *address_info_set)
     if (i == NULL)
     {
         fprintf(stderr, "Could not open socket\n");
-        return -1;
+        return RETURN_FAILED;
     }
 
     /* Print info */
@@ -303,7 +303,7 @@ int make_socket(char* port, uint8_t socket_type,  const char *addr, uint8_t type
     hints.ai_addr = NULL;                       /* This would be ip address but we dont use this */
     hints.ai_next = NULL;                       /* Next addrinfo struct pointer */
     
-    if ( addr != NULL && hostname_to_ip(addr,ip) != -1 )
+    if ( addr != NULL && hostname_to_ip(addr,ip) != RETURN_FAILED )
     {
         addr = ip;
     } 
@@ -330,7 +330,7 @@ int make_socket(char* port, uint8_t socket_type,  const char *addr, uint8_t type
     {
         fprintf(stderr, "%s: %s\n", addr, gai_strerror(err));
         perror("ERROR: host/client address not valid");
-        return -1;
+        return RETURN_FAILED;
     }
 
    
@@ -368,7 +368,7 @@ int remove_msg_header(char *buffer, int buffer_sz)
     ------------------------------------*/
     if (buffer_sz <= 0)
     {
-        return -1;
+        return RETURN_FAILED;
     }
     assert(buffer != NULL);
 
@@ -380,7 +380,7 @@ int remove_msg_header(char *buffer, int buffer_sz)
     {
         /* Info print */
         printf("Received invalid message!");
-        return -1;
+        return RETURN_FAILED;
     }
     //TODO should implement ability to search for/find the msg start/end
 
@@ -427,7 +427,7 @@ int receive_data(int socket_fd, char* buffer, const size_t buffer_sz)
     else if (bytes_read < (int)MSG_HEADER_SZ )
     {
         /* Soft error: didn't receive minumum number of bytes expected */
-        return -1;
+        return RETURN_FAILED;
     }
 
     /* Info print */
@@ -520,7 +520,7 @@ int send_data ( const int socket_fd, const char * data, const uint16_t data_sz )
         if ( bytes_sent != bytes_to_send )
         {
             perror("ERROR: Failed to send data.");
-            return -1;
+            return RETURN_FAILED;
         }
 
         /* Info print */
@@ -548,7 +548,7 @@ int send_data ( const int socket_fd, const char * data, const uint16_t data_sz )
     {
         printf("ERROR: sent %u of %u bytes\n", all_sent_bytes, total_bytes_to_send);
         perror("ERROR");
-        return -1;
+        return RETURN_FAILED;
     }
 
     return data_sz;

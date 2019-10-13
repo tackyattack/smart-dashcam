@@ -1,33 +1,10 @@
-#include <stdio.h>
-#include <stdlib.h>
+/*-------------------------------------
+|               INCLUDES               |
+--------------------------------------*/
 
-#include <errno.h>
+#include "pub_socket_server.h"
+#include "prv_socket_server.h"
 
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <assert.h>
-#include <time.h>
-#include  <signal.h>
-
-#include "pub_socket_commons.h" /* From static library */
-
-#define MAX_PENDING_CONNECTIONS  (5)        /* 5 is a standard value for the max backlogged connection requests */
-#define SERVER_ADDR              NULL       /* Set this value to a string that is the IP address, hostname or the server you're creating or set to NULL (0) to use this machines address (NULL recommended) */
-#define BUFFER_SZ                (1024)     /* Size of the buffer we use to send/receive data */
-#define SELECT_TIMEOUT_TIME      (100)      /* How long Select() will block if no message is received */
-
-struct client_info
-{
-    int fd;
-    char uuid[UUID_SZ+1]; /* +1 for termination char */
-    struct in_addr address;
-    time_t lastPing;
-    struct client_info *next;
-};
 
 /*----------------------------------
 |         STATIC VARIABLES          |
@@ -36,7 +13,11 @@ static int server_socket_fd             = -1;       /* The socket file descripto
 static struct client_info *client_infos = NULL;     /* struct pointer to struct that is a linked list of structs that contain info on the clients */
 static fd_set active_fd_set             = {0};      /*  */
 
-/* Handle signal interupt (ctrl + c) */
+
+/*-------------------------------------
+|         FUNCTION DEFINITIONS         |
+--------------------------------------*/
+
 void  INThandler(int sig)
 {
     signal(sig, SIG_IGN);
@@ -45,19 +26,13 @@ void  INThandler(int sig)
     exit(EXIT_SUCCESS);
 }
 
-/* Handle signal pipe (pipe error when sending data to 
-    client. Error signifies client disconnected) */
 void  PIPEhandler(int sig)
 {
     signal(sig, SIG_IGN);
     printf("PIPE Error detected. A client must have disconnected....\n");
-
-
     signal(SIGPIPE, PIPEhandler);
 }
 
-/* Return the pointer to the client_info struct containing
-    the desired socket fd number. Returns NULL if not found */
 struct client_info* find_client_by_fd(const int socket)
 {
     /*----------------------------------
@@ -87,8 +62,6 @@ struct client_info* find_client_by_fd(const int socket)
     return client;
 } /* find_client */
 
-/* Return the pointer to the client_info struct containing
-    the desired UUID. Returns NULL if not found */
 struct client_info* find_client_by_uuid(const char* uuid)
 {
     /*----------------------------------
@@ -119,7 +92,6 @@ struct client_info* find_client_by_uuid(const char* uuid)
     return client;
 } /* find_client */
 
-/* Check for value parameters and return port number */
 char* check_parameters(int argc, char *argv[])
 {
     /*----------------------------------
@@ -163,7 +135,6 @@ char* check_parameters(int argc, char *argv[])
     return port;
 } /* check_parameters() */
 
-/* Initialize the server and return the server's server_socket_fd */
 int init_server(char* port)
 {
     /*----------------------------------
@@ -203,8 +174,6 @@ int init_server(char* port)
     return server_socket_fd;
 }
 
-/* Handles accepting incoming connections 
-   -returns the new clients file descriptor */
 int handle_conn_request()
 {
     /*----------------------------------
@@ -269,8 +238,6 @@ int handle_conn_request()
     return new_client_fd;
 } /* handle_conn_request() */
 
-/* Close client socker_fd and remove client from 
-    client_infos struct and active_fd_set */
 void close_conn(int client_fd)
 {
     /*----------------------------------
@@ -344,8 +311,6 @@ void close_conn(int client_fd)
 
 } /* close_conn() */
 
-/* Receive message from client specificed in client_fd and process the message. 
-    -Returns number of bytes received */
 int process_recv_msg(int client_fd)
 {
     /*----------------------------------
@@ -396,13 +361,6 @@ int process_recv_msg(int client_fd)
     return n_recv_bytes;
 } /* process_recv_msg */
 
-int process_dbus()
-{
-
-    return 0;
-} /* process_dbus */
-
-/* Sends a message to all clients */
 int send_to_all(const char* buffer, const int buffer_sz)
 {
     /*----------------------------------
@@ -440,8 +398,6 @@ int send_to_all(const char* buffer, const int buffer_sz)
     return returnval;
 } /* send_to_all */
 
-/* Check if message has been received from any clients and
-    handles receiving/processing any messages */
 void service_sockets(const fd_set *read_fd_set)
 {
     /*----------------------------------

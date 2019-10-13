@@ -1,20 +1,23 @@
-#include "pub_socket_commons.h" /* From static library */
+/*-------------------------------------
+|               INCLUDES               |
+--------------------------------------*/
 
-#include <uuid/uuid.h>
-#include <unistd.h>
+#include "prv_socket_client.h"
+#include "pub_socket_client.h"
 
-#define SERVER_ADDR  "192.168.200.1"                               /* Address of the server we are conencting to. Note, this can be a IP or hostname */
-// #define SERVER_ADDR  "raspberrypi"                              /* Address of the server we are conencting to. Note, this can be a IP or hostname */
-#define TIME_BETWEEN_CONNECTION_ATTEMPTS (2)                       /* Time in seconds between attempts to connect to server if we fail to connect */
-#define SERVER_PING_TIMEOUT              (2*TIME_BETWEEN_PINGS)    /* Max time allowed before we assume the server has disconnected. If we haven't received a 
-                                                                        message from the server within this amount of time (s), disconnect and assume failure */
 
-/* Static variables */
-static int client_fd = -1;          /* Stores the socket_fd for our connection to the server */
+/*-------------------------------------
+|           STATIC VARIABLES           |
+--------------------------------------*/
+
+static int client_fd        = -1;   /* Stores the socket_fd for our connection to the server */
 static char UUID[UUID_SZ+1] = {0};  /* Stores our UUID. +1 because uuid_unparse generates a str with UUID_SZ ascii characters plus a termination char */
 
 
-/* Check for value parameters and return port number */
+/*-------------------------------------
+|         FUNCTION DEFINITIONS         |
+--------------------------------------*/
+
 char* check_parameters(int argc, char *argv[])
 {
     /*----------------------------------
@@ -52,7 +55,6 @@ char* check_parameters(int argc, char *argv[])
     return port;
 } /* check_parameters() */
 
-/* Generate uuid and set UUID to the new uuid */
 void uuid_create()
 {
     /*----------------------------------
@@ -69,8 +71,6 @@ void uuid_create()
 
 } /* uuid_create() */
 
-/* Reads UUID from file. If UUID file doesn't exist, it is created 
-    -Returns -1 if failed. */
 void load_uuid()
 {
     /*----------------------------------
@@ -111,8 +111,6 @@ void load_uuid()
 
 } /* load_uuid() */
 
-/* Send our UUID to server. 
-    -Returns -1 if failed else number of bytes sent. */
 int send_uuid()
 {
     /*----------------------------------
@@ -141,8 +139,6 @@ int send_uuid()
     return sent_bytes;
 } /* send_uuid() */
 
-/* Initialize client
-    -returns socket or -1 if failed */
 int client_init(char *port)
 {
     /*----------------------------------
@@ -160,8 +156,6 @@ int client_init(char *port)
     return send_uuid();
 } /* client_init() */
 
-/* Given a buffer of a received message from server, 
-    performs actions appropiate. */
 void process_recv_msg(const char* buffer, const int buffer_sz)
 {
     /*----------------------------------

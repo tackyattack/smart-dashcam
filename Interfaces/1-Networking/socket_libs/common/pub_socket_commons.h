@@ -26,6 +26,9 @@
 |            PUBLIC DEFINES            |
 --------------------------------------*/
 
+#define RETURN_FAILED            (-1)       /* Return value of functions that represents that that function failed to perform its task */
+#define RETURN_SUCCESS           (0)        /* Return value of functions that represents that that function succeeded in performing its task */
+
 /* Define shortnames for protocols */
 #define SOCKET_TYPE_TCP         (SOCK_STREAM)
 #define SOCKET_TYPE_UDP         (SOCK_DGRAM)
@@ -74,7 +77,7 @@ void print_addrinfo(const struct addrinfo *addr);
  * If setting up a Server use IS_SOCKET_SERVER. Else use IS_SOCKET_CLIENT for the 
  * type_serv_client parameter. If setting up a server, addr can/should be NULL.
  * 
- * @Returns the socket or -1 if failed.
+ * @Returns the socket or RETURN_FAILED if failed.
  */
 int make_socket(char* port, uint8_t socket_type,  const char *addr, uint8_t type_serv_client);
 
@@ -91,14 +94,14 @@ int receive_data(int socket_fd, char* buffer, const size_t buffer_sz);
 
 /**
  * Given a char* data array up to 2^16 in size and a socket_fd,
- * will send data array over socket to all clients.
+ * will send data array over socket.
  * 
  * Note that data_sz should include the termination character if applicable.
  * 
  * Note that calls to this are thread safe as long as the size of data is 
  *  less than MAX_MSG_SZ.
  * 
- * @Returns number of bytes sent or -1 or 0 if there's an error.
+ * @Returns number of bytes sent or RETURN_FAILED or 0 if there's an error.
  */
 int send_data ( const int socket_fd, const char * data, const uint16_t data_sz );
 
