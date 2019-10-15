@@ -6,6 +6,7 @@ export DISPLAY:=0.0
 since ssh doesn't have windows.
 
 # Starting Smart Dashcam
+To start program:
 ```sh
-To start program: ./start_main_dashcam
+./start_main_dashcam
 ```
