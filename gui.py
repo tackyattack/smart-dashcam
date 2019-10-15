@@ -1,4 +1,4 @@
-import PySimpleGUI as sg
+import PySimpleGUI27 as sg
 
 sg.ChangeLookAndFeel('Dark')
 sg.SetOptions(element_padding=(4, 4))
@@ -11,8 +11,7 @@ layout = [
      sg.Button('Function3', button_color=('white', 'yellow'), size=(20, 5), key='Function3')]
     ]
 
-window = sg.Window('Smart Dashcam GUI', layout, no_titlebar=True, location=(50,50), size=(1200,1200), keep_on_top=True)
-
+window = sg.Window('Smart Dashcam GUI', layout, no_titlebar=True, location=(0,0), size=(480,320), keep_on_top=True)
 
 while True:             # Event Loop
     event, values = window.Read()
@@ -30,7 +29,3 @@ window.Close()
 
 event, values = window.Read()
 text_input = values[0]
-
-
-
-
