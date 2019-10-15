@@ -23,18 +23,21 @@
    ```sh
    sudo apt install libdbus-1-dev libdbus-glib-1-dev
    ```
-8. ```sh
-   pip install PySimpleGUI27
-   pip install typing
-   ```
+
 
  # Raspbian Setup Instructions for RPi 3
- Need to install samba to fix hostname lookups used by the TCP comm code (Networking/comm_tcp_interface). Alternatively, disable IPv6 on the hosted network
+1. Need to install samba to fix hostname lookups used by the TCP comm code (Networking/comm_tcp_interface). Alternatively, disable IPv6 on the hosted network
 ```sh
 sudo bash -c 'echo "net.ipv6.conf.wlan0.disable_ipv6 = 1" >> /etc/sysctl.conf'
 sysctl -p
 ```
 and use an ip address instead of hostname in the Networking/comm_tcp_interface/clients/comm_tcp_client.c in the SERVER_ADDR #define.
+
+2. ```sh
+   pip install PySimpleGUI27
+   pip install typing
+   ```
+
 
  # Alpine Linux Setup Instructions for RPi Zero W
  1. Disable IPV6
