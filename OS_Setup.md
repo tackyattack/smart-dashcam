@@ -1,8 +1,12 @@
 
 # Notes
   - Ethernet devices that are Davicom device (more specifically that use the DM9601 or DM96xx drivers) do not work on the Raspberry Pi's
-  - If a network device is attached for which Linux does not have a driver, it seems that this screws with Linux such that it has random networking problems such as not being able to change Wi-Fi networks. 
+  - If a network device is attached for which Linux does not have a driver, it seems that this screws with Linux such that it has random networking problems such as not being able to change Wi-Fi networks.
   - It seems easiest to change Wi-Fi networks by altering the /etc/wpa_supplicant/wpa_supplicant.conf file such that the network you want to connect to is listed first followed by rebooting the system
+
+# Raspbian setup Instructions for Pi3 B+
+1. pip install PySimpleGUI27
+2. pip install typing
 
 # Raspbian Setup Instructions for Pi Zero W
 
@@ -24,7 +28,7 @@
    ```
 
  # Raspbian Setup Instructions for RPi 3
- Need to install samba to fix hostname lookups used by the TCP comm code (Networking/comm_tcp_interface). Alternatively, disable IPv6 on the hosted network 
+ Need to install samba to fix hostname lookups used by the TCP comm code (Networking/comm_tcp_interface). Alternatively, disable IPv6 on the hosted network
 ```sh
 sudo bash -c 'echo "net.ipv6.conf.wlan0.disable_ipv6 = 1" >> /etc/sysctl.conf'
 sysctl -p
@@ -32,7 +36,7 @@ sysctl -p
 and use an ip address instead of hostname in the Networking/comm_tcp_interface/clients/comm_tcp_client.c in the SERVER_ADDR #define.
 
  # Alpine Linux Setup Instructions for RPi Zero W
- 1. Disable IPV6 
+ 1. Disable IPV6
    ```sh
 echo "net.ipv6.conf.wlan0.disable_ipv6 = 1" >> /etc/sysctl.conf
 sysctl -p
