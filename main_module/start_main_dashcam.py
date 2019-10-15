@@ -1,3 +1,4 @@
 #!/usr/bin/env python
+import gui
 
-print("hello world")
+gui.start_gui()
