@@ -24,11 +24,8 @@ for y in range(0, h):
         # focal_pixel = (focal_mm / sensor_width_mm) * image_width_in_pixels
         fx = (35.0/22.3)*600
         fy = (35.0/14.9)*400
-<<<<<<< refs/remotes/origin/lane_detection_feature
-        h = 1000
-=======
+
         h = 250
->>>>>>> Birds eye experiment
 
         # world_pos = np.array([[x-600/2],
         #                       [y-400/2],
@@ -47,26 +44,14 @@ for y in range(0, h):
         H_inv = np.linalg.inv(H)
 
         # figure out where the origin is
-<<<<<<< refs/remotes/origin/lane_detection_feature
-        origin = np.array([[0],
-                          [100],
-=======
+
         origin = np.array([[-300],
                           [-200],
->>>>>>> Birds eye experiment
                           [1]])
 
         origin_transformed = np.dot(H, origin)
         origin_x = origin_transformed[0][0]/origin_transformed[2][0]
         origin_y = origin_transformed[1][0]/origin_transformed[2][0]
-<<<<<<< refs/remotes/origin/lane_detection_feature
-        #print(origin_x)
-        scale_y = abs(origin_y/400)
-
-        pixel_pos = np.array([
-                              [(x)+origin_x-600/2],
-                              [(y)+origin_y-400/2],
-=======
         #print(origin_y)
         scale_x = abs(origin_x/300)
         scale_y = abs(origin_x/200)
@@ -74,7 +59,6 @@ for y in range(0, h):
         pixel_pos = np.array([
                               [(x)*scale_x-600/2+origin_x],
                               [(y)*scale_y-400/2+origin_y],
->>>>>>> Birds eye experiment
                               [1]
                               ])
 
