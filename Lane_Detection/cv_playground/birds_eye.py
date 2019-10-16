@@ -18,13 +18,14 @@ for y in range(0, h):
 # loop over the image, pixel by pixel
 for y in range(0, h):
     for x in range(0, w):
-        t = 45*pi/180.0
+        t = -45*pi/180.0
         p = 0*pi/180.0
 
         # focal_pixel = (focal_mm / sensor_width_mm) * image_width_in_pixels
-        fx = (35.0/22.3)*600
-        fy = (35.0/14.9)*400
+        fx = (35.0/22.3)*w
+        fy = (35.0/14.9)*h
 
+        # height in pixels
         h = 250
 
         # world_pos = np.array([[x-600/2],
@@ -40,12 +41,18 @@ for y in range(0, h):
                       [0, 0, 1]
                       ])
 
+        T = np.array([[1/1, 0, 0],
+                      [0, 1/1, 0],
+                      [0, 0, 1]
+                      ])
+
         H = np.dot(C, R)
+        H = np.dot(T, H)
         H_inv = np.linalg.inv(H)
 
         # figure out where the origin is
 
-        origin = np.array([[-300],
+        origin = np.array([[0],
                           [-200],
                           [1]])
 
@@ -53,12 +60,35 @@ for y in range(0, h):
         origin_x = origin_transformed[0][0]/origin_transformed[2][0]
         origin_y = origin_transformed[1][0]/origin_transformed[2][0]
         #print(origin_y)
-        scale_x = abs(origin_x/300)
-        scale_y = abs(origin_x/200)
+        scale_y = abs(origin_y/200)
+        #print(scale_x)
+        #print(scale_y)
+
+        origin2 = np.array([[-300],
+                          [200],
+                          [1]])
+
+        origin2_transformed = np.dot(H, origin2)
+        origin2_x = origin2_transformed[0][0]/origin2_transformed[2][0]
+        scale_x = abs(origin2_x/300)
+        #print(scale_x)
+
+        # divide the scale by 2 so bottom is half
+        T = np.array([[1/scale_x/2, 0, 0],
+                      [0, 1/scale_y, 0],
+                      [0, 0, 1]
+                      ])
+
+        H = np.dot(C, R)
+        H = np.dot(T, H)
+        H_inv = np.linalg.inv(H)
+        origin_transformed = np.dot(H, origin)
+        origin_x = origin_transformed[0][0]/origin_transformed[2][0]
+        origin_y = origin_transformed[1][0]/origin_transformed[2][0]
 
         pixel_pos = np.array([
-                              [(x)*scale_x-600/2+origin_x],
-                              [(y)*scale_y-400/2+origin_y],
+                              [(x-600/2+origin_x)],
+                              [(y-400/2+origin_y)],
                               [1]
                               ])
 
