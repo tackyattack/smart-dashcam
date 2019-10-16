@@ -24,6 +24,7 @@ intrinsic = np.array([[m*f, 0, cx],
                       [0, m*f, cy],
                       [0, 0, 1],
                      ])
+
 print(intrinsic)
 # camera angle
 rx_angle = -20.0*pi/180.0

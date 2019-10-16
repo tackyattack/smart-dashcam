@@ -11,13 +11,70 @@ out_img=np.ndarray(shape=image.shape, dtype=image.dtype)
 h = image.shape[0]
 w = image.shape[1]
 
+for y in range(0, h):
+    for x in range(0, w):
+        out_img[y,x] = [0,0,0]
+
 # loop over the image, pixel by pixel
 for y in range(0, h):
     for x in range(0, w):
         t = 45*pi/180.0
-        sx = 18
-        sy = 2
-        f = 0.1
+        p = 0*pi/180.0
+
+        # focal_pixel = (focal_mm / sensor_width_mm) * image_width_in_pixels
+        fx = (35.0/22.3)*600
+        fy = (35.0/14.9)*400
+        h = 1000
+
+        # world_pos = np.array([[x-600/2],
+        #                       [y-400/2],
+        #                       [1]])
+
+        R = np.array([[cos(p),   sin(p)*sin(t),     h*sin(p)*sin(t)],
+                      [-sin(p), cos(p)*sin(t), -h*cos(p)*sin(t)],
+                      [0, cos(t), h*cos(t)]
+                      ])
+        C = np.array([[fx, 0, 0],
+                      [0, fy, 0],
+                      [0, 0, 1]
+                      ])
+
+        H = np.dot(C, R)
+        H_inv = np.linalg.inv(H)
+
+        # figure out where the origin is
+        origin = np.array([[0],
+                          [100],
+                          [1]])
+
+        origin_transformed = np.dot(H, origin)
+        origin_x = origin_transformed[0][0]/origin_transformed[2][0]
+        origin_y = origin_transformed[1][0]/origin_transformed[2][0]
+        #print(origin_x)
+        scale_y = abs(origin_y/400)
+
+        pixel_pos = np.array([
+                              [(x)+origin_x-600/2],
+                              [(y)+origin_y-400/2],
+                              [1]
+                              ])
+
+        world_pos = np.dot(H_inv, pixel_pos)
+        world_x = int(world_pos[0][0]/world_pos[2][0] + 600/2)
+        world_z = int((world_pos[1][0]/world_pos[2][0] + 400/2))
+
+        #print(world_x)
+        #print(world_z)
+
+        if (world_x > 0) and (world_x < 600) and (world_z > 0) and (world_z < 400):
+            out_img[y, x] = image[world_z, world_x]
+        else:
+            out_img[y,x] = [0,0,0]
+        #
+        # t = 45*pi/180.0
+        # sx = 18
+        # sy = 2
+        # f = 0.1
 
 
         # # a = np.array([[1, 0, 0, 0],
@@ -81,20 +138,20 @@ for y in range(0, h):
         #     # u=int(u)
         #     # v=int(v)
 
-        w=600
-        h=400
-        zshift=-200
-        vshift=-1
-        u=x
-        v=y
-        input_x = (2*h*vshift*w*sin(t) - 4*h*u*vshift*sin(t) + h*sy*w*w*sin(t) - 2*v*sy*w*w*sin(t) - 2*h*sx*w*zshift*cos(t) + 4*h*u*sx*zshift*cos(t) + f*h*sx*sy*w*w*cos(t))/(2*sy*w*(h*sin(t) - 2*v*sin(t) + f*h*sx*cos(t)))
-        input_y = (h*h*sin(t) + 2*h*zshift - 4*v*zshift - 2*h*v*sin(t) + 2*f*h*vshift + f*h*h*sx*cos(t))/(2*h*sin(t) - 4*v*sin(t) + 2*f*h*sx*cos(t))
-        input_x = int(input_x)
-        input_y = int(input_y)
-        if (input_y > 0) and (input_y < 400) and (input_x > 0) and (input_x < 600):
-            out_img[y,x] = image[input_y, input_x]
-        else:
-            out_img[y,x] = [0,0,0]
+        # w=600
+        # h=400
+        # zshift=-200
+        # vshift=-1
+        # u=x
+        # v=y
+        # input_x = (2*h*vshift*w*sin(t) - 4*h*u*vshift*sin(t) + h*sy*w*w*sin(t) - 2*v*sy*w*w*sin(t) - 2*h*sx*w*zshift*cos(t) + 4*h*u*sx*zshift*cos(t) + f*h*sx*sy*w*w*cos(t))/(2*sy*w*(h*sin(t) - 2*v*sin(t) + f*h*sx*cos(t)))
+        # input_y = (h*h*sin(t) + 2*h*zshift - 4*v*zshift - 2*h*v*sin(t) + 2*f*h*vshift + f*h*h*sx*cos(t))/(2*h*sin(t) - 4*v*sin(t) + 2*f*h*sx*cos(t))
+        # input_x = int(input_x)
+        # input_y = int(input_y)
+        # if (input_y > 0) and (input_y < 400) and (input_x > 0) and (input_x < 600):
+        #     out_img[y,x] = image[input_y, input_x]
+        # else:
+        #     out_img[y,x] = [0,0,0]
 
             # # only map values in the right range
             # if (v > 0) and (v < 400) and (u > 0) and (u < 600):
