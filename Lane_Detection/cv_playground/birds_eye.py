@@ -4,7 +4,7 @@ import numpy as np
 from math import *
 import cv2
 
-image = cv2.imread('road5.png')
+image = cv2.imread('road6.png')
 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 out_img=np.ndarray(shape=image.shape, dtype=image.dtype)
 
@@ -15,6 +15,16 @@ for y in range(0, h):
     for x in range(0, w):
         out_img[y,x] = [0,0,0]
 
+def world_to_camera(H, x, y):
+    origin = np.array([[x],
+                      [y],
+                      [1]])
+
+    origin_transformed = np.dot(H, origin)
+    origin_x = origin_transformed[0][0]/origin_transformed[2][0]
+    origin_y = origin_transformed[1][0]/origin_transformed[2][0]
+    return origin_x, origin_y
+
 def calculate_transformation_matrix(w, h):
     t = -45*pi/180.0
     p = 0*pi/180.0
@@ -24,11 +34,7 @@ def calculate_transformation_matrix(w, h):
     fy = (35.0/14.9)*h
 
     # height in pixels
-    h_vert = 300
-
-    # world_pos = np.array([[x-600/2],
-    #                       [y-400/2],
-    #                       [1]])
+    h_vert = 90
 
     R = np.array([[cos(p),   sin(p)*sin(t),     h_vert*sin(p)*sin(t)],
                   [-sin(p), cos(p)*sin(t), -h_vert*cos(p)*sin(t)],
@@ -48,44 +54,22 @@ def calculate_transformation_matrix(w, h):
     H = np.dot(T, H)
     H_inv = np.linalg.inv(H)
 
-    # figure out where the origin is
-    origin = np.array([[0],
-                      [h/2],
-                      [1]])
+    top_x, top_y = world_to_camera(H, 0, h/2)
+    null, bottom_y = world_to_camera(H, 0, -h/2)
 
-    origin_transformed = np.dot(H, origin)
-    origin_x = origin_transformed[0][0]/origin_transformed[2][0]
-    origin_y = origin_transformed[1][0]/origin_transformed[2][0]
-    scale_y = abs(origin_y/(h/2))
+    top_left_x, null = world_to_camera(H, -w/2, h/2)
 
+    scale_x = abs(top_left_x/(w/2))*1
+    scale_y = abs(bottom_y - top_y)/h/2
     print(scale_y)
 
-    origin2 = np.array([[-w/2],
-                      [h/2],
-                      [1]])
+    origin_y = -1*top_y
+    origin_x = 0
 
-    origin2_transformed = np.dot(H, origin2)
-    origin2_x = origin2_transformed[0][0]/origin2_transformed[2][0]
-    scale_x = abs(origin2_x/(w/2))
-    print(scale_x)
-
-    # divide the scale by 2 so bottom is half
-    T = np.array([[1/scale_x/2, 0, 0],
-                  [0, 1/scale_y, 0],
-                  [0, 0, 1]
-                  ])
-
-    H = np.dot(C, R)
-    H = np.dot(T, H)
-    H_inv = np.linalg.inv(H)
-    origin_transformed = np.dot(H, origin)
-    origin_x = origin_transformed[0][0]/origin_transformed[2][0]
-    origin_y = origin_transformed[1][0]/origin_transformed[2][0]
-
-    return H_inv, origin_x, origin_y, scale_y
+    return H_inv, origin_x, origin_y, scale_x, scale_y
 
 
-H_inv, origin_x, origin_y, scale_y = calculate_transformation_matrix(w,h)
+H_inv, origin_x, origin_y, scale_x, scale_y = calculate_transformation_matrix(w,h)
 
 # loop over the image, pixel by pixel
 for y in range(0, h):
@@ -93,14 +77,14 @@ for y in range(0, h):
 
 
         pixel_pos = np.array([
-                              [(x-w/2+origin_x)],
-                              [(y-h/2+2*origin_y)],
+                              [((x-w/2)*scale_x+origin_x)],
+                              [(y)*scale_y-origin_y],
                               [1]
                               ])
 
         world_pos = np.dot(H_inv, pixel_pos)
         world_x = int(world_pos[0][0]/world_pos[2][0] + w/2)
-        world_z = int((world_pos[1][0]/world_pos[2][0] + h/2))
+        world_z = int((world_pos[1][0]/world_pos[2][0]))
 
         #print(world_x)
         #print(world_z)
