@@ -23,7 +23,7 @@ class DashcamGUI:
                   sg.Button('Exit', button_color=('black', 'yellow'), size=(20, 5), key='Exit')],
                 ]
 
-        self.window = sg.Window('Smart Dashcam GUI', self.layout, no_titlebar=False, location=(0,0), size=(480,200), keep_on_top=True)
+        self.window = None
         self.running = True
 
         self.event_thread = threading.Thread(target=self.event_thread)
@@ -38,6 +38,11 @@ class DashcamGUI:
 
 
     def event_thread(self):
+        # note: window stuff needs to be in same thread
+        self.window = sg.Window('Smart Dashcam GUI', self.layout, no_titlebar=False, location=(0,-35), size=(480,320), grab_anywhere=False)
+        self.window.Finalize()
+        #self.window.TKroot.lift()
+        #self.window.TKroot.update()
         while self.running:  # Event Loop
                 event, values = self.window.Read(timeout=100)
                 # window closed (through exit icon -- so we probably won't need this)
@@ -49,7 +54,9 @@ class DashcamGUI:
                     self.terminate()
                 elif event == 'Other':
                     pass
-                    
+                elif event == 'Browse Recordings':
+                    pass
+
                 # check for registered callbacks
                 if event in self.event_callbacks:
                     self.event_callbacks[event]()
