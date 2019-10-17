@@ -280,7 +280,7 @@ int client_connect(struct addrinfo *address_info_set)
     return client_fd;
 } /* client_connect() */
 
-int socket_create_socket(char* port, uint8_t socket_type,  const char *addr, uint8_t type_serv_client)
+int socket_create_socket(char* port, enum SOCKET_TYPES socket_type,  const char *addr, enum SOCKET_OWNER type_serv_client)
 {
     /*----------------------------------
     |             VARIABLES             |
@@ -308,7 +308,7 @@ int socket_create_socket(char* port, uint8_t socket_type,  const char *addr, uin
         addr = ip;
     } 
 
-    if ( type_serv_client == IS_SOCKET_SERVER )
+    if ( type_serv_client == SOCKET_OWNER_IS_SERVER )
     {
         /* Set passive flag on server to signify we want to use this machine's IP/addr */
         hints.ai_flags = AI_PASSIVE;
@@ -337,7 +337,7 @@ int socket_create_socket(char* port, uint8_t socket_type,  const char *addr, uin
     /*----------------------------------
     |   GET SOCKET_FD AND BIND/CONNECT  |
     ------------------------------------*/
-    if ( type_serv_client == IS_SOCKET_SERVER )
+    if ( type_serv_client == SOCKET_OWNER_IS_SERVER )
     {
         socket_fd = server_bind( name );
     } 

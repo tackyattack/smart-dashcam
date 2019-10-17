@@ -9,11 +9,8 @@
 
 #include <uuid/uuid.h>
 #include <unistd.h>
-
-
-/*-------------------------------------
-|           PRIVATE STRUCTS            |
---------------------------------------*/
+#include <pthread.h> 
+#include <stdbool.h>
 
 
 /*-------------------------------------
@@ -55,5 +52,10 @@ int send_uuid();
  * Blocking Function
  */
 void process_recv_msg(const char* buffer, const int buffer_sz);
+
+/**
+ * 
+ */
+void* execute_thread(void* args)
 
 #endif /* PRV_SOCKET_CLIENT_H */

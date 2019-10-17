@@ -26,29 +26,19 @@
 |            PUBLIC DEFINES            |
 --------------------------------------*/
 
-#define RETURN_FAILED            (-1)       /* Return value of functions that represents that that function failed to perform its task */
-#define RETURN_SUCCESS           (0)        /* Return value of functions that represents that that function succeeded in performing its task */
-
-/* Define shortnames for protocols */
-#define SOCKET_TYPE_TCP         (SOCK_STREAM)
-#define SOCKET_TYPE_UDP         (SOCK_DGRAM)
-
-#define IS_SOCKET_SERVER        (0)
-#define IS_SOCKET_CLIENT        (1)
+#define RETURN_FAILED           (-1)       /* Return value of functions that represents that that function failed to perform its task */
+#define RETURN_SUCCESS          (0)        /* Return value of functions that represents that that function succeeded in performing its task */
 
 /* First/Last byte received is msg start/end/cont indicator */
-#define MSG_START                (uint8_t)0x0F                       /* Message separator. Used to detect begining of message */
-#define MSG_END                  (uint8_t)0x0E                       /* Message separator. Used to detect end of message */
-#define MSG_HEADER_SZ            (sizeof(MSG_START)+sizeof(MSG_END)) /* Total size used by the message headers */
+#define MSG_START               (uint8_t)0x0F                       /* Message separator. Used to detect begining of message */
+#define MSG_END                 (uint8_t)0x0E                       /* Message separator. Used to detect end of message */
+#define MSG_HEADER_SZ           (sizeof(MSG_START)+sizeof(MSG_END)) /* Total size used by the message headers */
 
 /* 2nd byte received is a command byte */
 #define COMMAND_PING            (uint8_t)0x0F                       /* If this is received, we have been pinged and request this msg be echoed back */
 #define COMMAND_UUID            (uint8_t)0x0E                       /* If received, signals msg data is our UUID */
 
-
 /* Defaults/Configurations */
-#define DEFAULT_CONN_TYPE       AF_UNSPEC                           /* PF_LOCAL for a local only connection, or AF_INET for IP connection or AF_INET6 for ipv6 or AF_UNSPEC for ipv4 or piv6 */
-#define DEFAULT_SOCKET_TYPE     SOCKET_TYPE_TCP                     /* Set socket_type shortname to use */
 #define DEFAULT_PORT            "5555"                              /* Port number to use if none are given */
 #define MAX_HOSTNAME_SZ         (255)                               /* Max size/length a hostname can be */
 #define MAX_TX_MSG_SZ           (512)                               /* max size of the message that will be sent over socket. NOTE, this should not be used outside of this file */
@@ -56,6 +46,35 @@
 #define CONNECT_TIMEOUT         (1)                                 /* Set a timeout of 1 second for socket client connect attempt */
 #define UUID_SZ                 (36)                                /* UUID is 4 hyphens + 32 digits. This does not include termination character! */
 #define TIME_BETWEEN_PINGS      (1)                                 /* Time (in seconds) between pings from the server. The server sends a ping to all clients every TIME_BETWEEN_PINGS seconds */
+
+
+/*-------------------------------------
+|             PUBLIC ENUMS             |
+--------------------------------------*/
+
+enum SOCKET_OWNER
+{
+    SOCKET_OWNER_IS_SERVER  = 0,
+    SOCKET_OWNER_IS_CLIENT  = 1
+};
+
+/* Define shortnames for Address families. Additional types in socket.h */
+enum CONN_TYPES
+{
+    CONN_TYPE_IPV4          = AF_INET,             /* Use explicitly IPV4 */
+    CONN_TYPE_IPV6          = AF_INET6,            /* Use explicitly IPV6 */
+    CONN_TYPE_IPV_ANY       = AF_UNSPEC,           /* Use either IPV4 or IPV6, but neither explicitly */
+    CONN_TYPE_LOCAL         = PF_LOCAL,            /* Local loopback connection only. Used for things like inter-process communication */
+    DEFAULT_CONN_TYPE       = CONN_TYPE_IPV_ANY    /* Default connection type (address family) to use */
+};
+
+/* Define shortnames for Protocol families. Additional families found in socket.h */
+enum SOCKET_TYPES
+{
+    SOCKET_TYPE_TCP         = SOCK_STREAM,       /* TCP */
+    SOCKET_TYPE_UDP         = SOCK_DGRAM,        /* UDP. Note code isn't setup to support this */
+    DEFAULT_SOCKET_TYPE     = SOCKET_TYPE_TCP    /* Default connection type (address family) to use */
+};
 
 
 /*-------------------------------------
@@ -70,16 +89,16 @@ void socket_print_addrinfo(const struct addrinfo *addr);
 
 /**
  * Given a port number, socket type, an address (this can be IP or hostname),
- * and a value for the type_serv_client parameter (IS_SOCKET_SERVER or IS_SOCKET_CLIENT), 
+ * and a value for the type_serv_client parameter (SOCKET_OWNER_IS_SERVER or SOCKET_OWNER_IS_CLIENT), 
  * will setup a socket appropiate for either a server or client and either 
  * bind the server to the socket or connect the socket to the socket server.
  * 
- * If setting up a Server use IS_SOCKET_SERVER. Else use IS_SOCKET_CLIENT for the 
+ * If setting up a Server use SOCKET_OWNER_IS_SERVER. Else use SOCKET_OWNER_IS_CLIENT for the 
  * type_serv_client parameter. If setting up a server, addr can/should be NULL.
  * 
  * @Returns the socket or RETURN_FAILED if failed.
  */
-int socket_create_socket(char* port, uint8_t socket_type,  const char *addr, uint8_t type_serv_client);
+int socket_create_socket(char* port, enum SOCKET_TYPES socket_type,  const char *addr, enum SOCKET_OWNER type_serv_client);
 
 /**
  * Given a socket file descriptor and buffer, receives data from socket.

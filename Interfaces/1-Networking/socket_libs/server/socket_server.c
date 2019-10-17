@@ -21,7 +21,7 @@ static fd_set active_fd_set             = {0};      /*  */
 void  INThandler(int sig)
 {
     signal(sig, SIG_IGN);
-    printf("Ctrl-C detected. Exiting....\n");
+    printf("\nCtrl-C detected. Exiting....\n");
     close(server_socket_fd);
     exit(EXIT_SUCCESS);
 }
@@ -29,7 +29,7 @@ void  INThandler(int sig)
 void  PIPEhandler(int sig)
 {
     signal(sig, SIG_IGN);
-    printf("PIPE Error detected. A client must have disconnected....\n");
+    printf("\nPIPE Error detected. A client must have disconnected....\n");
     signal(SIGPIPE, PIPEhandler);
 }
 
@@ -138,9 +138,28 @@ char* check_parameters(int argc, char *argv[])
 int socket_server_init(char* port)
 {
     /*----------------------------------
+    |       SETUP SIGNAL HANDLERS       |
+    ------------------------------------*/
+    struct sigaction act_sigint,act_sigpipe;
+    act_sigint.sa_handler = INThandler;
+    sigaction(SIGINT, &act_sigint, NULL);
+    act_sigpipe.sa_handler = PIPEhandler;
+    sigaction(SIGPIPE, &act_sigpipe, NULL);
+
+    /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
     int server_socket_fd;      /* generic socket variable */
+
+
+    /*-------------------------------------
+    |             VERIFICATION             |
+    --------------------------------------*/
+    if ( atoi(port) < 0 || atoi(port) > 65535 )
+    {
+        printf("ERROR: invalid port number %s!",port);
+        return RETURN_SUCCESS;
+    }
 
 
     /*----------------------------------
@@ -149,7 +168,7 @@ int socket_server_init(char* port)
 
     /* Info print */
     printf("Creating server on port %s\n", port);
-    server_socket_fd = socket_create_socket(port, DEFAULT_SOCKET_TYPE, (const char*)SERVER_ADDR, IS_SOCKET_SERVER);
+    server_socket_fd = socket_create_socket(port, DEFAULT_SOCKET_TYPE, (const char*)SERVER_ADDR, SOCKET_OWNER_IS_SERVER);
 
     /*----------------------------------
     |       VERIFY SERVER CREATED       |
@@ -514,15 +533,6 @@ int main(int argc, char *argv[])
     ------------------------------------*/
     char* port;                              /* Port number for socket server */
     
-    /*----------------------------------
-    |       SETUP SIGNAL HANDLERS       |
-    ------------------------------------*/
-    struct sigaction act_sigint,act_sigpipe;
-    act_sigint.sa_handler = INThandler;
-    sigaction(SIGINT, &act_sigint, NULL);
-    act_sigpipe.sa_handler = PIPEhandler;
-    sigaction(SIGPIPE, &act_sigpipe, NULL);
-
 
     /*----------------------------------
     |            CHECK INPUT            |

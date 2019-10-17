@@ -11,7 +11,7 @@
 |            PUBLIC DEFINES            |
 --------------------------------------*/
 
-#define SERVER_ADDR                     "192.168.200.1"            /* Address of the server we are conencting to. Note, this can be a IP or hostname */
+#define SERVER_ADDR                     "200.0.0.159"            /* Address of the server we are conencting to. Note, this can be a IP or hostname */
 // #define SERVER_ADDR                     "raspberrypi"              /* Address of the server we are conencting to. Note, this can be a IP or hostname */
 #define TIME_BETWEEN_CONNECTION_ATTEMPTS (2)                       /* Time in seconds between attempts to connect to server if we fail to connect */
 #define SERVER_PING_TIMEOUT              (2*TIME_BETWEEN_PINGS)    /* Max time allowed before we assume the server has disconnected. If we haven't received a \

@@ -10,8 +10,15 @@
 |           STATIC VARIABLES           |
 --------------------------------------*/
 
-static int client_fd        = -1;   /* Stores the socket_fd for our connection to the server */
-static char UUID[UUID_SZ+1] = {0};  /* Stores our UUID. +1 because uuid_unparse generates a str with UUID_SZ ascii characters plus a termination char */
+static int  client_fd        = -1;   /* Stores the socket_fd for our connection to the server */
+static char UUID[UUID_SZ+1]  = {0};  /* Stores our UUID. +1 because uuid_unparse generates a str with UUID_SZ ascii characters plus a termination char */
+static bool killThread       = false;/* Set true to execute the client execute thread */
+
+/*-------------------------------------
+|           PRIVATE MUTEXES            |
+--------------------------------------*/
+
+pthread_mutex_t mutex_excute_thread = PTHREAD_MUTEX_INITIALIZER;
 
 
 /*-------------------------------------
@@ -166,7 +173,7 @@ int socket_client_init(char *port)
         printf ("\nAttempt to open socket to server....\n");
 
         sleep(TIME_BETWEEN_CONNECTION_ATTEMPTS);
-        client_fd = socket_create_socket(port, DEFAULT_SOCKET_TYPE, SERVER_ADDR, IS_SOCKET_CLIENT);
+        client_fd = socket_create_socket(port, DEFAULT_SOCKET_TYPE, SERVER_ADDR, SOCKET_OWNER_IS_CLIENT);
     } while (client_fd < 0);
 
 
@@ -204,7 +211,7 @@ void process_recv_msg(const char* buffer, const int buffer_sz)
 
 } /* process_recv_msg() */
 
-void socket_client_execute()
+void* execute_thread(void* args)
 {
     /*----------------------------------
     |             VARIABLES             |
@@ -222,13 +229,25 @@ void socket_client_execute()
     FD_ZERO(&client_fd_set);
     FD_ZERO(&working_fd_set);
     FD_SET(client_fd, &client_fd_set);
-
+    killThread = false;
 
     /*----------------------------------
     |           INFINITE LOOP           |
     ------------------------------------*/
     while(1)
     {
+        /*-------------------------------------
+        |      VERIFY CONTINUED EXECUTION      |
+        --------------------------------------*/
+
+        pthread_mutex_lock(mutex_excute_thread);
+        if(killThread == true)
+        {
+            pthread_mutex_unlock(mutex_excute_thread);
+            break;
+        }
+        pthread_mutex_unlock(mutex_excute_thread);
+
         /*----------------------------------
         |     ITERATION INITIALIZATIONS     |
         ------------------------------------*/
@@ -283,6 +302,19 @@ void socket_client_execute()
         process_recv_msg(buffer,n_recv_bytes);
         
     } /* while(1) */
+
+} /* execute_thread() */
+
+void socket_client_execute()
+{
+    pthread_t thread_id;
+    pthread_create(&thread_id, NULL, execute_thread, NULL);
+    
+    if( 0 != pthread_detach(thread_id) )
+    {
+        printf("\nFailed to create client execute thread!\n");
+        exit(EXIT_FAILURE);
+    }
 
 } /* socket_client_execute() */
 

@@ -134,6 +134,7 @@ download:
 install:
 # make clean will remove any generated files that are not needed for executing or compiling code (ie object files)
 clean :
+	rm -rf common/libs/ common/*.o
 # make clean-all will remove all generated/downloaded files. Should essetially revert directories back to original post clone state
 clean-all:
 	rm -rf $(EXE_SERV) $(EXE_CLIENT) $(ID_FILE) common/libs/ common/*.o

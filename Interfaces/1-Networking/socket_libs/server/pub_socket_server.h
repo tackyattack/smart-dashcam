@@ -33,7 +33,7 @@ int socket_server_init(char* port);
  * connected clients.
  * 
  * @Returns total number of bytes sent 
- *          (num_clients*(buffer_sz + MSG_HEADER_SZ + 1))
+ *          (num_clients*(buffer_sz + 19MSG_HEADER_SZ + 1))
  *          or a negative number if failed
  * 
  * Blocking Function
