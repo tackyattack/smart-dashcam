@@ -4,7 +4,7 @@ import numpy as np
 from math import *
 import cv2
 
-image = cv2.imread('road7.png')
+image = cv2.imread('road8.png')
 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 out_img=np.ndarray(shape=image.shape, dtype=image.dtype)
 
@@ -36,7 +36,8 @@ def calculate_transformation_matrix(w, h):
     # height in pixels
     # this should always be larger than image height I think or else
     # bottom floats off
-    h_vert = 200
+    # this means
+    h_vert = h*0.5
 
     R = np.array([[cos(p),   sin(p)*sin(t),     h_vert*sin(p)*sin(t)],
                   [-sin(p), cos(p)*sin(t), -h_vert*cos(p)*sin(t)],
@@ -47,13 +48,7 @@ def calculate_transformation_matrix(w, h):
                   [0, 0, 1]
                   ])
 
-    T = np.array([[1/1, 0, 0],
-                  [0, 1/1, 0],
-                  [0, 0, 1]
-                  ])
-
     H = np.dot(C, R)
-    H = np.dot(T, H)
     H_inv = np.linalg.inv(H)
 
     null, y_a = world_to_camera(H, 0, h/2)
@@ -85,18 +80,30 @@ def calculate_transformation_matrix(w, h):
 
 H_inv, origin_x, origin_y, scale_x, scale_y = calculate_transformation_matrix(w,h)
 
+X = np.array([[scale_x, 0, -w/2+origin_x],
+              [0, scale_y, -h/2+origin_y],
+              [0, 0, 1]
+              ])
+
+transform_matrix = np.dot(H_inv, X)
+print(transform_matrix)
+for i in transform_matrix:
+    for j in i:
+        print(j)
+
 # loop over the image, pixel by pixel
 for y in range(0, h):
     for x in range(0, w):
 
         pixel_pos = np.array([
-                              [(x)*scale_x-w/2+origin_x],
-                              [(y)*scale_y-h/2+origin_y],
+                              [(x)],
+                              [(y)],
                               [1]
                               ])
 
 
-        world_pos = np.dot(H_inv, pixel_pos)
+
+        world_pos = np.dot(transform_matrix, pixel_pos)
 
         world_x = int(world_pos[0][0]/world_pos[2][0] + w/2)
         world_z = int((world_pos[1][0]/world_pos[2][0]) + h/2)
