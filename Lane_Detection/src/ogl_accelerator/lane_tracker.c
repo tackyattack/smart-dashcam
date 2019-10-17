@@ -44,6 +44,9 @@ static int bottom_y = 0;
 static int top_y = 250;
 static float transform_angle = 45.0;
 
+
+GLfloat birds_eye_transform_matrix[3*3];
+
 // this will be called right before drawing so you can set variables
 // or tell it to repeat this stage
 void lane_draw_callback(OGL_PROGRAM_CONTEXT_T *program_ctx, int current_render_stage)
@@ -72,6 +75,8 @@ void lane_draw_callback(OGL_PROGRAM_CONTEXT_T *program_ctx, int current_render_s
   if(current_render_stage == 1)
   {
     glUniform1f(get_program_var(program_ctx, "transform_angle")->location, (float)transform_angle);
+    // only column major is supported
+    glUniformMatrix3fv(get_program_var(program_ctx, "transform_matrix")->location, 1, GL_FALSE, birds_eye_transform_matrix);
   }
   if(current_render_stage == 1 || current_render_stage == 2 || current_render_stage == 3 || current_render_stage == 5)
   {
@@ -128,7 +133,7 @@ void init_lane_tracker(const char* shader_dir_path, const int screen_width, cons
   pipeline_shaders[0].fragment_shader_path = concat(shader_dir_path, "/camera_fshader.glsl");
   pipeline_shaders[0].num_vars = 3;
   pipeline_shaders[1].fragment_shader_path = concat(shader_dir_path, "/birds_eye_fshader.glsl");
-  pipeline_shaders[1].num_vars = 3;
+  pipeline_shaders[1].num_vars = 4;
   pipeline_shaders[2].fragment_shader_path = concat(shader_dir_path, "/blur2_fshader.glsl");
   pipeline_shaders[2].num_vars = 2;
   pipeline_shaders[3].fragment_shader_path = concat(shader_dir_path, "/blur3_fshader.glsl");
@@ -149,7 +154,7 @@ void init_lane_tracker(const char* shader_dir_path, const int screen_width, cons
   pipeline_shaders[0].vars = camera_vars;
   char *texture_renderer_vars[] = {"fps_state"};
   pipeline_shaders[8].vars = texture_renderer_vars;
-  char *global_vars[] = {"top_right_y", "bottom_left_y", "transform_angle"};
+  char *global_vars[] = {"top_right_y", "bottom_left_y", "transform_angle", "transform_matrix"};
   pipeline_shaders[1].vars = global_vars;
   pipeline_shaders[2].vars = global_vars;
   pipeline_shaders[3].vars = global_vars;
@@ -184,7 +189,7 @@ void load_egl_image_from_buffer(MMAL_BUFFER_HEADER_T *buf)
   eglMakeCurrent(NULL, NULL, NULL, NULL);
 }
 
-void detect_lanes_from_buffer(int download, char *mem_ptr, int bottom_y_boundry, int top_y_boundry, float angle, int show, int stage_to_show)
+void detect_lanes_from_buffer(int download, char *mem_ptr, int bottom_y_boundry, int top_y_boundry, float angle, float *transformation_matrix, int show, int stage_to_show)
 {
   if(!has_init)
   {
@@ -199,6 +204,8 @@ void detect_lanes_from_buffer(int download, char *mem_ptr, int bottom_y_boundry,
   bottom_y = bottom_y_boundry;
   top_y = top_y_boundry;
   transform_angle = angle;
+
+  for(int i = 0; i < 3*3; i++) birds_eye_transform_matrix[i] = transformation_matrix[i];
 
   if(show)
   {

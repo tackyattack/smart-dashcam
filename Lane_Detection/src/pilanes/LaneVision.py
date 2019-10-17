@@ -1,5 +1,6 @@
 from picamera import PiCamera
 from picamera import mmal, mmalobj
+import BirdsEye as bird
 from time import sleep
 import ctypes
 import threading
@@ -14,9 +15,9 @@ ogl_cv_init_lane_tracker = ogl_cv_lib.init_lane_tracker
 ogl_cv_init_lane_tracker.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int]
 ogl_cv_init_lane_tracker.restype = None
 
-# detect_lanes_from_buffer(int download, char *mem_ptr, int bottom_y_boundry, int top_y_boundry, float angle, int show, int stage_to_show)
+# void detect_lanes_from_buffer(int download, char *mem_ptr, int bottom_y_boundry, int top_y_boundry, float angle, float *transformation_matrix, int show, int stage_to_show);
 ogl_cv_detect_lanes_from_buffer = ogl_cv_lib.detect_lanes_from_buffer
-ogl_cv_detect_lanes_from_buffer.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_int, ctypes.c_float, ctypes.c_int, ctypes.c_int]
+ogl_cv_detect_lanes_from_buffer.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_int, ctypes.c_float, ctypes.POINTER(ctypes.c_float), ctypes.c_int, ctypes.c_int]
 ogl_cv_detect_lanes_from_buffer.restype = None
 
 load_egl_image_from_buffer = ogl_cv_lib.load_egl_image_from_buffer
@@ -55,7 +56,7 @@ class LaneTracker():
     SHADER_PATH = os.path.join(root_path, 'shaders')
     print("loading shaders from: {0}".format(SHADER_PATH))
 
-    def __init__(self, camera, bottom_y_boundry, top_y_boundry, transform_angle, debug_view, debug_view_stage, log, screen_width, screen_height):
+    def __init__(self, camera, bottom_y_boundry, top_y_boundry, transform_angle, camera_pixel_altitude, debug_view, debug_view_stage, log, screen_width, screen_height):
         self.camera_instance = camera
         self.data_logging = log
         self.show_framebuffer = debug_view
@@ -67,7 +68,14 @@ class LaneTracker():
         self.estimated_measurement_variance = 50**2
         self.bottom_y_boundry = bottom_y_boundry
         self.top_y_boundry = top_y_boundry
+
         self.transform_angle = transform_angle
+        self.transform_matrix = (ctypes.c_float*(3*3))()
+        bm = bird.BirdsEyeMath()
+        pixel_height = top_y_boundry - bottom_y_boundry
+        self.transform_matrix = bm.numpy_to_float_mat(bm.get_transformation_matrix(width=1024, height=pixel_height, angle=self.transform_angle,
+                                                                                   camera_pixel_altitude=camera_pixel_altitude), 3*3)
+
         self.kf_left = KalmanFilter(self.process_variance, self.estimated_measurement_variance)
         self.kf_right = KalmanFilter(self.process_variance, self.estimated_measurement_variance)
         # what percentage of lane boundary until warning is thrown
@@ -160,7 +168,7 @@ class LaneTracker():
 
 
     def detect_lanes(self):
-        ogl_cv_detect_lanes_from_buffer(1, self.data_array, self.bottom_y_boundry, self.top_y_boundry, self.transform_angle, self.show_framebuffer, self.stage_to_show)
+        ogl_cv_detect_lanes_from_buffer(1, self.data_array, self.bottom_y_boundry, self.top_y_boundry, self.transform_angle, self.transform_matrix, self.show_framebuffer, self.stage_to_show)
         line_str = ''
         self.line_data = []
         for i in range(1024):

@@ -52,10 +52,10 @@ def calculate_transformation_matrix(w, h):
     H_inv = np.linalg.inv(H)
 
     null, y_a = world_to_camera(H, 0, h/2)
-    x_a, null = world_to_camera(H, -w, h/2)
+    x_a, null = world_to_camera(H, -w/2, h/2)
     print(x_a)
 
-    origin_x = x_a + w/2
+    origin_x = x_a
     origin_y = y_a + h/2
     print(origin_x)
     print(origin_y)
@@ -64,10 +64,11 @@ def calculate_transformation_matrix(w, h):
     null, top = world_to_camera(H, 0, h/2)
     null, bottom = world_to_camera(H, 0, -h/2*percent_height)
     scale_y = abs(top-bottom)/h
+    scale_y = 1
     print(scale_y)
 
 
-    percent_width = 2
+    percent_width = 1
     left, null = world_to_camera(H, -w/2, h/2)
     right, null = world_to_camera(H, w/2, h/2)
     scale_x = abs(left-right)/w*percent_width
