@@ -14,6 +14,7 @@ class DashcamGUI:
     def __init__(self, exit_callback):
 
         self.exit_callback = exit_callback
+        self.event_callbacks = dict()
 
         self.layout = [
                   [sg.Button('Rear Camera', button_color=('white', 'red'), size=(20, 5), key='Rear Camera'),
@@ -32,6 +33,10 @@ class DashcamGUI:
         self.running = False
         self.exit_callback()
 
+    def add_event_callback(self, event_name, callback_function):
+        self.event_callbacks[event_name] = callback_function
+
+
     def event_thread(self):
         while self.running:  # Event Loop
                 event, values = self.window.Read(timeout=100)
@@ -43,7 +48,12 @@ class DashcamGUI:
                 elif event == 'Exit':
                     self.terminate()
                 elif event == 'Other':
-                    func('Other')
+                    pass
+                    
+                # check for registered callbacks
+                if event in self.event_callbacks:
+                    self.event_callbacks[event]()
+
         print('Exiting dashcam GUI')
         self.running = False
         self.window.Close()

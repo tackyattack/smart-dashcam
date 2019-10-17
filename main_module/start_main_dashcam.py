@@ -8,7 +8,11 @@ def GUI_exit_callback():
     global exit_main
     exit_main = True
 
+def other_callback():
+    print('other pressed')
+
 dash_gui = gui.DashcamGUI(GUI_exit_callback)
+dash_gui.add_event_callback('Other', other_callback)
 
 def main():
     while not exit_main:
