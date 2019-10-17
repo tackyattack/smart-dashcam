@@ -30,16 +30,23 @@ class BirdsEyeMath:
         # bottom floats off
         h_vert = camera_pixel_altitude
 
-        R = np.array([[cos(p),   sin(p)*sin(t),     h_vert*sin(p)*sin(t)],
-                      [-sin(p), cos(p)*sin(t), -h_vert*cos(p)*sin(t)],
-                      [0, cos(t), h_vert*cos(t)]
+        # https://pdfs.semanticscholar.org/4964/9006f2d643c0fb613db4167f9e49462546dc.pdf
+        # transform -> rotate -> projection
+        R = np.array([[cos(p),   sin(p)*sin(t), sin(p)*sin(t)],
+                      [-sin(p),  cos(p)*sin(t), -cos(p)*sin(t)],
+                      [0,        cos(t),        cos(t)]
+                      ])
+        T = np.array([[1, 0, 0],
+                      [0, 1, 0],
+                      [0, 0, h_vert]
                       ])
         C = np.array([[fx, 0, 0],
                       [0, fy, 0],
                       [0, 0, 1]
                       ])
-
-        H = np.dot(C, R)
+        # H = CRT
+        H = np.dot(R, T)
+        H = np.dot(C, H)
         H_inv = np.linalg.inv(H)
 
         null, y_a = self.world_to_camera(H, 0, h/2)
