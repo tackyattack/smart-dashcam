@@ -4,15 +4,7 @@
 # Copyright: 	
 # License:		
 # Date Created:	Oct. 6, 2019
-# Resources:
-# Desc:	This makefile will create the dashcam system services
-#
-#       Known libraries that may be needed by services
-#   			NAME					GCC INCLUDE                         GCC #include < FILE >
-#   	libdashcam_tcp_dbus_srv         -ldashcam_tcp_dbus_srv              dashcam_dbus/pub_dbus.h && dashcam_dbus/pub_tcp_dbus_srv.h
-#   	libdashcam_tcp_dbus_clnt        -ldashcam_tcp_dbus_clnt             dashcam_dbus/pub_dbus.h && dashcam_dbus/pub_tcp_dbus_clnt.h
-#   	libdashcam_sensors_dbus_srv     -ldashcam_sensors_dbus_srv
-#   	libdashcam_sensors_dbus_clnt    -ldashcam_sensors_dbus_clnt
+# Resources: 
 
 
 # include .makerc
@@ -22,7 +14,8 @@
 .RECIPEPREFIX +=    
 
 # Directories
-SUB_DIRS= $(shell ls -d */) #List of all library sub-directories, can use $(shell ls -d */) to list all dirs
+    #List of all library sub-directories, can use $(shell ls -d */) to list all dirs
+LIB_DIRS= $(shell ls -d */)
 
 
 
@@ -36,19 +29,19 @@ SUB_DIRS= $(shell ls -d */) #List of all library sub-directories, can use $(shel
 
 .PHONY: build setup download dependencies install clean clean-all
 
-build: $(SUB_DIRS)
+build: $(LIB_DIRS)
     # Run make build for all sub-directories
-    for dir in $(SUB_DIRS);                 \
+    for dir in $(LIB_DIRS);                 \
         do                                  \
           $(MAKE) --directory=$$dir build;  \
     done
         
-    @echo "Built all services\n\n"
+    @echo "Built all libraries\n\n"
 
 # make setup will go through the setup process needed to compile/run code
 setup: clean-all dependencies download install clean
     # # Run make setup for all sub-directories
-    # for dir in $(SUB_DIRS);                 \
+    # for dir in $(LIB_DIRS);                 \
     #     do                                  \
     #       $(MAKE) --directory=$$dir setup;  \
     # done
@@ -57,7 +50,7 @@ setup: clean-all dependencies download install clean
 # make dependencies will install any software/package dependencies needed (ie installs gcc on system)
 dependencies:
     # # Run make dependencies for all sub-directories
-    # for dir in $(SUB_DIRS);                         \
+    # for dir in $(LIB_DIRS);                         \
     #     do                                          \
     #       $(MAKE) --directory=$$dir dependencies;   \
     # done
@@ -65,7 +58,7 @@ dependencies:
 # make download will download any items (not software) needed (ie gcc source code for a cross compiler)
 download:
     # # Run make download for all sub-directories
-    # for dir in $(SUB_DIRS);                     \
+    # for dir in $(LIB_DIRS);                     \
     #     do                                      \
     #       $(MAKE) --directory=$$dir download;   \
     # done
@@ -73,7 +66,7 @@ download:
 # make install will install any software/items needed to build/run code but that is not a software package (ie used to build a cross compiler)
 install:
     # # Run make install for all sub-directories
-    # for dir in $(SUB_DIRS);                     \
+    # for dir in $(LIB_DIRS);                     \
     #     do                                      \
     #       $(MAKE) --directory=$$dir install;    \
     # done
@@ -81,7 +74,7 @@ install:
 # make clean will remove any generated files that are not needed for executing or compiling code (ie object files)
 clean :
     # # Run make clean for all sub-directories
-    for dir in $(SUB_DIRS);                 \
+    for dir in $(LIB_DIRS);                 \
         do                                  \
           $(MAKE) --directory=$$dir clean;  \
     done
@@ -89,7 +82,7 @@ clean :
 # make clean-all will remove all generated/downloaded files. Should essetially revert directories back to original post clone state
 clean-all:
     # Run make clean-all for all sub-directories
-    for dir in $(SUB_DIRS);                     \
+    for dir in $(LIB_DIRS);                     \
         do                                      \
           $(MAKE) --directory=$$dir clean-all;  \
     done

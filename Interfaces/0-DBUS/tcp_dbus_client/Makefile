@@ -11,14 +11,11 @@
 #            http://tldp.org/HOWTO/Program-Library-HOWTO/shared-libraries.html
 # Desc:	
 #       This makefile will create shared libraries and add global header files for 
-#   	the dbus code folders in this directory.
+#   	the dbus code in this directory.
 #       
 #       Libraries created are as follows:
 #   			NAME					GCC INCLUDE                         GCC #include < FILE >
-#   	libdashcam_tcp_dbus_srv         -ldashcam_tcp_dbus_srv              tcp_dbus_server/pub_tcp_dbus_srv.h
-#   	libdashcam_tcp_dbus_clnt        -ldashcam_tcp_dbus_clnt
-#   	libdashcam_sensors_dbus_srv     -ldashcam_sensors_dbus_srv
-#   	libdashcam_sensors_dbus_clnt    -ldashcam_sensors_dbus_clnt
+#   	libdashcam_tcp_dbus_clnt        -ldashcam_tcp_dbus_clnt             dashcam_dbus/pub_dbus.h && dashcam_dbus/pub_tcp_dbus_clnt.h
 
 -include ../.makerc # This file contains the definitions of many of the variables used including the following
                     # SYS_DBUS_SRV_CONF_DIR

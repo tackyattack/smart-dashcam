@@ -16,8 +16,8 @@
 #       
 #       Libraries created are as follows:
 #   			NAME					GCC INCLUDE                         GCC #include < FILE >
-#   	libdashcam_tcp_dbus_srv         -ldashcam_tcp_dbus_srv              tcp_dbus_server/pub_tcp_dbus_srv.h
-#   	libdashcam_tcp_dbus_clnt        -ldashcam_tcp_dbus_clnt
+#   	libdashcam_tcp_dbus_srv         -ldashcam_tcp_dbus_srv              dashcam_dbus/pub_dbus.h && dashcam_dbus/pub_tcp_dbus_srv.h
+#   	libdashcam_tcp_dbus_clnt        -ldashcam_tcp_dbus_clnt             dashcam_dbus/pub_dbus.h && dashcam_dbus/pub_tcp_dbus_clnt.h
 #   	libdashcam_sensors_dbus_srv     -ldashcam_sensors_dbus_srv
 #   	libdashcam_sensors_dbus_clnt    -ldashcam_sensors_dbus_clnt
 
@@ -122,4 +122,3 @@ clean-all:
     sudo rm -rf $(SYSTEM_GLOBAL_INC_DIR)/*dashcam*
     sudo rm -rf $(SYS_DBUS_SRV_CONF_DIR)/*dashcam*
     sudo ldconfig -p $(SYSTEM_GLOBAL_LIB_DIR)/
-
