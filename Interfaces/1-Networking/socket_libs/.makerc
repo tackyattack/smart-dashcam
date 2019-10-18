@@ -1,0 +1,22 @@
+# This file contains variable definitions for make and is include in the makefiles in this and sub directories
+
+# System Directories
+SYSTEM_GLOBAL_INC_DIR=/usr/include/
+SYSTEM_GLOBAL_LIB_DIR=/usr/lib/
+
+
+# Compiler_FLAGS:
+#	-Wall				Enables additional compiler warnings
+#	-Wextra				Further enables addionational compiler warnings not included by -Wall
+#	-Werror				Treat warnings as errors
+#	-Wl,--start-group  	The wrong order of gcc parameters can cause no errors/warnings and the resulting compiled file
+#						  to be incorrect/broken. Supposedly, adding the -Wl,--start-group flag will fix this
+#	-std=gnu99			Sets what language standard is used. gnu99: GNU dialect of ISO C99
+#	-g					Enables debugging symbols
+#	-O3:				Optimization more for code size and execution time
+GLOBAL_CFLAGS=-g -Wall -Wextra -fPIC -Werror -Wl,--start-group -O3
+
+# Define library names
+	# Note that 0-common is in the same dir as this file, but Makefiles using this are in subdirectories from this dir
+COMMON_LIB_DIR=../0-common/libs/
+LIB_COMMON=-lcommon
