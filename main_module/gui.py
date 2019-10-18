@@ -154,12 +154,12 @@ class DashcamGUI:
     def view_camera_callback(self):
         items = []
         for i in range(20):
-            items.append("" + str(i))
+            items.append("camera " + str(i))
         self.create_list_view('camera selector', items, self.camera_list_press)
         print('show cameras')
     def view_files_callback(self):
         items = []
         for i in range(20):
-            items.append("" + str(i))
+            items.append("video " + str(i))
         self.create_list_view('files selector', items, self.camera_list_press)
         print('show cameras')
