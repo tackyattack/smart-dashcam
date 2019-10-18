@@ -512,11 +512,12 @@ void* execute_thread(void* args)
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
-    fd_set active_fd_set, read_fd_set;          /* generic file descriptor set for sockets */
+    fd_set read_fd_set;                         /* generic file descriptor set for sockets */
     struct timeval timeout;                     /* Used to set select() timeout time */
     int select_return;                          /* Return value of select() */
     time_t lastPing;                            /* Last time we sent pings */
     char pingCommand[sizeof(COMMAND_PING)];     /* Create string containing ping command */
+    long timeout_s_reload, timeout_us_reload;
 
     /*----------------------------------
     |            INITIALIZE             |
@@ -524,7 +525,9 @@ void* execute_thread(void* args)
     /* Initialize the set of active sockets. */
     FD_ZERO(&active_fd_set);
     FD_SET(server_socket_fd, &active_fd_set);
-    lastPing = 0;
+    lastPing          = 0;
+    timeout_s_reload  = SELECT_TIMEOUT_TIME/1000;          /* Determine number of seconds */
+    timeout_us_reload = (SELECT_TIMEOUT_TIME%1000)*1000;   /* Determine number of microseconds */
 
     /*----------------------------------
     |           INFINITE LOOP           |
@@ -534,8 +537,9 @@ void* execute_thread(void* args)
         /*----------------------------------
         |     ITERATION INITIALIZATION      |
         ------------------------------------*/
-        timeout.tv_sec  = 0;// SERVER_PING_TIMEOUT; /*  */
-        timeout.tv_usec = SELECT_TIMEOUT_TIME*10000; /* Set select() to block for SELECT_TIMEOUT_TIME ms */
+        /* Set select() timeout values to block for SELECT_TIMEOUT_TIME ms */
+        timeout.tv_sec  = timeout_s_reload;
+        timeout.tv_usec = timeout_us_reload;
         read_fd_set = active_fd_set;
 
         /*----------------------------------

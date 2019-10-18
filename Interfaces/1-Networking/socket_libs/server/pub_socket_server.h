@@ -12,10 +12,12 @@
 |            PUBLIC DEFINES            |
 --------------------------------------*/
 
-#define MAX_PENDING_CONNECTIONS  (5)        /* 5 is a standard value for the max backlogged connection requests */
-#define SERVER_ADDR              (NULL)     /* Set this value to a string that is the IP address, hostname or the server you're creating or set to NULL (0) to use this machines address (NULL recommended) */
-#define BUFFER_SZ                (1024)     /* Size of the buffer we use to send/receive data */
-#define SELECT_TIMEOUT_TIME      (100)      /* How long Select() will block if no message is received */
+#define MAX_PENDING_CONNECTIONS  (5)                        /* 5 is a standard value for the max backlogged connection requests */
+#define SERVER_ADDR              (NULL)                     /* Set this value to a string that is the IP address, hostname or the server you're creating or set to NULL (0) to use this machines address (NULL recommended) */
+#define BUFFER_SZ                (1024)                     /* Size of the buffer we use to send/receive data */
+#define SELECT_TIMEOUT_TIME      (TIME_BETWEEN_PINGS*100)   /* How long Select() will block in milliseconds if no message is received in the execute_thread().\
+                                                               In other words, this controls the how often the server checks to see if it is time to ping clients.\
+                                                               Generally, this can match the value (TIME_BETWEEN_PINGS*1000).*/
 
 
 /*-------------------------------------

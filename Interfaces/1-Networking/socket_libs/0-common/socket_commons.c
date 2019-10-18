@@ -203,6 +203,7 @@ int server_bind(struct addrinfo *address_info_set)
     |             VARIABLES             |
     ------------------------------------*/
     int server_fd;
+    int opt = 1;
     struct addrinfo *i;
 
 
@@ -216,6 +217,14 @@ int server_bind(struct addrinfo *address_info_set)
         {
             continue;
         }
+
+        /* set server socket to allow multiple connections */  
+        if( setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, (void *)&opt, sizeof(opt)) < 0 )   
+        {   
+            perror("server_bind(): setsockopt error");   
+            exit(EXIT_FAILURE);   
+        }   
+
         if (bind(server_fd, i->ai_addr, i->ai_addrlen) == 0)
         {
             break; /* Success */
