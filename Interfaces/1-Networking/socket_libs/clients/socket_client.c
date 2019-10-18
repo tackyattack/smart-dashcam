@@ -28,6 +28,7 @@ pthread_mutex_t mutex_isExecuting_thread = PTHREAD_MUTEX_INITIALIZER;
 |         FUNCTION DEFINITIONS         |
 --------------------------------------*/
 
+//For testing only
 char* check_parameters(int argc, char *argv[])
 {
     /*----------------------------------
@@ -369,7 +370,7 @@ bool is_client_executing()
 {
     bool return_val;
     /*-----------------------------------
-    |         SET ISRUNNING TRUE         |
+    |           GET ISRUNNING            |
     ------------------------------------*/
     pthread_mutex_lock(&mutex_isExecuting_thread);
     return_val = isRunning;
@@ -378,6 +379,8 @@ bool is_client_executing()
     return return_val;
 } /* is_client_executing() */
 
+
+// For testing only
 int main(int argc, char *argv[])
 {
     /*----------------------------------
