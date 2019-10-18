@@ -11,8 +11,8 @@
 #   			NAME					GCC INCLUDE                         GCC #include < FILE >
 #   	libdashcam_tcp_dbus_srv         -ldashcam_tcp_dbus_srv              dashcam_dbus/pub_dbus.h && dashcam_dbus/pub_tcp_dbus_srv.h
 #   	libdashcam_tcp_dbus_clnt        -ldashcam_tcp_dbus_clnt             dashcam_dbus/pub_dbus.h && dashcam_dbus/pub_tcp_dbus_clnt.h
-#   	libdashcam_sensors_dbus_srv     -ldashcam_sensors_dbus_srv
-#   	libdashcam_sensors_dbus_clnt    -ldashcam_sensors_dbus_clnt
+#   	libdashcam_socket_srv           -ldashcam_socket_srv                dashcam_sockets/pub_socket_server.h
+#   	libdashcam_socket_clnt          -ldashcam_socket_clnt               dashcam_sockets/pub_socket_client.h
 
 
 # include .makerc
