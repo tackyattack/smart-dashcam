@@ -3,6 +3,8 @@ import threading
 import tkinter as tk
 import pprint
 import Queue
+from time import sleep
+import pygame
 
 
 if sys.version_info[0] >= 3:
@@ -84,9 +86,33 @@ class GUIListView(GUIView):
 class GUICameraListView(GUIListView):
     def __init__(self, view_stack, list_items):
         super(GUICameraListView, self).__init__(view_stack, list_items)
+
+    def list_press_callback(self, event):
+        w = event.widget
+        index = int(w.curselection()[0])
+        value = w.get(index)
+        print 'You selected item %d: "%s"' % (index, value)
+        put_window_command(WINDOW_COMMAND_PUSH_VIEW, GUIVideoPlayer)
+
 class GUIRecordingsListView(GUIListView):
     def __init__(self, view_stack, list_items):
         super(GUIRecordingsListView, self).__init__(view_stack, list_items)
+
+class GUILaneWarningView(GUIView):
+    def __init__(self, view_stack):
+        super(GUILaneWarningView, self).__init__(view_stack)
+        tk.Label(self.view_frame, text="WARNING", font=('Helvetica', '50', 'bold'), bg='black', fg='red', pady=40).pack()
+        tk.Label(self.view_frame, text="LANE DRIFT", font=('Helvetica', '50', 'bold'), bg='black', fg='yellow').pack()
+
+class GUIVideoPlayer(GUIView):
+    def __init__(self, view_stack):
+        super(GUIVideoPlayer, self).__init__(view_stack)
+        tk.Button(self.view_frame, text='',
+                 bg='white', activebackground='white',activeforeground='white', fg='white',
+                 width=100, height=100, command=self.exit_callback).pack()
+
+    def exit_callback(self):
+        put_window_command(WINDOW_COMMAND_POP_VIEW, None)
 
 class GUIMainView(GUIView):
     def __init__(self, view_stack):
@@ -132,6 +158,9 @@ class DashcamGUI:
 
         self.window = None
         self.running = True
+        self.pg_mixer = pygame.mixer
+        self.pg_mixer.init()
+        #self.pg.init(44100, -16,2,2048)
 
     def start(self):
         try:
@@ -149,9 +178,20 @@ class DashcamGUI:
         else:
             raise Exception('callback not defined')
 
-
     def setup_GUI(self):
+
         GUIMainView(self.windows_view_stack)
+
+    def close_lane_warning(self):
+        sleep(5)
+        put_window_command(WINDOW_COMMAND_POP_VIEW, None)
+
+    def show_lane_warning(self):
+        put_window_command(WINDOW_COMMAND_PUSH_VIEW, GUILaneWarningView)
+        self.pg_mixer.music.load('lane_beep.wav')
+        self.pg_mixer.music.play(0)
+        x = threading.Thread(target=self.close_lane_warning)
+        x.start()
 
     def event_thread(self):
         self.setup_GUI()
@@ -172,6 +212,10 @@ class DashcamGUI:
                         self.view_files_callback()
                     if window_command[1] == GUICameraListView:
                         self.view_camera_callback()
+                    if window_command[1] == GUILaneWarningView:
+                        self.lane_warning_callback()
+                    if window_command[1] == GUIVideoPlayer:
+                        self.video_player_callback()
 
         print('Exiting dashcam GUI')
         self.running = False
@@ -190,3 +234,9 @@ class DashcamGUI:
         for i in range(20):
             items.append("video " + str(i))
         GUIRecordingsListView(self.windows_view_stack, items)
+
+    def lane_warning_callback(self):
+        GUILaneWarningView(self.windows_view_stack)
+
+    def video_player_callback(self):
+        GUIVideoPlayer(self.windows_view_stack)
