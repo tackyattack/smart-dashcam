@@ -12,6 +12,18 @@
 static int server_socket_fd             = -1;       /* The socket file descriptor for the server (the local machine) */      
 static struct client_info *client_infos = NULL;     /* struct pointer to struct that is a linked list of structs that contain info on the clients */
 static fd_set active_fd_set             = {0};      /*  */
+static bool isRunning                   = false;    /* Set true to execute the client execute thread */
+
+static socket_lib_srv_rx_msg _rx_callback               = NULL; /* Callback called when a message is received from a client */
+static socket_lib_srv_connected _conn_callback          = NULL; /* Callback called when a client has connected */
+static socket_lib_srv_disconnected _disconn_callback    = NULL; /* Callback called when a client has disconnected */
+
+
+/*-------------------------------------
+|           PRIVATE MUTEXES            |
+--------------------------------------*/
+
+pthread_mutex_t mutex_isExecuting_thread = PTHREAD_MUTEX_INITIALIZER;
 
 
 /*-------------------------------------
@@ -92,6 +104,7 @@ struct client_info* find_client_by_uuid(const char* uuid)
     return client;
 } /* find_client */
 
+//for testing only
 char* check_parameters(int argc, char *argv[])
 {
     /*----------------------------------
@@ -135,7 +148,7 @@ char* check_parameters(int argc, char *argv[])
     return port;
 } /* check_parameters() */
 
-int socket_server_init(char* port)
+int socket_server_init( char* port, socket_lib_srv_rx_msg rx_callback, socket_lib_srv_connected connect_callback, socket_lib_srv_disconnected discon_callback )
 {
     /*----------------------------------
     |       SETUP SIGNAL HANDLERS       |
@@ -151,7 +164,6 @@ int socket_server_init(char* port)
     ------------------------------------*/
     int server_socket_fd;      /* generic socket variable */
 
-
     /*-------------------------------------
     |             VERIFICATION             |
     --------------------------------------*/
@@ -161,6 +173,12 @@ int socket_server_init(char* port)
         return RETURN_SUCCESS;
     }
 
+    /*----------------------------------
+    |           SET CALLBACKS           |
+    ------------------------------------*/
+    _rx_callback = rx_callback;
+    _conn_callback = connect_callback;
+    _disconn_callback = discon_callback;
 
     /*----------------------------------
     |       CREATE SERVER SOCKET        |
@@ -174,7 +192,6 @@ int socket_server_init(char* port)
     |       VERIFY SERVER CREATED       |
     ------------------------------------*/
     assert(server_socket_fd >= 0);
-    
 
     /*-----------------------------------------
     |  SET SERVER TO LISTEN FOR CONN REQUESTS  |
@@ -218,7 +235,7 @@ int handle_conn_request()
     {
         fprintf (stderr, "errno = %d ", errno);
         perror("Failed to accept connection request from client");
-        return -1;
+        return RETURN_FAILED;
     }
 
 
@@ -249,15 +266,23 @@ int handle_conn_request()
             
         client->next = new_client;
     }
-    
 
     /* Info print */
     fprintf(stderr, "Server: connect from host %s, port %u.\n", inet_ntoa(new_client_info.sin_addr), ntohs(new_client_info.sin_port));
 
+    /*----------------------------------
+    |           CALL CALLBACK           |
+    ------------------------------------*/
+    /* New client connected. Call callback with UUID */
+    if(_conn_callback != NULL)
+    {
+        (*_conn_callback)( new_client->uuid );
+    }
+
     return new_client_fd;
 } /* handle_conn_request() */
 
-void close_conn(int client_fd)
+void close_client_conn(int client_fd)
 {
     /*----------------------------------
     |             VARIABLES             |
@@ -274,6 +299,14 @@ void close_conn(int client_fd)
     /* Info print */
     printf("Closing conenction to client.\n");
 
+    /*----------------------------------
+    |           CALL CALLBACK           |
+    ------------------------------------*/
+    /* Disconnecting client. Call callback with UUID */
+    if(_disconn_callback != NULL)
+    {
+        (*_disconn_callback)( find_client_by_fd(client_fd)->uuid);
+    }
     
     /*----------------------------------
     |     CLOSE CONN + REMOVE CLIENT    |
@@ -328,7 +361,7 @@ void close_conn(int client_fd)
         previous = client;
     } /* for */
 
-} /* close_conn() */
+} /* close_client_conn() */
 
 int process_recv_msg(int client_fd)
 {
@@ -364,7 +397,18 @@ int process_recv_msg(int client_fd)
         /* client wasn't found in our list. There is a discrepancy. */
         memcpy(client->uuid,&buffer[1],UUID_SZ);
     }
-    
+    else /* We have not received a command */
+    {
+
+        /*----------------------------------
+        |           CALL CALLBACK           |
+        ------------------------------------*/
+        /* Received message from client. Call callback with message and UUID */
+        if(_rx_callback != NULL)
+        {
+            (*_rx_callback)( find_client_by_fd(client_fd)->uuid, buffer, n_recv_bytes);
+        }
+    }
 
     /* Info prints. Data read. */    
     fprintf(stderr, "Server: received %d bytes with message: \"%s\"\n", n_recv_bytes, buffer);
@@ -396,7 +440,7 @@ int socket_server_send_data_all(const char* buffer, const int buffer_sz)
 
 
     /*----------------------------------
-    |            SEND PINGS             |
+    |             SEND MSGS             |
     ------------------------------------*/
     for(client=client_infos; client!=NULL; client=client->next)
     {
@@ -404,7 +448,7 @@ int socket_server_send_data_all(const char* buffer, const int buffer_sz)
         if( n < 1 )
         {
             /* Disconnect client if failed to send message */
-            close_conn(client->fd);
+            close_client_conn(client->fd);
         }
         else
         {
@@ -417,12 +461,47 @@ int socket_server_send_data_all(const char* buffer, const int buffer_sz)
     return returnval;
 } /* socket_server_send_data_all */
 
+int socket_server_send_data( const char* UUID, const char* buffer, const int buffer_sz )
+{
+    /*----------------------------------
+    |             VARIABLES             |
+    ------------------------------------*/
+    struct client_info *client;
+    int returnval, n;
+
+    /*----------------------------------
+    |            INITIALIZE             |
+    ------------------------------------*/
+    client = find_client_by_uuid(UUID);
+    returnval = 0;
+
+    if(client == NULL)
+    {
+        return RETURN_FAILED;
+    }
+
+    n = socket_send_data(client->fd,buffer,buffer_sz);
+    if( n < 1 )
+    {
+        /* Disconnect client if failed to send message */
+        close_client_conn(client->fd);
+    }
+    else
+    {
+        /* Tally total bytes sent */
+        returnval += n;
+    }
+        
+    return returnval;
+
+} /* socket_server_send_data() */
+
 void service_sockets(const fd_set *read_fd_set)
 {
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
-    int i;                                      /* generic i used in for loop */
+    int i;
 
 
     /*----------------------------------
@@ -445,7 +524,7 @@ void service_sockets(const fd_set *read_fd_set)
             {
                 if (process_recv_msg(i) < 1)
                 {
-                    close_conn(i);
+                    close_client_conn(i);
                 }
             } /* else */
 
@@ -455,7 +534,7 @@ void service_sockets(const fd_set *read_fd_set)
 
 } /* service_sockets */
 
-void socket_server_execute()
+void* execute_thread(void* args)
 {
     /*----------------------------------
     |             VARIABLES             |
@@ -464,7 +543,7 @@ void socket_server_execute()
     struct timeval timeout;                     /* Used to set select() timeout time */
     int select_return;                          /* Return value of select() */
     time_t lastPing;                            /* Last time we sent pings */
-    char pingCommand[sizeof(COMMAND_PING)];   /* Create string containing ping command */
+    char pingCommand[sizeof(COMMAND_PING)];     /* Create string containing ping command */
 
 
     /*----------------------------------
@@ -524,8 +603,85 @@ void socket_server_execute()
 
     free(pingCommand);
 
+    /*-----------------------------------
+    |        SET ISRUNNING FALSE         |
+    ------------------------------------*/
+    pthread_mutex_lock(&mutex_isExecuting_thread);
+    *((bool*)args) = false;
+    pthread_mutex_unlock(&mutex_isExecuting_thread);
+
+} /* execute_thread() */
+
+void socket_server_execute()
+{
+    /*-----------------------------------
+    |         SET ISRUNNING TRUE         |
+    ------------------------------------*/
+    pthread_mutex_lock(&mutex_isExecuting_thread);
+    if( isRunning == true )
+    {
+        pthread_mutex_unlock(&mutex_isExecuting_thread);
+        return;
+    }
+    isRunning = true;
+    pthread_mutex_unlock(&mutex_isExecuting_thread);
+
+    /*-----------------------------------
+    |        SPAWN EXECUTE THREAD        |
+    ------------------------------------*/
+    pthread_t thread_id;
+    pthread_create(&thread_id, NULL, execute_thread, &isRunning);
+    
+    if( 0 != pthread_detach(thread_id) )
+    {
+        printf("\nFailed to create client execute thread!\n");
+        exit(EXIT_FAILURE);
+    }
 } /* socket_server_execute() */
 
+bool is_client_executing()
+{
+    bool return_val;
+    /*-----------------------------------
+    |           GET ISRUNNING            |
+    ------------------------------------*/
+    pthread_mutex_lock(&mutex_isExecuting_thread);
+    return_val = isRunning;
+    pthread_mutex_unlock(&mutex_isExecuting_thread);
+    
+    return return_val;
+} /* is_client_executing() */
+
+void socket_client_quit()
+{
+    /*-----------------------------------
+    |         CLOSE SERVER SOCKET        |
+    ------------------------------------*/
+    if ( RETURN_FAILED == close(server_socket_fd) )
+    {
+        printf("\nFailed: socket_client_quit() failed to close socket!\n");
+    }
+
+    struct client_info *client, *temp;
+
+    for (client = client_infos; client != NULL; )
+    {
+        temp = client;
+        client = client->next;
+
+        /*----------------------------------
+        |    CLOSE CONNS + REMOVE CLIENTS   |
+        ------------------------------------*/
+        close(temp->fd);
+
+        /* Remove client from file descriptor set */
+        FD_CLR(temp->fd, (fd_set*)&active_fd_set);
+
+        free(temp);
+    } /* for loop */
+} /* socket_client_quit() */
+
+// For testing only
 int main(int argc, char *argv[])
 {
     /*----------------------------------
@@ -543,11 +699,17 @@ int main(int argc, char *argv[])
     /*----------------------------------
     |            START SERVER           |
     ------------------------------------*/
-    server_socket_fd = socket_server_init(port);
+    server_socket_fd = socket_server_init(port, NULL, NULL, NULL);
 
     /* Run the server.  Accept connection requests, 
         and receive messages. Run forever. */
     socket_server_execute();
+
+    printf("Press enter to quit server...\n");
+    /* block until ready to quit */
+    getchar();
+
+    socket_client_quit();
 
     /* If we ever return from socket_server_execute, there was a serious error */
     return 1;
