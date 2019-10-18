@@ -263,6 +263,10 @@ void* execute_thread(void* args)
         if (n_recv_bytes < 0)
         {
             printf("\nClient received invalid msg.....Close connection to server....\n");
+            if(_discont_callback != NULL )
+            {
+                (*_discont_callback)();
+            }
             break;
         }
 

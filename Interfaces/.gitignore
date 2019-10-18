@@ -1,6 +1,9 @@
 # KDE Dolphin hidden file for directory settings
 *.directory
 
+# 2-Services id file
+**/device-id
+
 # Static common lib folder
 Interfaces/1-Networking/socket_libs/common/libs/
 
