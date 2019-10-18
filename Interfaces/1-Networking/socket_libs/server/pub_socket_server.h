@@ -39,7 +39,7 @@ typedef void (*socket_lib_srv_disconnected)(const char* uuid);
  * message is received from a client.
  * 
  * connect_callback is called
- * when a client has connected connection to the server.
+ * when a client has connected to the server.
  * 
  * discon_callback is called
  * when a client has disconnected/lost connection to the server.
@@ -50,8 +50,8 @@ typedef void (*socket_lib_srv_disconnected)(const char* uuid);
  * 
  * The callbacks can be NULL if desired.
  * 
- * @Return RETURN_SUCCESS or RETURN_FAILED if 
- * the server is unavailable.
+ * @Return Returns server's socket_fd or a negative number if 
+ * failed to init the server.
  * 
  * Non-Blocking Function
  */
@@ -102,7 +102,7 @@ void socket_server_execute();
 /**
  * @Returns True if client thread is executing, else false.
  */
-bool is_server_executing();
+bool socket_server_is_executing();
 
 /**
  * Given an initialied socket fd, closes the socket connection and kills the 

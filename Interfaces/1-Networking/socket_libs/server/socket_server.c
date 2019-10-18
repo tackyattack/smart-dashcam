@@ -104,50 +104,6 @@ struct client_info* find_client_by_uuid(const char* uuid)
     return client;
 } /* find_client */
 
-//for testing only
-char* check_parameters(int argc, char *argv[])
-{
-    /*----------------------------------
-    |             VARIABLES             |
-    ------------------------------------*/
-
-    char* port;
-
-
-    /*----------------------------------
-    |          CHECK ARGUMENTS          |
-    ------------------------------------*/
-
-    /* Verify proper number of arguments and set port number for Server to listen on
-        Note that argc = 1 means no arguments*/
-    if (argc < 2)
-    {
-        printf("WARNING, no port provided, defaulting to %s\n", DEFAULT_PORT);
-
-        /* No port number provided, use default */
-        port = (char*)DEFAULT_PORT;
-    }
-    else if (argc > 2)
-    {
-        fprintf(stderr, "ERROR, too many arguments!\n 0 or 1 arguments expected. Expected port number!\n");
-        exit(EXIT_FAILURE);
-    }
-    else /* 1 argument */
-    {
-        /* Test that argument is valid */
-        if ( atoi(argv[1]) < 0 || atoi(argv[1]) > 65535 )
-        {
-            printf("ERROR: invalid port number %s!",argv[1]);
-            exit(EXIT_FAILURE);
-        }
-
-        /* Get port number of server from the arguments */
-        port = argv[1];
-    }
-
-    return port;
-} /* check_parameters() */
-
 int socket_server_init( char* port, socket_lib_srv_rx_msg rx_callback, socket_lib_srv_connected connect_callback, socket_lib_srv_disconnected discon_callback )
 {
     /*----------------------------------
@@ -162,7 +118,7 @@ int socket_server_init( char* port, socket_lib_srv_rx_msg rx_callback, socket_li
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
-    int server_socket_fd;      /* generic socket variable */
+    int socket_fd;      /* generic socket variable */
 
     /*-------------------------------------
     |             VERIFICATION             |
@@ -171,6 +127,11 @@ int socket_server_init( char* port, socket_lib_srv_rx_msg rx_callback, socket_li
     {
         printf("ERROR: invalid port number %s!",port);
         return RETURN_SUCCESS;
+    }
+
+    if( server_socket_fd >= 0 )
+    {
+        return -1;
     }
 
     /*----------------------------------
@@ -186,12 +147,18 @@ int socket_server_init( char* port, socket_lib_srv_rx_msg rx_callback, socket_li
 
     /* Info print */
     printf("Creating server on port %s\n", port);
-    server_socket_fd = socket_create_socket(port, DEFAULT_SOCKET_TYPE, (const char*)SERVER_ADDR, SOCKET_OWNER_IS_SERVER);
+    socket_fd = socket_create_socket(port, DEFAULT_SOCKET_TYPE, (const char*)SERVER_ADDR, SOCKET_OWNER_IS_SERVER);
 
     /*----------------------------------
     |       VERIFY SERVER CREATED       |
     ------------------------------------*/
-    assert(server_socket_fd >= 0);
+    assert(socket_fd >= 0);
+
+    /*-----------------------------------------
+    |        SET GLOBAL SERVER_SOCKET_FD       |
+    ------------------------------------------*/
+    server_socket_fd = socket_fd;
+
 
     /*-----------------------------------------
     |  SET SERVER TO LISTEN FOR CONN REQUESTS  |
@@ -575,7 +542,7 @@ void* execute_thread(void* args)
         {
             fprintf (stderr, "errno = %d ", errno);
             perror("select");
-            continue;
+            break;
         }
 
         if(select_return != 0) /* Received a message */
@@ -601,14 +568,14 @@ void* execute_thread(void* args)
 
     } /* while (1) */
 
-    free(pingCommand);
-
     /*-----------------------------------
     |        SET ISRUNNING FALSE         |
     ------------------------------------*/
     pthread_mutex_lock(&mutex_isExecuting_thread);
     *((bool*)args) = false;
     pthread_mutex_unlock(&mutex_isExecuting_thread);
+
+    return NULL;
 
 } /* execute_thread() */
 
@@ -639,7 +606,7 @@ void socket_server_execute()
     }
 } /* socket_server_execute() */
 
-bool is_client_executing()
+bool socket_server_is_executing()
 {
     bool return_val;
     /*-----------------------------------
@@ -650,21 +617,22 @@ bool is_client_executing()
     pthread_mutex_unlock(&mutex_isExecuting_thread);
     
     return return_val;
-} /* is_client_executing() */
+} /* socket_server_is_executing() */
 
-void socket_client_quit()
+void socket_server_quit()
 {
     /*-----------------------------------
     |         CLOSE SERVER SOCKET        |
     ------------------------------------*/
     if ( RETURN_FAILED == close(server_socket_fd) )
     {
-        printf("\nFailed: socket_client_quit() failed to close socket!\n");
+        printf("\nFailed: socket_server_quit() failed to close socket!\n");
     }
 
     struct client_info *client, *temp;
 
-    for (client = client_infos; client != NULL; )
+    client = client_infos;
+    while( client != NULL )
     {
         temp = client;
         client = client->next;
@@ -679,38 +647,9 @@ void socket_client_quit()
 
         free(temp);
     } /* for loop */
-} /* socket_client_quit() */
+    // FIXME the server thread may not exit before setting this variable. Therefore, seg fault possible
+        // This line was added only as a safe guard indicator in the init function. It checks if this value is -1 to determine if it should fail init
+    server_socket_fd = -1;
 
-// For testing only
-int main(int argc, char *argv[])
-{
-    /*----------------------------------
-    |             VARIABLES             |
-    ------------------------------------*/
-    char* port;                              /* Port number for socket server */
-    
+} /* socket_server_quit() */
 
-    /*----------------------------------
-    |            CHECK INPUT            |
-    ------------------------------------*/
-    port = check_parameters(argc, argv);
-
-
-    /*----------------------------------
-    |            START SERVER           |
-    ------------------------------------*/
-    server_socket_fd = socket_server_init(port, NULL, NULL, NULL);
-
-    /* Run the server.  Accept connection requests, 
-        and receive messages. Run forever. */
-    socket_server_execute();
-
-    printf("Press enter to quit server...\n");
-    /* block until ready to quit */
-    getchar();
-
-    socket_client_quit();
-
-    /* If we ever return from socket_server_execute, there was a serious error */
-    return 1;
-} /* main() */
