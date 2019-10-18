@@ -10,11 +10,11 @@
 |           STATIC VARIABLES           |
 --------------------------------------*/
 
-static int  client_fd                             = -1;   /* Stores the socket_fd for our connection to the server */
-static char UUID[UUID_SZ+1]                       = {0};  /* Stores our UUID. +1 because uuid_unparse generates a str with UUID_SZ ascii characters plus a termination char */
-static bool isRunning                             = false;/* Set true to execute the client execute thread */
-static socket_lib_rx_msg _rx_callback             = NULL; /* Callback called when a message is received from the server */
-static socket_lib_disconnected _discont_callback  = NULL; /* Callback called when we've disconnected from the server */
+static int  client_fd                                  = -1;   /* Stores the socket_fd for our connection to the server */
+static char UUID[UUID_SZ+1]                            = {0};  /* Stores our UUID. +1 because uuid_unparse generates a str with UUID_SZ ascii characters plus a termination char */
+static bool isRunning                                  = false;/* Set true to execute the client execute thread */
+static socket_lib_clnt_rx_msg _rx_callback             = NULL; /* Callback called when a message is received from the server */
+static socket_lib_clnt_disconnected _discont_callback  = NULL; /* Callback called when we've disconnected from the server */
 
 
 /*-------------------------------------
@@ -150,7 +150,7 @@ int send_uuid()
     return sent_bytes;
 } /* send_uuid() */
 
-int socket_client_init(char *port, socket_lib_rx_msg rx_callback, socket_lib_disconnected discnt_callback)
+int socket_client_init(char *port, socket_lib_clnt_rx_msg rx_callback, socket_lib_clnt_disconnected discnt_callback)
 {
     /*-------------------------------------
     |             SET CALLBACKS            |
@@ -331,6 +331,11 @@ void socket_client_execute()
     |         SET ISRUNNING TRUE         |
     ------------------------------------*/
     pthread_mutex_lock(&mutex_isExecuting_thread);
+    if( isRunning == true )
+    {
+        pthread_mutex_unlock(&mutex_isExecuting_thread);
+        return;
+    }
     isRunning = true;
     pthread_mutex_unlock(&mutex_isExecuting_thread);
     

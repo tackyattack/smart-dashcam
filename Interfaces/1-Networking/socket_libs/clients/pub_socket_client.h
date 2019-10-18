@@ -23,8 +23,8 @@
 --------------------------------------*/
 
 /* https://isocpp.org/wiki/faq/mixing-c-and-cpp */
-typedef void (*socket_lib_rx_msg)(const char* data, const unsigned int data_sz);
-typedef void (*socket_lib_disconnected)(void);
+typedef void (*socket_lib_clnt_rx_msg)(const char* data, const unsigned int data_sz);
+typedef void (*socket_lib_clnt_disconnected)(void);
 
 
 /*-------------------------------------
@@ -46,9 +46,9 @@ typedef void (*socket_lib_disconnected)(void);
  * @Return the client's socket_fd or RETURN_FAILED if 
  * the server is unavailable.
  * 
- * Blocking Function
+ * Non-Blocking Function
  */
-int socket_client_init(char *port, socket_lib_rx_msg rx_callback, socket_lib_disconnected discnt_callback);
+int socket_client_init(char *port, socket_lib_clnt_rx_msg rx_callback, socket_lib_clnt_disconnected discnt_callback);
 
 /**
  * Calling this function will spawn a thread to run the 
@@ -56,8 +56,8 @@ int socket_client_init(char *port, socket_lib_rx_msg rx_callback, socket_lib_dis
  * and responding to pings every TIME_BETWEEN_PINGS
  * seconds. Thread will quit if major internal error 
  * or the connection to the server is lost (which the
- * user will be notified via the socket_lib_disconnected
- * callback). The socket_lib_rx_msg is called when a
+ * user will be notified via the socket_lib_clnt_disconnected
+ * callback). The socket_lib_clnt_rx_msg is called when a
  * a message is received that isn't an internal command.
  * 
  * Non-Blocking Function
@@ -78,7 +78,7 @@ void socket_client_execute();
 int socket_client_send_data ( const char * data, const uint16_t data_sz );
 
 /**
- * Given an initialied socket fd, closes the socket connection and kills the 
+ * Closes the socket connection to server and kills the 
  * socket_client_execute() thread (this may take up to SERVER_PING_TIMEOUT
  * seconds to happen).
  * 
