@@ -53,7 +53,7 @@ CFLAGS=-Wall -Wextra -std=gnu99 -ggdb -Werror -ldashcam_tcp_dbus_srv  -O3
 .PHONY: build tcp_dbus_srv run setup download dependencies install clean clean-all
 
 # make build will compile all source code. This is the default if 'make' is run.
-build: service_tcp_server
+build: tcp_dbus_srv
 	echo "\nFinished!"
 
 tcp_dbus_srv: clean-all
