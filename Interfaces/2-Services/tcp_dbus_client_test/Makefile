@@ -11,7 +11,7 @@ CC=gcc
 CXX=g++
 
 # Define names of executable files
-EXE=../exe_tcp_client
+EXE=../exe_test_tcp_dbus_client
 
 # Define location of source code files
 C_SRC=$(wildcard *.c)

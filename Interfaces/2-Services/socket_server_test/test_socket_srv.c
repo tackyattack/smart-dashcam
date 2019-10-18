@@ -23,7 +23,7 @@ void recv_msg(const char* uuid, const char *data, const unsigned int data_sz)
 {
   	printf("\n****************recv_msg: callback activated.****************\n\n");
 
-    printf("Message from the following UUID: %s", uuid);
+    printf("Message from the following UUID: %s\n", uuid);
     printf("Received %d data bytes as follows:\n\"",data_sz);
     for (size_t i = 0; i < data_sz; i++)
     {
@@ -38,7 +38,7 @@ void client_connect(const char* uuid)
 {
   	printf("\n****************client_connect: callback activated.****************\n\n");
 
-    printf("Client connected -> UUID: %s", uuid);
+    printf("Client connected -> UUID: %s\n", uuid);
 
   	printf("\n****************END---client_connect---END****************\n\n");
 } /* client_connect() */
@@ -47,7 +47,7 @@ void client_disconnect(const char* uuid)
 {
   	printf("\n****************client_disconnect: callback activated.****************\n\n");
 
-    printf("Client disconnected -> UUID: %s", uuid);
+    printf("Client disconnected -> UUID: %s\n", uuid);
 
   	printf("\n****************END---client_disconnect---END****************\n\n");
 } /* client_disconnect() */
@@ -133,6 +133,10 @@ int main(int argc, char *argv[])
         printf("Failed: server not executing\n");
         exit(EXIT_FAILURE);
     }
+
+    sleep(10);
+
+    socket_server_send_data_all("TEST MESSAGE",13);
 
     printf("Press enter to quit server...\n");
     /* block until ready to quit */
