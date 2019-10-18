@@ -6,6 +6,7 @@
 --------------------------------------*/
 
 #include <stdint.h>
+#include <stdbool.h>
 
 /*-------------------------------------
 |            PUBLIC DEFINES            |
@@ -32,23 +33,28 @@ typedef void (*socket_lib_clnt_disconnected)(void);
 --------------------------------------*/
 
 /**
- * Initialize the client and connect to server given a 
- * port number as a string. rx_callback is called by the
- * execute_client thread when a message is received from
- * the server and discnt_callback is called is the client
- * has disconnected/lost connection to the server.
+ * Initialize the client and connect to server given the 
+ * server's ip or hostname as a string, the port number 
+ * as a string and the callback functions. 
+ * 
+ * rx_callback is called by the execute_client thread when
+ * a message is received from the server 
+ * 
+ * discnt_callback is called when the connection
+ * has disconnected/we lost connection to the server.
+ * 
  * Currently, there is only one instance of a client
  * available. As such, do not call this function more than
  * once unless it's after calling socket_client_quit();
  * 
  * The callbacks can be NULL if desired.
  * 
- * @Return the client's socket_fd or RETURN_FAILED if 
+ * @Return the client's socket_fd or RETURN_FAILED (-1) if 
  * the server is unavailable.
  * 
  * Non-Blocking Function
  */
-int socket_client_init(char *port, socket_lib_clnt_rx_msg rx_callback, socket_lib_clnt_disconnected discnt_callback);
+int socket_client_init(char *server_addr, char *port, socket_lib_clnt_rx_msg rx_callback, socket_lib_clnt_disconnected discnt_callback);
 
 /**
  * Calling this function will spawn a thread to run the 

@@ -17,11 +17,6 @@
 |    PRIVATE FUNCTION DECLARATIONS     |
 --------------------------------------*/
 
-/** //TODO REMOVE this function is used for converting passed string parameter to port number which will be done in the tcp service rather than here in the library
- * Check parameters and return port number if valid (else NULL)
- */
-char* check_parameters(int argc, char *argv[]);
-
 /**
  * Generate uuid and set UUID variable to the new uuid.
  * 

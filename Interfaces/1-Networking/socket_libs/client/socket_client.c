@@ -28,44 +28,6 @@ pthread_mutex_t mutex_isExecuting_thread = PTHREAD_MUTEX_INITIALIZER;
 |         FUNCTION DEFINITIONS         |
 --------------------------------------*/
 
-//For testing only
-char* check_parameters(int argc, char *argv[])
-{
-    /*----------------------------------
-    |             VARIABLES             |
-    ------------------------------------*/
-    char* port;
-
-
-    /*----------------------------------
-    |          CHECK ARGUMENTS          |
-    ------------------------------------*/
-    /* Verify proper number of arguments and set port number for server to listen on
-        Note that argc = 1 means no arguments */
-    if (argc < 2)
-    {
-        printf("WARNING, no port provided, defaulting to %s\n", DEFAULT_PORT);
-
-        port = (char*)DEFAULT_PORT;
-    }
-    else if (argc > 2)
-    {
-        fprintf(stderr, "ERROR, too many arguments!\n 0 or 1 arguments expected. Expected port number!\n");
-        exit(EXIT_FAILURE);
-    }
-    else /* 1 argument */
-    {
-        if ( atoi(argv[1]) < 0 || atoi(argv[1]) > 65535 )
-        {
-            printf("ERROR: invalid port number %s!",argv[1]);
-            exit(EXIT_FAILURE);
-        }
-        port = argv[1];
-    }
-
-    return port;
-} /* check_parameters() */
-
 void uuid_create()
 {
     /*----------------------------------
@@ -150,7 +112,7 @@ int send_uuid()
     return sent_bytes;
 } /* send_uuid() */
 
-int socket_client_init(char *port, socket_lib_clnt_rx_msg rx_callback, socket_lib_clnt_disconnected discnt_callback)
+int socket_client_init(char* server_addr, char *port, socket_lib_clnt_rx_msg rx_callback, socket_lib_clnt_disconnected discnt_callback)
 {
     /*-------------------------------------
     |             SET CALLBACKS            |
@@ -178,7 +140,7 @@ int socket_client_init(char *port, socket_lib_clnt_rx_msg rx_callback, socket_li
     /* Info print */
     printf ("\nAttempt to open socket to server....\n");
 
-    client_fd = socket_create_socket(port, DEFAULT_SOCKET_TYPE, SERVER_ADDR, SOCKET_OWNER_IS_CLIENT);
+    client_fd = socket_create_socket(port, DEFAULT_SOCKET_TYPE, server_addr, SOCKET_OWNER_IS_CLIENT);
 
     if(client_fd < 0)
     {
@@ -383,60 +345,3 @@ bool is_client_executing()
     
     return return_val;
 } /* is_client_executing() */
-
-
-// For testing only
-int main(int argc, char *argv[])
-{
-    /*----------------------------------
-    |             VARIABLES             |
-    ------------------------------------*/
-    char* port = check_parameters(argc, argv);
-    uint count = 10;
-
-    while(count != 0)
-    {
-        count--;
-
-        /* This call will attempt to connect with the server infinitely */
-        if( socket_client_init(port, NULL, NULL) != RETURN_SUCCESS )
-        {
-            sleep(2);
-            continue;
-        }
-
-        /* Info print */
-        printf ("Successfully opened socket to server \"%s\" on port %s.\n", SERVER_ADDR, port);
-
-        /* Main loop for client to receive/process data */
-        socket_client_execute();
-
-        for (size_t i = 0; i < 5; i++)
-        {
-            if( true == is_client_executing())
-            {
-                sleep(2);
-            }
-            else
-            {
-                break;
-            }
-            
-        }
-        
-        /* Kill client */
-        if( true == is_client_executing())
-        {
-            socket_client_quit();
-            sleep(2);
-            if( false == is_client_executing())
-            {
-                printf("Client Thread killed.\n");
-            }
-            break;
-        }
-            
-    }
-
-    return 0;
-} /* main() */
