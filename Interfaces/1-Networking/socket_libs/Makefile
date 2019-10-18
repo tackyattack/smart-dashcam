@@ -29,8 +29,6 @@ C_COMMON_SRC=$(wildcard common/*.c)
 
 # Define any directories containing header files other than /usr/include
 C_INC=-I$(shell pwd) -I$(COMMON_LIB_DIR)
-# C_CLIENT_INC=-Icommon/libs/
-# C_SERV_INC=-Iserver/private_includes/
 
 # Set compiler flags 
 #src: https://gcc.gnu.org/onlinedocs/gcc/Option-Summary.html
@@ -57,7 +55,7 @@ CDEFINES= -DUUID_FILE_NAME=\"$(ID_FILE)\"
 # Define library paths in addition to /usr/lib
 #   if I wanted to include libraries not in /usr/lib I'd specify
 #   their path using -Lpath:
-LDFLAGS=-L$(COMMON_LIB_DIR) $(LIB_COMMON)
+LDFLAGS=-L$(COMMON_LIB_DIR) $(LIB_COMMON) -pthread
 
 
 

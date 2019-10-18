@@ -17,31 +17,55 @@
 #define SERVER_PING_TIMEOUT              (2*TIME_BETWEEN_PINGS)    /* Max time allowed before we assume the server has disconnected. If we haven't received a \
                                                                         message from the server within this amount of time (s), disconnect and assume failure */
 
+
+/*-------------------------------------
+|    FUNCTION POINTER DECLARATIONS     |
+--------------------------------------*/
+
+/* https://isocpp.org/wiki/faq/mixing-c-and-cpp */
+typedef void (*socket_lib_rx_msg)(const char* data, const unsigned int data_sz);
+typedef void (*socket_lib_disconnected)(void);
+
+
 /*-------------------------------------
 |     PUBLIC FUNCTION DECLARATIONS     |
 --------------------------------------*/
 
 /**
- * Initialize the server 
- * @Return the server's socket_fd or RETURN_FAILED if failed
+ * Initialize the client and connect to server given a 
+ * port number as a string. rx_callback is called by the
+ * execute_client thread when a message is received from
+ * the server and discnt_callback is called is the client
+ * has disconnected/lost connection to the server.
+ * Currently, there is only one instance of a client
+ * available. As such, do not call this function more than
+ * once unless it's after calling socket_client_quit();
+ * 
+ * The callbacks can be NULL if desired.
+ * 
+ * @Return the client's socket_fd or RETURN_FAILED if 
+ * the server is unavailable.
  * 
  * Blocking Function
  */
-int socket_client_init(char *port);
+int socket_client_init(char *port, socket_lib_rx_msg rx_callback, socket_lib_disconnected discnt_callback);
 
 /**
- * Calling this function will run the socket client. Includes
- * receiving messages, and pings every TIME_BETWEEN_PINGS seconds. 
- * Does not return unless major internal failure. 
+ * Calling this function will spawn a thread to run the 
+ * socket client for tasks including receiving messages,
+ * and responding to pings every TIME_BETWEEN_PINGS
+ * seconds. Thread will quit if major internal error 
+ * or the connection to the server is lost (which the
+ * user will be notified via the socket_lib_disconnected
+ * callback). The socket_lib_rx_msg is called when a
+ * a message is received that isn't an internal command.
  * 
- * Blocking Function
+ * Non-Blocking Function
  */
 void socket_client_execute();
 
 /**
- * This function is part of the libcommon in the common folder.
- * 
- * Given a char* data array up to 2^16 in size and a socket_fd,
+ * Given a char* data array up to 2^16 in size and its size,
  * will send data array over socket.
  * 
  * Note that data_sz should include the termination character if applicable.
@@ -51,19 +75,24 @@ void socket_client_execute();
  * 
  * @Returns number of bytes sent or RETURN_FAILED or 0 if there's an error.
  */
-extern int socket_send_data ( const int socket_fd, const char * data, const uint16_t data_sz );
+int socket_client_send_data ( const char * data, const uint16_t data_sz );
 
 /**
- * Given an initialied socket fd, closes the socket connection.
- * If fails, program will exit.
+ * Given an initialied socket fd, closes the socket connection and kills the 
+ * socket_client_execute() thread (this may take up to SERVER_PING_TIMEOUT
+ * seconds to happen).
  * 
- * Blocking.
+ * Non-Blocking
  */
-void socket_client_quit(const int socket_fd);
+void socket_client_quit();
 
-//TODO Function to stop client.
-//TODO execute should be non-blocking
+/**
+ * @Returns True if client thread is executing, else false.
+ */
+bool is_client_executing();
 
-//TODO callbacks for messages received over socket
+
+//TODO callback for messages received over socket
+//TODO callback for server disconect received over socket
 
 #endif /* PUB_SOCKET_CLIENT_H */

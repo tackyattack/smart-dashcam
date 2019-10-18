@@ -47,15 +47,19 @@ int send_uuid();
 
 /**
  * Given a received message, determines and performs any actions
- * appropiate to that message.
+ * appropiate to that message. This includes calling the rx_callback.
+ * This function is called by the (client) execute thread.
  * 
  * Blocking Function
  */
 void process_recv_msg(const char* buffer, const int buffer_sz);
 
 /**
- * 
+ * This thread is spawned by socket_client_execute() and calls
+ * the process_recv_msg() for received messages or the discnt_callback
+ * if disconnected from the server. Call socket_client_quit() to kill
+ * thread.
  */
-void* execute_thread(void* args)
+void* execute_thread(void* args);
 
 #endif /* PRV_SOCKET_CLIENT_H */

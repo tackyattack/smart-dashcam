@@ -10,15 +10,18 @@
 |           STATIC VARIABLES           |
 --------------------------------------*/
 
-static int  client_fd        = -1;   /* Stores the socket_fd for our connection to the server */
-static char UUID[UUID_SZ+1]  = {0};  /* Stores our UUID. +1 because uuid_unparse generates a str with UUID_SZ ascii characters plus a termination char */
-static bool killThread       = false;/* Set true to execute the client execute thread */
+static int  client_fd                             = -1;   /* Stores the socket_fd for our connection to the server */
+static char UUID[UUID_SZ+1]                       = {0};  /* Stores our UUID. +1 because uuid_unparse generates a str with UUID_SZ ascii characters plus a termination char */
+static bool isRunning                             = false;/* Set true to execute the client execute thread */
+static socket_lib_rx_msg _rx_callback             = NULL; /* Callback called when a message is received from the server */
+static socket_lib_disconnected _discont_callback  = NULL; /* Callback called when we've disconnected from the server */
+
 
 /*-------------------------------------
 |           PRIVATE MUTEXES            |
 --------------------------------------*/
 
-pthread_mutex_t mutex_excute_thread = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_isExecuting_thread = PTHREAD_MUTEX_INITIALIZER;
 
 
 /*-------------------------------------
@@ -146,8 +149,15 @@ int send_uuid()
     return sent_bytes;
 } /* send_uuid() */
 
-int socket_client_init(char *port)
+int socket_client_init(char *port, socket_lib_rx_msg rx_callback, socket_lib_disconnected discnt_callback)
 {
+    /*-------------------------------------
+    |             SET CALLBACKS            |
+    --------------------------------------*/
+    _rx_callback        = rx_callback;
+    _discont_callback   = discnt_callback;
+    
+
     /*-------------------------------------
     |       LOAD AND OR CREATE UUID        |
     --------------------------------------*/
@@ -164,17 +174,15 @@ int socket_client_init(char *port)
     }
 
 
-    /*----------------------------------
-    |        LOOP UNTIL CONNECTED       |
-    ------------------------------------*/
-    do
-    {
-        /* Info print */
-        printf ("\nAttempt to open socket to server....\n");
+    /* Info print */
+    printf ("\nAttempt to open socket to server....\n");
 
-        sleep(TIME_BETWEEN_CONNECTION_ATTEMPTS);
-        client_fd = socket_create_socket(port, DEFAULT_SOCKET_TYPE, SERVER_ADDR, SOCKET_OWNER_IS_CLIENT);
-    } while (client_fd < 0);
+    client_fd = socket_create_socket(port, DEFAULT_SOCKET_TYPE, SERVER_ADDR, SOCKET_OWNER_IS_CLIENT);
+
+    if(client_fd < 0)
+    {
+        return RETURN_FAILED;
+    }
 
 
     /*-------------------------------------
@@ -202,11 +210,21 @@ void process_recv_msg(const char* buffer, const int buffer_sz)
 
 
     /*----------------------------------
-    |          PROCESS COMMANDS         |
+    |  PROCESS COMMANDS OR RX_CALLBACK  |
     ------------------------------------*/
-    if (buffer[0] == COMMAND_PING)
+    switch (buffer[0])
     {
+    case COMMAND_PING:
+    case COMMAND_UUID:
         send_uuid(client_fd);
+        break;
+    
+    default:
+        if(_rx_callback != NULL )
+        {
+            (*_rx_callback)(buffer, buffer_sz);
+        }
+        break;
     }
 
 } /* process_recv_msg() */
@@ -229,32 +247,20 @@ void* execute_thread(void* args)
     FD_ZERO(&client_fd_set);
     FD_ZERO(&working_fd_set);
     FD_SET(client_fd, &client_fd_set);
-    killThread = false;
+
 
     /*----------------------------------
     |           INFINITE LOOP           |
     ------------------------------------*/
     while(1)
     {
-        /*-------------------------------------
-        |      VERIFY CONTINUED EXECUTION      |
-        --------------------------------------*/
-
-        pthread_mutex_lock(mutex_excute_thread);
-        if(killThread == true)
-        {
-            pthread_mutex_unlock(mutex_excute_thread);
-            break;
-        }
-        pthread_mutex_unlock(mutex_excute_thread);
-
         /*----------------------------------
         |     ITERATION INITIALIZATIONS     |
         ------------------------------------*/
-        timeout.tv_sec  = SERVER_PING_TIMEOUT; /* If nothing received from server for 5 seconds, assume lost connection */
+        timeout.tv_sec  = SERVER_PING_TIMEOUT; /* If nothing received from server for 2 seconds, assume lost connection */
         timeout.tv_usec = 0;
-        n_recv_bytes = 0;
-        working_fd_set = client_fd_set;
+        n_recv_bytes    = 0;
+        working_fd_set  = client_fd_set;
 
 
         /*----------------------------------
@@ -273,14 +279,16 @@ void* execute_thread(void* args)
         {
             /* Timeout */
             printf("\nServer ping timeout! Lost connection to server.....\n");
-            close(client_fd);
+            if(_discont_callback != NULL )
+            {
+                (*_discont_callback)();
+            }
             break;
         }
         else if (!FD_ISSET(client_fd, &working_fd_set))
         {
             /* No received messages but no timeout or error */
             printf("\nUNKNOWN ERROR\n");
-            close(client_fd);
             break;
         }
 
@@ -292,23 +300,45 @@ void* execute_thread(void* args)
         if (n_recv_bytes < 0)
         {
             printf("\nClient received invalid msg.....Close connection to server....\n");
-            close(client_fd);
-            return;
+            break;
         }
-        
+
+
         /*----------------------------------
         |     PROCESS DATA FROM SERVER      |
         ------------------------------------*/
         process_recv_msg(buffer,n_recv_bytes);
-        
+
     } /* while(1) */
 
+    close(client_fd);
+
+    /*-----------------------------------
+    |        SET ISRUNNING FALSE         |
+    ------------------------------------*/
+
+    pthread_mutex_lock(&mutex_isExecuting_thread);
+    *((bool*)args) = false;
+    pthread_mutex_unlock(&mutex_isExecuting_thread);
+
+    return NULL;
 } /* execute_thread() */
 
 void socket_client_execute()
 {
+    /*-----------------------------------
+    |         SET ISRUNNING TRUE         |
+    ------------------------------------*/
+    pthread_mutex_lock(&mutex_isExecuting_thread);
+    isRunning = true;
+    pthread_mutex_unlock(&mutex_isExecuting_thread);
+    
+
+    /*-----------------------------------
+    |        SPAWN EXECUTE THREAD        |
+    ------------------------------------*/
     pthread_t thread_id;
-    pthread_create(&thread_id, NULL, execute_thread, NULL);
+    pthread_create(&thread_id, NULL, execute_thread, &isRunning);
     
     if( 0 != pthread_detach(thread_id) )
     {
@@ -318,13 +348,35 @@ void socket_client_execute()
 
 } /* socket_client_execute() */
 
-void socket_client_quit(const int socket_fd)
+int socket_client_send_data ( const char * data, const uint16_t data_sz )
 {
-    if ( -1 == close(socket_fd) )
+    return socket_send_data(client_fd, data, data_sz);
+} /* socket_client_send_data() */
+
+void socket_client_quit()
+{
+    /*-----------------------------------
+    |         CLOSE SERVER SOCKET        |
+    ------------------------------------*/
+    if ( RETURN_FAILED == close(client_fd) )
     {
-        exit(EXIT_FAILURE);
+        printf("\nFailed: socket_client_quit() failed to close socket!\n");
     }
+
 } /* socket_client_quit() */
+
+bool is_client_executing()
+{
+    bool return_val;
+    /*-----------------------------------
+    |         SET ISRUNNING TRUE         |
+    ------------------------------------*/
+    pthread_mutex_lock(&mutex_isExecuting_thread);
+    return_val = isRunning;
+    pthread_mutex_unlock(&mutex_isExecuting_thread);
+    
+    return return_val;
+} /* is_client_executing() */
 
 int main(int argc, char *argv[])
 {
@@ -332,24 +384,51 @@ int main(int argc, char *argv[])
     |             VARIABLES             |
     ------------------------------------*/
     char* port = check_parameters(argc, argv);
+    uint count = 10;
 
-    while(1)
+    while(count != 0)
     {
+        count--;
+
         /* This call will attempt to connect with the server infinitely */
-        if( socket_client_init(port) != RETURN_SUCCESS )
+        if( socket_client_init(port, NULL, NULL) != RETURN_SUCCESS )
         {
-            break;
+            sleep(2);
+            continue;
         }
 
         /* Info print */
         printf ("Successfully opened socket to server \"%s\" on port %s.\n", SERVER_ADDR, port);
-        
+
         /* Main loop for client to receive/process data */
         socket_client_execute();
+
+        for (size_t i = 0; i < 5; i++)
+        {
+            if( true == is_client_executing())
+            {
+                sleep(2);
+            }
+            else
+            {
+                break;
+            }
+            
+        }
+        
+        /* Kill client */
+        if( true == is_client_executing())
+        {
+            socket_client_quit();
+            sleep(2);
+            if( false == is_client_executing())
+            {
+                printf("Client Thread killed.\n");
+            }
+            break;
+        }
+            
     }
 
-    /* Close socket */
-    socket_client_quit(client_fd);
-    
     return 0;
 } /* main() */
