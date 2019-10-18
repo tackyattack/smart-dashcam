@@ -237,15 +237,6 @@ int handle_conn_request()
     /* Info print */
     fprintf(stderr, "Server: connect from host %s, port %u.\n", inet_ntoa(new_client_info.sin_addr), ntohs(new_client_info.sin_port));
 
-    /*----------------------------------
-    |           CALL CALLBACK           |
-    ------------------------------------*/
-    /* New client connected. Call callback with UUID */
-    if(_conn_callback != NULL)
-    {
-        (*_conn_callback)( new_client->uuid );
-    }
-
     return new_client_fd;
 } /* handle_conn_request() */
 
@@ -360,9 +351,25 @@ int process_recv_msg(int client_fd)
     if (buffer[0] == COMMAND_UUID && n_recv_bytes >= (int)sizeof(COMMAND_PING)+UUID_SZ)
     {
         client = find_client_by_fd(client_fd);
+        /* if client wasn't found in our list assert. There is a discrepancy. */
         assert(client != NULL);
-        /* client wasn't found in our list. There is a discrepancy. */
-        memcpy(client->uuid,&buffer[1],UUID_SZ);
+
+        if(client->uuid[0] == 0x00)
+        {
+            memcpy(client->uuid,&buffer[1],UUID_SZ);
+            /*----------------------------------
+            |           CALL CALLBACK           |
+            ------------------------------------*/
+            /* New client connected. Call callback with UUID */
+            if(_conn_callback != NULL)
+            {
+                (*_conn_callback)( client->uuid );
+            }
+        }
+        else
+        {
+            memcpy(client->uuid,&buffer[1],UUID_SZ);
+        }
     }
     else /* We have not received a command */
     {
@@ -382,7 +389,8 @@ int process_recv_msg(int client_fd)
 
     putchar('0');
     putchar('x');
-    for (int i = 0; i < n_recv_bytes; i++) {
+    for (int i = 0; i < n_recv_bytes; i++)
+    {
         printf("%02x ", buffer[i]);
     }
     putchar('\n');
@@ -404,7 +412,6 @@ int socket_server_send_data_all(const char* buffer, const int buffer_sz)
     ------------------------------------*/
     client = NULL;
     returnval = 0;
-
 
     /*----------------------------------
     |             SEND MSGS             |
@@ -470,7 +477,6 @@ void service_sockets(const fd_set *read_fd_set)
     ------------------------------------*/
     int i;
 
-
     /*----------------------------------
     |     SERVICE SOCKETS WITH INPUT    |
     ------------------------------------*/
@@ -512,7 +518,6 @@ void* execute_thread(void* args)
     time_t lastPing;                            /* Last time we sent pings */
     char pingCommand[sizeof(COMMAND_PING)];     /* Create string containing ping command */
 
-
     /*----------------------------------
     |            INITIALIZE             |
     ------------------------------------*/
@@ -520,7 +525,6 @@ void* execute_thread(void* args)
     FD_ZERO(&active_fd_set);
     FD_SET(server_socket_fd, &active_fd_set);
     lastPing = 0;
-
 
     /*----------------------------------
     |           INFINITE LOOP           |
@@ -549,8 +553,7 @@ void* execute_thread(void* args)
         {
             service_sockets(&read_fd_set);
         }
-            
-        
+
         /*----------------------------------
         |            PING CLIENTS           |
         ------------------------------------*/
@@ -598,7 +601,7 @@ void socket_server_execute()
     ------------------------------------*/
     pthread_t thread_id;
     pthread_create(&thread_id, NULL, execute_thread, &isRunning);
-    
+
     if( 0 != pthread_detach(thread_id) )
     {
         printf("\nFailed to create client execute thread!\n");
@@ -615,7 +618,7 @@ bool socket_server_is_executing()
     pthread_mutex_lock(&mutex_isExecuting_thread);
     return_val = isRunning;
     pthread_mutex_unlock(&mutex_isExecuting_thread);
-    
+
     return return_val;
 } /* socket_server_is_executing() */
 
