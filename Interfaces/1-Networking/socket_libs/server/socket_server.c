@@ -385,16 +385,17 @@ int process_recv_msg(int client_fd)
     }
 
     /* Info prints. Data read. */    
-    fprintf(stderr, "Server: received %d bytes with message: \"%s\"\n", n_recv_bytes, buffer);
+    fprintf(stderr, "Server: received %d bytes\n", n_recv_bytes);
+    // fprintf(stderr, "Server: received %d bytes with message: \"%s\"\n", n_recv_bytes, buffer);
 
-    putchar('0');
-    putchar('x');
-    for (int i = 0; i < n_recv_bytes; i++)
-    {
-        printf("%02x ", buffer[i]);
-    }
-    putchar('\n');
-    putchar('\n');
+    // putchar('0');
+    // putchar('x');
+    // for (int i = 0; i < n_recv_bytes; i++)
+    // {
+    //     printf("%02x ", buffer[i]);
+    // }
+    // putchar('\n');
+    // putchar('\n');
 
     return n_recv_bytes;
 } /* process_recv_msg */
@@ -564,7 +565,7 @@ void* execute_thread(void* args)
         if ( TIME_BETWEEN_PINGS <= (time(NULL)-lastPing) && client_infos != NULL)
         {
             /* Info print */
-            printf("Sending Ping to clients\n");
+            printf("Server: Sending Ping to clients\n");
 
             bzero(pingCommand,sizeof(COMMAND_PING));
             pingCommand[0] = COMMAND_PING;

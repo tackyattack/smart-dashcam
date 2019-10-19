@@ -448,7 +448,7 @@ int socket_receive_data(int socket_fd, char* buffer, const size_t buffer_sz)
     }
     putchar('\n');
     putchar('\n');
-    
+
     return remove_msg_header(buffer, bytes_read);
 
 } /* socket_receive_data() */
