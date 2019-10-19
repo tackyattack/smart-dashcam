@@ -83,14 +83,14 @@ class GUIListView(GUIView):
         super(GUIListView, self).__init__(view_stack)
 
         bf = ('Helvetica', '15', 'bold')
-        width=18
+        width=22
         height=1
         tk.Button(self.view_frame, text='Back',
                  bg='red', activebackground='red',activeforeground='white', fg='white',
                  font=bf,
                  width=width, height=height, command=self.exit_callback).pack()
 
-        listbox = tk.Listbox(self.view_frame, width=19, font=("Helvetica", 30))
+        listbox = tk.Listbox(self.view_frame, width=23, font=("Helvetica", 25))
 
         for list_item in list_items:
             listbox.insert(tk.END, list_item)
