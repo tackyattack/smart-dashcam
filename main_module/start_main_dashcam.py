@@ -9,7 +9,8 @@ def calibrate_callback():
     print('calibrate pressed')
 
 def get_recordings_paths_callback():
-    return ['main/recordings/test1.mp4', 'main/recordings/test2.mp4']
+    return ['/home/pi/Documents/smart-dashcam/main_module/example_recordings/dashcam_video_0.mp4',
+            '/home/pi/Documents/smart-dashcam/main_module/example_recordings/dashcam_video_1.mp4']
 
 def get_cameras_callback():
     return [('127.0.0.1/', 'camera 1'), ('127.0.0.2/', 'camera 2')]

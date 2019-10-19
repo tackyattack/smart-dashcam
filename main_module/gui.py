@@ -7,6 +7,7 @@ import Queue
 from time import sleep
 import pygame
 import subprocess
+import signal
 
 
 if sys.version_info[0] >= 3:
@@ -46,6 +47,20 @@ class video_player_packet:
     def __init__(self, video_path, stream):
         self.video_path = video_path
         self.stream = stream
+
+
+def get_pid(name):
+    try:
+        pid_str = subprocess.check_output(['pidof',name])
+        pid_str = pid_str.split()[0]
+        if len(pid_str) > 0:
+            return int(pid_str)
+        else:
+            return -1
+    except OSError:
+        return -1
+    except subprocess.CalledProcessError:
+        return -1
 
 class GUIView(object):
 
@@ -145,6 +160,8 @@ class GUIVideoPlayer(GUIView):
         print('playing: ' + video_path)
         self.video_path = video_path
         self.stream = stream
+        self.process = None
+        self.running = False
         tk.Button(self.view_frame, text='',
                  bg='white', activebackground='white',activeforeground='white', fg='white',
                  width=100, height=100, command=self.exit_callback).pack()
@@ -152,12 +169,45 @@ class GUIVideoPlayer(GUIView):
         x = threading.Thread(target=self.start_player)
         x.start()
 
+    def kill_omxplayer(self):
+        pid = get_pid('omxplayer.bin')
+        while pid != -1:
+            pid = get_pid('omxplayer.bin')
+            if(pid != -1):
+                os.kill(pid, signal.SIGTERM)
+            sleep(0.5)
+
+
     def start_player(self):
-        cmd = 'ls'.split()
-        subprocess.call(cmd)
+        cmd = 'omxplayer {0}'.format(self.video_path)
+        cmd = cmd.split()
+        self.process = subprocess.Popen(cmd)
+        self.running = True
+
+        # wait for it to open
+        timeout_cnt = 0
+        timeout = 10
+        pid = get_pid('omxplayer.bin')
+        while (pid == -1) and (timeout_cnt < timeout):
+            pid = get_pid('omxplayer.bin')
+            sleep(1)
+            timeout_cnt = timeout_cnt + 1
+
+        # wait for either exit button or video end
+        while (self.running) and (get_pid('omxplayer.bin') != -1):
+            sleep(0.5)
+
+        if self.process.poll() is not None:
+            try:
+                self.process.terminate()
+            except OSError:
+                pass
+
+        self.kill_omxplayer()
+        put_window_command(WINDOW_COMMAND_POP_VIEW, None)
 
     def exit_callback(self):
-        put_window_command(WINDOW_COMMAND_POP_VIEW, None)
+        self.running = False
 
 class GUIMainView(GUIView):
     def __init__(self, view_stack):
