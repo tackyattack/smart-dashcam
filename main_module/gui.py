@@ -6,6 +6,7 @@ import pprint
 import Queue
 from time import sleep
 import pygame
+import subprocess
 
 
 if sys.version_info[0] >= 3:
@@ -142,9 +143,18 @@ class GUIVideoPlayer(GUIView):
     def __init__(self, view_stack, video_path, stream):
         super(GUIVideoPlayer, self).__init__(view_stack)
         print('playing: ' + video_path)
+        self.video_path = video_path
+        self.stream = stream
         tk.Button(self.view_frame, text='',
                  bg='white', activebackground='white',activeforeground='white', fg='white',
                  width=100, height=100, command=self.exit_callback).pack()
+
+        x = threading.Thread(target=self.start_player)
+        x.start()
+
+    def start_player(self):
+        cmd = 'ls'.split()
+        subprocess.call(cmd)
 
     def exit_callback(self):
         put_window_command(WINDOW_COMMAND_POP_VIEW, None)
