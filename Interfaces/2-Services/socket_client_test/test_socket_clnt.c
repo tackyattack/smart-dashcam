@@ -39,7 +39,7 @@ void recv_msg(const char* data, const unsigned int data_sz)
         printf("%c",data[i]);
     }
     printf("\"\n");
-    
+
   	printf("\n****************END---recv_msg---END****************\n\n");
 } /* recv_msg() */
 
@@ -56,7 +56,8 @@ void disconnected()
 /*-------------------------------------
 |                 MAIN                 |
 --------------------------------------*/
-
+static char* host_ip   = SERVER_ADDR;
+static char* host_port = SERVER_PORT;
 
 //For testing only
 char* check_parameters(int argc, char *argv[])
@@ -64,7 +65,6 @@ char* check_parameters(int argc, char *argv[])
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
-    char* port;
 
     /*----------------------------------
     |          CHECK ARGUMENTS          |
@@ -73,26 +73,32 @@ char* check_parameters(int argc, char *argv[])
         Note that argc = 1 means no arguments */
     if (argc < 2)
     {
-        printf("WARNING, no port provided, defaulting to %s\n", "5555");
-
-        port = (char*)"5555";
+        printf("WARNING, no arguments provided. Defaulting to ip/hostname %s and port number %s!\n", SERVER_ADDR, SERVER_PORT);
+        host_port = SERVER_PORT;
+        host_ip   = SERVER_ADDR;
     }
-    else if (argc > 2)
+//    else if (argc < 3)
+//    {
+//        printf("WARNING, no port provided, defaulting to %s\n", "5555");
+
+//        port = (char*)"5555";
+//    }
+    else if (argc > 3)
     {
-        fprintf(stderr, "ERROR, too many arguments!\n 0 or 1 arguments expected. Expected port number!\n");
+        fprintf(stderr, "ERROR, too many arguments!\n 0, or 2 arguments expected. Expected ip/hostname and port number!\n");
         exit(EXIT_FAILURE);
     }
-    else /* 1 argument */
+    else /* 2 argument */
     {
-        if ( atoi(argv[1]) < 0 || atoi(argv[1]) > 65535 )
+        if ( atoi(argv[2]) < 0 || atoi(argv[2]) > 65535 )
         {
-            printf("ERROR: invalid port number %s!",argv[1]);
+            printf("ERROR: invalid port number %s!",argv[2]);
             exit(EXIT_FAILURE);
         }
-        port = argv[1];
+        host_port = argv[2];
     }
 
-    return port;
+    return host_port;
 } /* check_parameters() */
 
 
@@ -102,7 +108,7 @@ int main(int argc, char *argv[])
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
-    char* port = check_parameters(argc, argv);
+    host_port = check_parameters(argc, argv);
     uint count = 10;
 
     while(count != 0)
@@ -110,14 +116,14 @@ int main(int argc, char *argv[])
         count--;
 
         /* This call will attempt to connect with the server infinitely */
-        if( socket_client_init((char*)"200.0.0.159", port, recv_msg, disconnected) == -1 )
+        if( socket_client_init(host_ip, host_port, recv_msg, disconnected) == -1 )
         {
             sleep(2);
             continue;
         }
 
         /* Info print */
-        printf ("Successfully opened socket to server \"%s\" on port %s.\n", SERVER_ADDR, port);
+        printf ("Successfully opened socket to server \"%s\" on port %s.\n", SERVER_ADDR, host_port);
 
         /* Main loop for client to receive/process data */
         socket_client_execute();
@@ -133,9 +139,9 @@ int main(int argc, char *argv[])
             {
                 break;
             }
-            
+
         }
-        
+
         /* Kill client */
         if( true == is_client_executing())
         {
@@ -147,7 +153,6 @@ int main(int argc, char *argv[])
             }
             break;
         }
-            
     }
 
     return 0;
