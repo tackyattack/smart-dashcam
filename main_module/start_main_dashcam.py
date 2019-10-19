@@ -13,7 +13,7 @@ def get_recordings_paths_callback():
             '/home/pi/Documents/smart-dashcam/main_module/example_recordings/dashcam_video_1.mp4']
 
 def get_cameras_callback():
-    return [('127.0.0.1/', 'camera 1'), ('127.0.0.2/', 'camera 2')]
+    return [('rtsp://131.151.175.144:8554/', 'camera 1'), ('rtsp://131.151.175.144:8554/', 'camera 2')]
 
 dash_gui = gui.DashcamGUI(exit_callback=GUI_exit_callback)
 dash_gui.add_event_callback('calibrate', calibrate_callback)

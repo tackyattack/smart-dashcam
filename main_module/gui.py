@@ -179,7 +179,7 @@ class GUIVideoPlayer(GUIView):
 
 
     def start_player(self):
-        cmd = 'omxplayer {0}'.format(self.video_path)
+        cmd = 'omxplayer -o hdmi {0}'.format(self.video_path)
         cmd = cmd.split()
         self.process = subprocess.Popen(cmd, stdin=subprocess.PIPE)
         self.running = True
