@@ -136,20 +136,27 @@ class Recorder:
         return extracted_num + 1
 
     def recording_thread_func(self):
+        is_recording = False
         while(not self.terminate_threads):
             record_name_path = os.path.join(self.record_path,
                                        'dashcam_video_{0}.h264'.format(self.get_video_num()))
             self.current_recording_name = record_name_path
+            is_recording = True
             self.camera.start_recording(record_name_path)
             sleep_cnt = 0
             while((not self.terminate_threads) and (sleep_cnt < self.record_interval_s)):
                 sleep(1.0)
                 sleep_cnt = sleep_cnt + 1
             self.camera.stop_recording()
+            is_recording = False
             if(not self.silent):
                 print("DONE RECORDING " + record_name_path)
             self.wrapping_queue.put(record_name_path)
 
+
+        if is_recording:
+            self.camera.stop_recording()
+        self.camera.close()
         if(not self.silent):
             print("recording thread closed")
 

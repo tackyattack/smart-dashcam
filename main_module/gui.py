@@ -186,7 +186,7 @@ class GUIVideoPlayer(GUIView):
 
         # wait for it to open
         timeout_cnt = 0
-        timeout = 10
+        timeout = 20
         pid = get_pid('omxplayer.bin')
         while (pid == -1) and (timeout_cnt < timeout):
             pid = get_pid('omxplayer.bin')

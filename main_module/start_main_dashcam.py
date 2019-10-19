@@ -63,7 +63,7 @@ class MainModule:
         return paths
 
     def get_cameras_callback(self):
-        return [('rtsp://131.151.175.144:8554/', 'camera 1'), ('rtsp://131.151.175.144:8554/', 'camera 2')]
+        return [('rtsp://192.168.0.152:8554/', 'camera 1'), ('rtsp://131.151.175.144:8554/', 'camera 2')]
 
 # start up
 main_module = MainModule()
