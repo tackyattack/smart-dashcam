@@ -8,10 +8,18 @@ def GUI_exit_callback():
 def calibrate_callback():
     print('calibrate pressed')
 
-dash_gui = gui.DashcamGUI(GUI_exit_callback)
-dash_gui.add_event_callback('calibrate', calibrate_callback)
+def get_recordings_paths_callback():
+    return ['main/recordings/test1.mp4', 'main/recordings/test2.mp4']
 
-dash_gui.show_lane_warning()
+def get_cameras_callback():
+    return [('127.0.0.1/', 'camera 1'), ('127.0.0.2/', 'camera 2')]
+
+dash_gui = gui.DashcamGUI(exit_callback=GUI_exit_callback)
+dash_gui.add_event_callback('calibrate', calibrate_callback)
+dash_gui.add_event_callback('get_recordings_paths', get_recordings_paths_callback)
+dash_gui.add_event_callback('get_cameras', get_cameras_callback)
+
+#dash_gui.show_lane_warning()
 
 # Tkinter isn't thread safe, so it must be in the main thread
 # therefore, start is blocking and workers should be done here in their own threads
