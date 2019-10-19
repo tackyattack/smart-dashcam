@@ -58,6 +58,7 @@ void disconnected()
 --------------------------------------*/
 static char* host_ip   = SERVER_ADDR;
 static char* host_port = SERVER_PORT;
+static char  longStr[] = "Client testing very long message to server\nClient testing very long message to server\nClient testing very long message to server\nClient testing very long message to server\nClient testing very long message to server\nClient testing very long message to server\nClient testing very long message to server\nClient testing very long message to server\nClient testing very long message to server\nClient testing very long message to server\nClient testing very long message to server\nClient testing very long message to server\nClient testing very long message to server\nClient testing very long message to server\nClient testing very long message to server\nClient testing very long message to server\n";
 
 //For testing only
 char* check_parameters(int argc, char *argv[])
@@ -77,12 +78,6 @@ char* check_parameters(int argc, char *argv[])
         host_port = SERVER_PORT;
         host_ip   = SERVER_ADDR;
     }
-//    else if (argc < 3)
-//    {
-//        printf("WARNING, no port provided, defaulting to %s\n", "5555");
-
-//        port = (char*)"5555";
-//    }
     else if (argc > 3)
     {
         fprintf(stderr, "ERROR, too many arguments!\n 0, or 2 arguments expected. Expected ip/hostname and port number!\n");
@@ -123,7 +118,7 @@ int main(int argc, char *argv[])
         }
 
         /* Info print */
-        printf ("Successfully opened socket to server \"%s\" on port %s.\n", SERVER_ADDR, host_port);
+        printf ("Successfully opened socket to server \"%s\" on port %s.\n", host_ip, host_port);
 
         /* Main loop for client to receive/process data */
         socket_client_execute();
@@ -139,8 +134,10 @@ int main(int argc, char *argv[])
             {
                 break;
             }
-
         }
+
+        socket_client_send_data(longStr,sizeof(longStr));
+
 
         /* Kill client */
         if( true == is_client_executing())
