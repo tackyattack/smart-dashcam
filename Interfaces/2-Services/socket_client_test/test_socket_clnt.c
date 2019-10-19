@@ -126,6 +126,7 @@ int main(int argc, char *argv[])
         {
             if( true == is_client_executing())
             {
+                socket_client_send_data("Client message to server", 25);
                 sleep(2);
             }
             else
