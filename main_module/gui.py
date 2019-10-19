@@ -174,14 +174,14 @@ class GUIVideoPlayer(GUIView):
         while pid != -1:
             pid = get_pid('omxplayer.bin')
             if(pid != -1):
-                os.kill(pid, signal.SIGTERM)
+                subprocess.call(['pkill', 'omxplayer'])
             sleep(0.5)
 
 
     def start_player(self):
         cmd = 'omxplayer {0}'.format(self.video_path)
         cmd = cmd.split()
-        self.process = subprocess.Popen(cmd)
+        self.process = subprocess.Popen(cmd, stdin=subprocess.PIPE)
         self.running = True
 
         # wait for it to open
