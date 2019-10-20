@@ -458,7 +458,7 @@ socket_receive_data( const int socket_fd, char* buffer, const size_t buffer_sz, 
     }
 
     /* Info print */
-    printf ("Received %ld bytes of raw data: ", bytes_read);
+    printf ("Received %zd bytes of raw data: ", bytes_read);
     putchar('0');
     putchar('x');
     for (ssize_t i = 0; i < bytes_read; i++) {
