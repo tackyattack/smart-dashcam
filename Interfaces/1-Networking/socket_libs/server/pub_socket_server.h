@@ -14,7 +14,7 @@
 
 #define MAX_PENDING_CONNECTIONS  (5)                        /* 5 is a standard value for the max backlogged connection requests */
 #define SERVER_ADDR              (NULL)                     /* Set this value to a string that is the IP address, hostname or the server you're creating or set to NULL (0) to use this machines address (NULL recommended) */
-#define BUFFER_SZ                (1024)                     /* Size of the buffer we use to send/receive data */
+#define BUFFER_SZ                (MAX_MSG_SZ)               /* Size of the buffer we use to send/receive data */
 #define SELECT_TIMEOUT_TIME      (TIME_BETWEEN_PINGS*100)   /* How long Select() will block in milliseconds if no message is received in the execute_thread().\
                                                                In other words, this controls the how often the server checks to see if it is time to ping clients.\
                                                                Generally, this can match the value (TIME_BETWEEN_PINGS*1000).*/
@@ -60,32 +60,32 @@ typedef void (*socket_lib_srv_disconnected)(const char* uuid);
 int socket_server_init( char* port, socket_lib_srv_rx_msg rx_callback, socket_lib_srv_connected connect_callback, socket_lib_srv_disconnected discon_callback );
 
 /**
- * Sends buffer of size buffer_sz via the socket connection
+ * Sends data of size data_sz via the socket connection
  * to all clients.
  * 
  * @Returns total number of bytes sent 
- *          (num_clients*(buffer_sz + MSG_HEADER_SZ + 1))
+ *          (num_clients*(data_sz + MSG_HEADER_SZ + 1))
  *          or a negative number if failed
  * 
  * Blocking Function
  *
  * Thread Safe for messages smaller than MAX_MSG_SZ
  */
-int socket_server_send_data_all( const char* buffer, const int buffer_sz );
+int socket_server_send_data_all( const char* data, const unsigned int data_sz );
 
 /**
- * Sends buffer of size buffer_sz via the socket connection
+ * Sends data of size data_sz via the socket connection
  * to a specific client specified by the given UUID.
- * 
+ *
  * @Returns total number of bytes sent 
- *          (buffer_sz + MSG_HEADER_SZ + 1)
+ *          (data_sz + MSG_HEADER_SZ + 1)
  *          or a negative number if failed
- * 
+ *
  * Blocking Function
  *
  * Thread Safe for messages smaller than MAX_MSG_SZ
  */
-int socket_server_send_data( const char* UUID, const char* buffer, const int buffer_sz );
+int socket_server_send_data( const char* uuid, const char* data, unsigned int data_sz );
 
 /**
  * Calling this function will spawn a thread to run the 

@@ -56,9 +56,13 @@ int client_connect(struct addrinfo *address_info_set);
 /**
  * Removes message headers from the buffer string. Called by socket_receive_data().
  * 
- * @Returns the length of the payload (which is message data without headers)
- *  or -1 if data received is invalid (invalid message headers).
+ * @Returns an appropiate value from the SOCKET_RECEIVE_DATA_FLAGS enum values.
+ * 
+ * @Sets the given contained_msg_sz parameter to the length of the payload 
+ * (which is message data without headers) or RETURN_FAILED if data received is 
+ * invalid (invalid message headers).
  */
-int remove_msg_header(char *buffer, int buffer_sz);
+enum SOCKET_RECEIVE_DATA_FLAGS \
+remove_msg_header(char *buffer, int buffer_sz, ssize_t *contained_msg_sz);
 
 #endif /* PRV_SOCK_COMMONS_H */

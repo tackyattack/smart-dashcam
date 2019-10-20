@@ -289,7 +289,7 @@ int client_connect(struct addrinfo *address_info_set)
     return client_fd;
 } /* client_connect() */
 
-int socket_create_socket(char* port, enum SOCKET_TYPES socket_type,  const char *addr, enum SOCKET_OWNER type_serv_client)
+int socket_create_socket( char* port, enum SOCKET_TYPES socket_type,  const char *addr, enum SOCKET_OWNER type_serv_client )
 {
     /*----------------------------------
     |             VARIABLES             |
@@ -364,20 +364,21 @@ int socket_create_socket(char* port, enum SOCKET_TYPES socket_type,  const char 
     return socket_fd;
 } /* socket_create_socket() */
 
-int remove_msg_header(char *buffer, int buffer_sz)
+enum SOCKET_RECEIVE_DATA_FLAGS \
+remove_msg_header(char *buffer, int buffer_sz, ssize_t *contained_msg_sz)
 {
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
     char *temp;
-
+    enum SOCKET_RECEIVE_DATA_FLAGS returnval;
 
     /*----------------------------------
     |           VERIFICATION            |
     ------------------------------------*/
     if (buffer_sz <= 0)
     {
-        return RETURN_FAILED;
+        return RECV_ERROR;
     }
     assert(buffer != NULL);
 
@@ -385,10 +386,23 @@ int remove_msg_header(char *buffer, int buffer_sz)
     /*----------------------------------
     |       CHECK FOR MSG HEADERS       |
     ------------------------------------*/
-    if (buffer[0] != MSG_START || buffer[buffer_sz-1] != MSG_END)
+    if (buffer[0] == MSG_START && buffer[buffer_sz-1] == MSG_END)
+    {
+        returnval = RECV_NO_FLAGS;
+    }
+    else if( buffer[0] == MSG_START__SEQUENCE && buffer[buffer_sz-1] == MSG_END__MORE )
+    {
+        returnval = RECV_SEQUENCE_CONTINUE;
+    }
+    else if( buffer[0] == MSG_START__SEQUENCE && buffer[buffer_sz-1] == MSG_END )
+    {
+        returnval = RECV_SEQUENCE_END;
+    }
+    else /* Not valid */
     {
         /* Info print */
-        printf("Received invalid message!");
+        printf("Received invalid message!\n");
+        *contained_msg_sz = -1;
         return RETURN_FAILED;
     }
     //TODO should implement ability to search for/find the msg start/end
@@ -409,16 +423,19 @@ int remove_msg_header(char *buffer, int buffer_sz)
     ------------------------------------*/
     free(temp);
 
-    return (int)(buffer_sz-MSG_HEADER_SZ);
+    *contained_msg_sz = (buffer_sz-MSG_HEADER_SZ);
+
+    return returnval;
 } /* remove_msg_header */
 
-int socket_receive_data(int socket_fd, char* buffer, const size_t buffer_sz)
+enum SOCKET_RECEIVE_DATA_FLAGS \
+socket_receive_data( const int socket_fd, char* buffer, const size_t buffer_sz, ssize_t *received_bytes )
 {
     //TODO see if data received is broken into MAX_MSG_SZ chucks or is received in its entirety
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
-    int bytes_read;
+    ssize_t bytes_read;
 
 
     /*----------------------------------
@@ -432,26 +449,38 @@ int socket_receive_data(int socket_fd, char* buffer, const size_t buffer_sz)
         /* Read error. */
         fprintf (stderr, "errno = %d ", errno);
         perror("read");
+        return RECV_ERROR;
     }
-    else if (bytes_read < (int)MSG_HEADER_SZ )
+    else if (bytes_read < (ssize_t)MSG_HEADER_SZ )
     {
         /* Soft error: didn't receive minumum number of bytes expected */
-        return RETURN_FAILED;
+        return RECV_ERROR;
     }
 
     /* Info print */
-    printf ("Received raw data: ");
+    printf ("Received %ld bytes of raw data: ", bytes_read);
     putchar('0');
     putchar('x');
-    for (int i = 0; i < bytes_read; i++) {
+    for (ssize_t i = 0; i < bytes_read; i++) {
         printf("%02x ", buffer[i]);
     }
     putchar('\n');
     putchar('\n');
 
-    return remove_msg_header(buffer, bytes_read);
+    return remove_msg_header(buffer, bytes_read, received_bytes);
 
 } /* socket_receive_data() */
+
+ssize_t socket_bytes_to_recv( const int socket_fd )
+{
+    ssize_t bytes;
+    if( 0 == ioctl(socket_fd,FIONREAD,&bytes) )
+    {
+        return bytes;
+    }
+
+    return RETURN_FAILED;
+} /* socket_bytes_to_recv() */
 
 int socket_send_data ( const int socket_fd, const char * data, const uint16_t data_sz )
 {
@@ -507,20 +536,39 @@ int socket_send_data ( const int socket_fd, const char * data, const uint16_t da
         /* Verify there are bytes to send */
         assert ( bytes_to_send > 0 );
 
-        buffer[0] = MSG_START;
+        /* Determine start message header to use */
+        if(n_buffers_to_send > 1)
+        {
+            buffer[0] = MSG_START__SEQUENCE;
+        }
+        else
+        {
+            buffer[0] = MSG_START;
+        }
+        
         /* Get substring to be sent and copy to buffer */
-        memcpy( &buffer[1], &data[all_sent_bytes], bytes_to_send-MSG_HEADER_SZ);
-        buffer[bytes_to_send-sizeof(MSG_END)] = MSG_END;
+        memcpy( &buffer[1], &data[all_sent_bytes-i*MSG_HEADER_SZ], bytes_to_send-MSG_HEADER_SZ);
+
+        /* Determine end message header to use */
+        if(n_buffers_to_send > 1 && i != n_buffers_to_send-1)
+        {
+            buffer[bytes_to_send-sizeof(MSG_END)] = MSG_END__MORE;
+        }
+        else
+        {
+            buffer[bytes_to_send-sizeof(MSG_END)] = MSG_END;
+        }
+        
         
         /* if this is the last message to send in a sequence, set appropiate flag */ /* For send flags, see https://linux.die.net/man/2/send */
-        if (i == n_buffers_to_send-1 )
-        {
-            send_flags = 0;
-        }
-        else /*else this is not the last message to send */
-        {
-            send_flags = send_flags | MSG_MORE;
-        }
+        // if (i == n_buffers_to_send-1 )
+        // {
+        send_flags = 0;
+        // }
+        // else /*else this is not the last message to send */
+        // {
+        //     send_flags = send_flags | MSG_MORE;
+        // }
         
         /* Send the message */
         bytes_sent = send ( socket_fd, buffer, bytes_to_send, send_flags );
@@ -533,7 +581,7 @@ int socket_send_data ( const int socket_fd, const char * data, const uint16_t da
         }
 
         /* Info print */
-        printf ("Sent data: ");
+        printf ("Sent %d bytes of data: ", bytes_sent);
         putchar('0');
         putchar('x');
         for (int i = 0; i < bytes_to_send; i++) {
@@ -561,4 +609,4 @@ int socket_send_data ( const int socket_fd, const char * data, const uint16_t da
     }
 
     return data_sz;
-} /* socket_send_data */
+} /* socket_send_data() */

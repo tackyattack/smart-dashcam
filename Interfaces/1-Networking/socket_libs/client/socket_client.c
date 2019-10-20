@@ -10,12 +10,13 @@
 |           STATIC VARIABLES           |
 --------------------------------------*/
 
-static int  client_fd                                  = -1;   /* Stores the socket_fd for our connection to the server */
-static char UUID[UUID_SZ+1]                            = {0};  /* Stores our UUID. +1 because uuid_unparse generates a str with UUID_SZ ascii characters plus a termination char */
-static bool isRunning                                  = false;/* Set true to execute the client execute thread */
-static socket_lib_clnt_rx_msg _rx_callback             = NULL; /* Callback called when a message is received from the server */
-static socket_lib_clnt_disconnected _discont_callback  = NULL; /* Callback called when we've disconnected from the server */
-
+static int  client_fd                                  = -1;    /* Stores the socket_fd for our connection to the server */
+static char UUID[UUID_SZ+1]                            = {0};   /* Stores our UUID. +1 because uuid_unparse generates a str with UUID_SZ ascii characters plus a termination char */
+static bool isRunning                                  = false; /* Set true to execute the client execute thread */
+static socket_lib_clnt_rx_msg _rx_callback             = NULL;  /* Callback called when a message is received from the server */
+static socket_lib_clnt_disconnected _discont_callback  = NULL;  /* Callback called when we've disconnected from the server */
+static char* partial_rx_msg                            = NULL;  /* Used when a message spans multiple packets. This holds the partial message data until all of the data has been received */
+static ssize_t partial_rx_msg_sz                       = 0;     /* Used to keep track of the size of partial_rx_msg */
 
 /*-------------------------------------
 |           PRIVATE MUTEXES            |
@@ -161,34 +162,109 @@ int socket_client_init(char* server_addr, char *port, socket_lib_clnt_rx_msg rx_
     return RETURN_SUCCESS;
 } /* socket_client_init() */
 
-void process_recv_msg(const char* buffer, const int buffer_sz)
+int process_recv_msg(const int socket_fd)
 {
+    /*-------------------------------------
+    |              VARIABLES               |
+    --------------------------------------*/
+    char *buffer;
+    char* temp;
+    ssize_t n_recv_bytes;
+    enum SOCKET_RECEIVE_DATA_FLAGS recv_flag;
+
+    /*-------------------------------------
+    |           INITIALIZATIONS            |
+    --------------------------------------*/
+    buffer = malloc(MAX_TX_MSG_SZ); /* We use this instead of MAX_MSG_SZ because we have to account for the message headers that are included even though they aren't returned */
+    bzero(buffer,MAX_TX_MSG_SZ);
+
     /*----------------------------------
-    |          CHECK PARAMETERS         |
+    |     RECEIVE DATA FROM SERVER      |
     ------------------------------------*/
-    if(buffer == NULL || buffer_sz == 0)
+    recv_flag = socket_receive_data(socket_fd,buffer,MAX_TX_MSG_SZ,&n_recv_bytes);
+
+    if ( RECV_ERROR == recv_flag )
     {
-        return;
+        printf("\nClient received invalid msg header.\n");
+        return RETURN_SUCCESS;
     }
+    if (n_recv_bytes <= 0)
+    {
+        return RETURN_FAILED;
+    }
+
+    /*-----------------------------------
+    |          HANDLE MSG FLAGS          |
+    ------------------------------------*/
+    if( recv_flag == RECV_SEQUENCE_CONTINUE || recv_flag == RECV_SEQUENCE_END )
+    {
+        temp = malloc(partial_rx_msg_sz + n_recv_bytes);
+        memcpy(temp, partial_rx_msg, partial_rx_msg_sz);
+        memcpy( (temp + partial_rx_msg_sz), buffer, n_recv_bytes );
+
+        free(partial_rx_msg);
+        partial_rx_msg = temp;
+        partial_rx_msg_sz += n_recv_bytes;
+
+        if (recv_flag == RECV_SEQUENCE_END)
+        {
+            /*----------------------------------
+            |           CALL CALLBACK           |
+            ------------------------------------*/
+            /* Received message from client. Call callback with message and UUID */
+            if(_rx_callback != NULL)
+            {
+                (*_rx_callback)(partial_rx_msg, partial_rx_msg_sz);
+            }
+
+            /* Continue to message command processing */
+
+        } /* if RECV_SEQUENCE_END */
+        else /* Nothing more to do until finished receiving data*/
+        {
+            return RETURN_SUCCESS;
+        }
+    } /* handle msg flags */
+    else /* Nothing special */
+    {
+        partial_rx_msg    = buffer;
+        partial_rx_msg_sz = n_recv_bytes;
+    }
+    
 
 
     /*----------------------------------
     |  PROCESS COMMANDS OR RX_CALLBACK  |
     ------------------------------------*/
-    switch (buffer[0])
+    switch (partial_rx_msg[0])
     {
     case COMMAND_PING:
     case COMMAND_UUID:
         send_uuid(client_fd);
         break;
-    
-    default:
-        if(_rx_callback != NULL )
+    case COMMAND_NONE:
+        /*----------------------------------
+        |           CALL CALLBACK           |
+        ------------------------------------*/
+        /* Received message from client. Call callback with message and UUID */
+        if(_rx_callback != NULL)
         {
-            (*_rx_callback)(buffer, buffer_sz);
+            (*_rx_callback)(partial_rx_msg, partial_rx_msg_sz);
         }
         break;
+
+    default:
+        printf("ERROR: socket client received message without valid COMMAND\n");
+        break;
     }
+
+    /*-------------------------------------
+    |               CLEANUP                |
+    --------------------------------------*/
+    free(partial_rx_msg);
+    partial_rx_msg_sz = 0;
+
+    return RETURN_SUCCESS;
 
 } /* process_recv_msg() */
 
@@ -197,16 +273,13 @@ void* execute_thread(void* args)
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
-    char buffer[MAX_MSG_SZ];
     fd_set client_fd_set,working_fd_set;
     struct timeval timeout;
-    int n_recv_bytes;
 
 
     /*----------------------------------
     |          INITIALIZATIONS          |
     ------------------------------------*/
-    bzero(buffer,MAX_MSG_SZ);
     FD_ZERO(&client_fd_set);
     FD_ZERO(&working_fd_set);
     FD_SET(client_fd, &client_fd_set);
@@ -222,7 +295,6 @@ void* execute_thread(void* args)
         ------------------------------------*/
         timeout.tv_sec  = SERVER_PING_TIMEOUT; /* If nothing received from server for 2 seconds, assume lost connection */
         timeout.tv_usec = 0;
-        n_recv_bytes    = 0;
         working_fd_set  = client_fd_set;
 
 
@@ -255,12 +327,10 @@ void* execute_thread(void* args)
             break;
         }
 
-
         /*----------------------------------
-        |     RECEIVE DATA FROM SERVER      |
+        |     PROCESS DATA FROM SERVER      |
         ------------------------------------*/
-        n_recv_bytes = socket_receive_data(client_fd,buffer,MAX_MSG_SZ);
-        if (n_recv_bytes < 0)
+        if( RETURN_FAILED == process_recv_msg(client_fd) )
         {
             printf("\nClient received invalid msg.....Close connection to server....\n");
             if(_discont_callback != NULL )
@@ -269,12 +339,6 @@ void* execute_thread(void* args)
             }
             break;
         }
-
-
-        /*----------------------------------
-        |     PROCESS DATA FROM SERVER      |
-        ------------------------------------*/
-        process_recv_msg(buffer,n_recv_bytes);
 
     } /* while(1) */
 
@@ -320,10 +384,59 @@ void socket_client_execute()
 
 } /* socket_client_execute() */
 
-int socket_client_send_data ( const char * data, const uint16_t data_sz )
+int socket_client_send_data ( const char * data, uint data_sz )
 {
-    return socket_send_data(client_fd, data, data_sz);
+    return send_data(COMMAND_NONE, data, data_sz);
 } /* socket_client_send_data() */
+
+int send_data ( const uint8_t command, const char * data, uint data_sz )
+{
+    /*----------------------------------
+    |             VARIABLES             |
+    ------------------------------------*/
+    int returnval, n;
+    char* temp;
+
+    /*----------------------------------
+    |            INITIALIZE             |
+    ------------------------------------*/
+    returnval = 0;
+
+    /*-------------------------------------
+    |        CREATE MESSAGE TO SEND        |
+    --------------------------------------*/
+    if( data == NULL || data_sz == 0 )
+    {
+        temp = malloc(COMMAND_SZ);
+        memcpy(temp,&command,COMMAND_SZ);
+        data_sz = 0;
+    }
+    else
+    {
+        temp = malloc(data_sz+COMMAND_SZ);
+        memcpy(temp,&command,COMMAND_SZ);
+        memcpy( (temp+COMMAND_SZ), data, data_sz );        
+    }
+
+    /*----------------------------------
+    |             SEND MSGS             |
+    ------------------------------------*/
+    n = socket_send_data(client_fd,temp,data_sz+COMMAND_SZ);
+    if( n < 1 )
+    {
+        /* Disconnect client if failed to send message */
+        close(client_fd);
+    }
+    else
+    {
+        /* Tally total bytes sent */
+        returnval += n;
+    }
+
+    free(temp);
+
+    return returnval;
+} /* send_data */
 
 void socket_client_quit()
 {

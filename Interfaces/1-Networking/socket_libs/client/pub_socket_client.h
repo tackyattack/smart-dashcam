@@ -82,7 +82,7 @@ void socket_client_execute();
  * 
  * @Returns number of bytes sent or RETURN_FAILED or 0 if there's an error.
  */
-int socket_client_send_data ( const char * data, const uint16_t data_sz );
+int socket_client_send_data ( const char * data, const uint data_sz );
 
 /**
  * Closes the socket connection to server and kills the 

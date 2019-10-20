@@ -31,10 +31,12 @@
 struct client_info
 {
     int fd;
-    char uuid[UUID_SZ+1]; /* +1 for termination char */
-    struct in_addr address;
-    time_t lastPing;
-    struct client_info *next;
+    char uuid[UUID_SZ+1];       /* +1 for termination char */
+    struct in_addr address;     /* in_addr struct of server's address */
+    time_t lastPing;            /*  */
+    struct client_info *next;   /* pointer to next client_info struct in the linked list of structs */
+    char* partialMSG;           /* This will point to arrays of partial messages received that are waiting for the rest of the message to be received */
+    ssize_t partialMSG_sz;      /* Size of array partialMSG */
 };
 
 
@@ -79,6 +81,38 @@ struct client_info* find_client_by_fd(const int socket);
  * Blocking Function
  */
 struct client_info* find_client_by_uuid(const char* uuid);
+
+/**
+ * Given a char* command, char* data array up to 2^16 in size, and its size,
+ * this function will concatenate the command to the data array and
+ * will send data array over socket to the client specific by the char* uuid.
+ * 
+ * Note that data_sz should include the termination character if applicable.
+ * 
+ * Note, data may be NULL and data_sz == 0 to send only the command
+ * 
+ * Note that calls to this are thread safe as long as the size of data is 
+ *  less than MAX_MSG_SZ.
+ * 
+ * @Returns number of bytes sent or RETURN_FAILED or 0 if there's an error.
+ */
+int send_data ( const char* uuid, const uint8_t command, const char * data, uint data_sz );
+
+/**
+ * Given a char* command, char* data array up to 2^16 in size, and its size,
+ * this function will concatenate the command to the data array and
+ * will send data array over socket to all clients.
+ * 
+ * Note that data_sz should include the termination character if applicable.
+ * 
+ * Note, data may be NULL and data_sz == 0 to send only the command
+ * 
+ * Note that calls to this are thread safe as long as the size of data is 
+ *  less than MAX_MSG_SZ.
+ * 
+ * @Returns number of bytes sent or RETURN_FAILED or 0 if there's an error.
+ */
+int send_data_all ( const uint8_t command, const char * data, uint data_sz );
 
 /**
  * Accepts incoming client connection requests.
