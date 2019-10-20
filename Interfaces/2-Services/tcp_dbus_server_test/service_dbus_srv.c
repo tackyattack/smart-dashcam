@@ -19,7 +19,7 @@
  * the data in data needs to be saved, a copy of the data must be made.
  * Refer to this guide on mixing C and C++ callbacks due to ldashcam_tcp_dbus_srv
  *  being written in C: https://isocpp.org/wiki/faq/mixing-c-and-cpp */
-void tcp_msg_to_tx_callback(char *data, unsigned int data_sz)
+bool tcp_msg_to_tx_callback(char *data, unsigned int data_sz)
 {
   	printf("\n****************tcp_msg_to_tx_callback: callback activated.****************\n\n");
 
@@ -29,6 +29,8 @@ void tcp_msg_to_tx_callback(char *data, unsigned int data_sz)
         printf("%c",data[i]);
     }
     printf("\"\n");
+
+    return true;
     
   	printf("\n****************END---tcp_msg_to_tx_callback---END****************\n\n");
 } /* tcp_msg_to_tx_callback() */

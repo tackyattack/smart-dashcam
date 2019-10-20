@@ -230,7 +230,6 @@ int process_recv_msg(const int socket_fd)
         partial_rx_msg    = buffer;
         partial_rx_msg_sz = n_recv_bytes;
     }
-    
 
 
     /*----------------------------------

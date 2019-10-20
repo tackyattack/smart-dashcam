@@ -293,7 +293,7 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
 
         if( ((struct dbus_srv_config*)config)->callback != NULL )
         {
-            (*(((struct dbus_srv_config*)config)->callback))(data, data_sz);
+            return_val = (*(((struct dbus_srv_config*)config)->callback))(data, data_sz);
         }
         
 

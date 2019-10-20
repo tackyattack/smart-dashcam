@@ -37,7 +37,7 @@ typedef uint8_t dbus_srv_id;
 --------------------------------------*/
 
 /* https://isocpp.org/wiki/faq/mixing-c-and-cpp */
-typedef void (*tcp_send_msg_callback)(char* data, unsigned int data_sz);
+typedef bool (*tcp_send_msg_callback)(char* data, unsigned int data_sz);
 
 
 /*-------------------------------------
