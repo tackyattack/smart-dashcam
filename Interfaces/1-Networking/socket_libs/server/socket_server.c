@@ -256,7 +256,7 @@ void close_client_conn(int client_fd)
     /* Disconnecting client. Call callback with UUID */
     if(_disconn_callback != NULL)
     {
-        (*_disconn_callback)( find_client_by_fd(client_fd)->uuid);
+        (*_disconn_callback)( find_client_by_fd(client_fd)->uuid );
     }
 
     /*----------------------------------
@@ -335,16 +335,27 @@ int process_recv_msg(int client_fd)
 
     printf("\nSERVER: Bytes to read from socket: %zd\n", socket_bytes_to_recv(client_fd));
 
+    /*-------------------------------------
+    |             VERIFICATION             |
+    --------------------------------------*/
+
+    if(n_recv_bytes < 0)
+    {
+        printf("Socket Server: Received client disconnect.\n");
+        close_client_conn(client_fd);
+        return RETURN_FAILED;
+    }
+
     /*-----------------------------------
     |       RECEIVE SOCKET MESSAGE       |
     ------------------------------------*/
     /* Receive data from client. Returns number of bytes received. */
     recv_flag = socket_receive_data( client_fd, buffer, MAX_TX_MSG_SZ, &n_recv_bytes );
 
-    if(n_recv_bytes < 0 || recv_flag == RECV_ERROR)
+    if(recv_flag == RECV_ERROR)
     {
-        printf("Socket Server: Failed to receive data from client.\n");
-        return n_recv_bytes;
+        printf("Socket Server: Message header error. Message discarded.\n");
+        return RETURN_FAILED; /* Return one to prevent indication of client disconect */
     }
 
     /* Info prints. Data read. */    
@@ -600,10 +611,7 @@ void service_sockets(const fd_set *read_fd_set)
             }
             else /* A client has sent us a message */
             {
-                if (process_recv_msg(i) < 1)
-                {
-                    close_client_conn(i);
-                }
+                process_recv_msg(i);
             } /* else */
 
         } /* if (FD_ISSET) */
