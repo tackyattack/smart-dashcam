@@ -207,7 +207,6 @@ int handle_conn_request()
     assert(new_client!=NULL);
     new_client->fd = new_client_fd;
     new_client->address = new_client_info.sin_addr;
-    new_client->lastPing = time(NULL);
     bzero( new_client->uuid , UUID_SZ); /* Client will send this later */
     new_client->next = NULL;
 
@@ -339,11 +338,11 @@ int process_recv_msg(int client_fd)
     |             VERIFICATION             |
     --------------------------------------*/
 
-    if(n_recv_bytes < 0)
+    if( socket_bytes_to_recv(client_fd) <= 0 )
     {
-        printf("Socket Server: Received client disconnect.\n");
+        printf("Socket Server: Received client disconnect/socket error. Disconnecting client...\n");
         close_client_conn(client_fd);
-        return RETURN_FAILED;
+        return RETURN_SUCCESS;
     }
 
     /*-----------------------------------

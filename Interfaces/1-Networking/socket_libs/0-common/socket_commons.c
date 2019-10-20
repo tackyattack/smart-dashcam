@@ -437,6 +437,12 @@ socket_receive_data( const int socket_fd, char* buffer, const size_t buffer_sz, 
     ------------------------------------*/
     ssize_t bytes_read;
 
+    *received_bytes = socket_bytes_to_recv(socket_fd);
+
+    if ( *received_bytes <= 0 )
+    {
+        return RECV_ERROR;
+    }
 
     /*----------------------------------
     |   READ DATA FROM FILE DESCRIPTOR  |
