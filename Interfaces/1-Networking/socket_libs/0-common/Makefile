@@ -71,7 +71,7 @@ STATIC_LIB_CFLAGS = -fPIC
 build: $(LIB_NAME) 
     @echo "-----------------Done Building Static Library $(LIB_NAME)-----------------\n"
 
-# Create DBUS client dynamic library to be used in other programs as a library
+# Create socket commons static library to be used by the socket server/client code as a library
 $(LIB_NAME): 
     @# Create folders
     mkdir -p $(OBJS)
@@ -84,7 +84,7 @@ $(LIB_NAME):
     ar rcs $(LIB_DIR)/$(LIB_NAME).a $(OBJS)/*.o
 
     @# Copy header files to system includes directory
-    cp $(PUB_HEADER) $(LIB_DIR)
+    sudo cp $(PUB_HEADER) $(LIB_DIR)
     chmod 444 $(LIB_DIR)/*.h
 
     @# This will test if successful (You have to read the output)
@@ -118,4 +118,4 @@ clean:
 
 # make clean-all will remove all generated/downloaded files. Should essetially revert directories back to original post clone state
 clean-all: clean
-    rm -rf $(LIB_DIR)
+    sudo rm -rf $(LIB_DIR)
