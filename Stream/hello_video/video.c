@@ -46,8 +46,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdbool.h>
 #include <pthread.h>
+#include <semaphore.h>
 
-#define MAX 400
+#define MAX 40000
 
 int intArray[MAX];
 int front = 0;
@@ -73,7 +74,6 @@ int size() {
 }
 
 void insert(int data) {
- pthread_mutex_lock(&queue_lock);
    if(!isFull()) {
 
       if(rear == MAX-1) {
@@ -83,11 +83,9 @@ void insert(int data) {
       intArray[++rear] = data;
       itemCount++;
    }
-  pthread_mutex_unlock(&queue_lock);
 }
 
 int removeData() {
-  pthread_mutex_lock(&queue_lock);
    int data = intArray[front++];
 
    if(front == MAX) {
@@ -95,9 +93,15 @@ int removeData() {
    }
 
    itemCount--;
-   pthread_mutex_unlock(&queue_lock); 
    return data;
 }
+
+sem_t empty;
+sem_t mutex;
+sem_t full;
+
+unsigned char buf_nw[100];
+
 
 
 static int video_decode_test(char *filename)
@@ -196,31 +200,56 @@ static int video_decode_test(char *filename)
          unsigned char *dest = buf->pBuffer;
 
          //data_len += fread(dest, 1, buf->nAllocLen-data_len, in);
-         printf("%d\n", frame);
-         byte_cnt = 0;
-         while(byte_cnt<200)
-         {
-           if(!isEmpty())
-           {
-           dest[byte_cnt] = removeData();
-           byte_cnt++;
-           }
-         }
-         data_len += 200;
-
-         frame++;
-         if(frame == 25)
-         {
-           //rewind(in);
-           frame = 0;
-         }
-
-         printf("queue len: %d\n", size());
-
-         // for (int i = 0; i < 100; i ++) {
-         // printf(" %2x", dest[i]);
+        // printf("%d\n", frame);
+         // byte_cnt = 0;
+         // while(byte_cnt<200)
+         // {
+         //   if(!isEmpty())
+         //   {
+         //   dest[byte_cnt] = removeData();
+         //   byte_cnt++;
+         //   }
          // }
-       putchar('\n');
+
+       // for(int i = 0; i < 100; i++) dest[i] = buf_nw[i];
+       // data_len += 100;
+       // buf_ready = 0;
+
+       if(buf->nAllocLen-data_len < 10*100) printf("error\n");
+
+       for(int i = 0; i < 10; i++)
+       {
+       buf_cnt = 0;
+       sem_wait(&full);
+       sem_wait(&mutex);
+       while(buf_cnt < 100)
+       {
+       dest[buf_cnt + i*100] = buf_nw[buf_cnt];
+       buf_cnt++;
+       }
+    //    for (int ii = 0; ii < 100 ;ii++) {
+    //     printf(" %2x", buf_nw[ii]);
+    // }
+    // printf("-----\n\n\n");
+       //data_len += fread(dest, 1, buf->nAllocLen-data_len, in);
+       sem_post(&mutex);
+       sem_post(&empty);
+
+       data_len += 100;
+     }
+       //printf("f\n");
+
+       //data_len += fread(dest, 1, 10000, in);
+       //data_len += fread(dest, 1, buf->nAllocLen-data_len, in);
+
+       frame++;
+       if(frame==100)
+       {
+         frame=0;
+         rewind(in);
+       }
+
+
 
          if(port_settings_changed == 0 &&
             ((data_len > 0 && ilclient_remove_event(video_decode, OMX_EventPortSettingsChanged, 131, 0, 0, 1) == 0) ||
@@ -308,7 +337,7 @@ void *myThreadFun(void *vargp)
   int sock = 0, valread;
     struct sockaddr_in serv_addr;
     char *hello = "Hello from client";
-    char buffer[1] = {0};
+    char buffer[100] = {0};
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
         printf("\n Socket creation error \n");
@@ -332,38 +361,40 @@ void *myThreadFun(void *vargp)
     send(sock , hello , strlen(hello) , 0 );
     printf("Hello message sent\n");
 
-    while(1){
-      valread = read( sock , buffer, 1);
-      if(!isFull() && valread==1)
+
+    while(valread = read( sock , buffer, 100))
+    {
+      sem_wait(&empty);
+      sem_wait(&mutex);
+      for(int i = 0; i < 100; i++)
       {
-        insert(buffer[0]);
+        buf_nw[i] = buffer[i];
       }
+      sem_post(&mutex);
+      sem_post(&full);
+
     }
+
 
 
     return NULL;
 }
 
-
 int main (int argc, char **argv)
 {
+  sem_init(&mutex, 0, 1);
+  sem_init(&full, 0, 0);
+  sem_init(&empty, 0, 1);
+
   if (pthread_mutex_init(&queue_lock, NULL) != 0)
-      {
-          printf("\n mutex init has failed\n");
-          return 1;
-      }
+    {
+        printf("\n mutex init has failed\n");
+        return 1;
+    }
 
     pthread_t thread_id;
     printf("Before Thread\n");
     pthread_create(&thread_id, NULL, myThreadFun, NULL);
-
-
-    // while(1){
-    //   if(!isEmpty())
-    //   {
-    //     printf("%d", removeData());
-    //   }
-    // }
 
     if (argc < 2) {
        printf("Usage: %s <filename>\n", argv[0]);
@@ -376,4 +407,113 @@ int main (int argc, char **argv)
     printf("After Thread\n");
 
 
+}
+
+#define chunk_size 100
+int get_next_chunk(uint8_t *buf)
+{
+  if(size()>chunk_size)
+  {
+  pthread_mutex_lock(&queue_lock);
+  for(int i=0; i<chunk_size;i++)buf[i]=removeData();
+  pthread_mutex_unlock(&queue_lock);
+  return 1;
+  }
+  return -1;
+
+}
+
+#define NAL_BUFFER_SIZE 0xffff
+const uint8_t magic_pattern[] = {0x00, 0x00, 0x00, 0x01};
+uint8_t pattern_len = 4;
+uint8_t NAL_buffer[NAL_BUFFER_SIZE];
+uint8_t PPS_found = 0;
+uint8_t SPS_found = 0;
+uint32_t NAL_buf_cnt = 0;
+uint8_t pattern_pointer = 0;
+uint8_t NAL_signal = 0;
+void record_bytes(uint8_t *buf, uint32_t buf_size)
+{
+  uint8_t new_NAL = 0;
+  uint32_t new_NAL_sz = 0;
+  for(uint32_t i = 0; i < buf_size; i++)
+  {
+    new_NAL = 0;
+    NAL_buffer[NAL_buf_cnt] = buf[i];
+    if(magic_pattern[pattern_pointer] == buf[i])
+    {
+      pattern_pointer++;
+    }
+    else
+    {
+      pattern_pointer=0;
+    }
+    if(pattern_pointer == pattern_len)
+    {
+      NAL_signal++;
+      pattern_pointer=0;
+    }
+
+    if(NAL_signal==2)
+    {
+      NAL_signal=1;
+      new_NAL=1;
+    }
+
+    if(new_NAL)
+    {
+    //      for (int ii = 0; ii < 10 ;ii++) {
+    //       printf(" %2x", NAL_buffer[ii]);
+    //   }
+      //printf("-----\n\n\n");
+      //printf("%d\n", size());
+      new_NAL_sz = NAL_buf_cnt-3;
+
+      if(PPS_found && SPS_found)
+      {
+        pthread_mutex_lock(&queue_lock);
+        if(MAX-size() > new_NAL_sz)
+        {
+        for(int i=0; i<new_NAL_sz;i++)insert(NAL_buffer[i]);
+        }
+        pthread_mutex_unlock(&queue_lock);
+      }
+
+      if(NAL_buffer[4] == 0x28)
+      {
+        if(!PPS_found)
+        {
+          pthread_mutex_lock(&queue_lock);
+          if(MAX-size() > new_NAL_sz)
+          {
+          for(int i=0; i<new_NAL_sz;i++)insert(NAL_buffer[i]);
+          }
+          pthread_mutex_unlock(&queue_lock);
+          printf("found PPS %d\n",new_NAL_sz);
+       }
+        PPS_found=1;
+      }
+      if(NAL_buffer[4] == 0x27)
+      {
+        if(!SPS_found)
+        {
+          pthread_mutex_lock(&queue_lock);
+          if(MAX-size() > new_NAL_sz)
+          {
+          for(int i=0; i<new_NAL_sz;i++)insert(NAL_buffer[i]);
+          }
+          pthread_mutex_unlock(&queue_lock);
+          printf("found SPS %d\n", new_NAL_sz);
+       }
+       SPS_found=1;
+      }
+      new_NAL=0;
+      NAL_buffer[0]=0x00;
+      NAL_buffer[1]=0x00;
+      NAL_buffer[2]=0x00;
+      NAL_buffer[3]=0x01;
+      NAL_buf_cnt=4-1;
+    }
+    NAL_buf_cnt++;
+  }
 }
