@@ -83,13 +83,14 @@ char* check_parameters(int argc, char *argv[])
         fprintf(stderr, "ERROR, too many arguments!\n 0, or 2 arguments expected. Expected ip/hostname and port number!\n");
         exit(EXIT_FAILURE);
     }
-    else /* 2 argument */
+    else /* 2 arguments, ip and port */
     {
         if ( atoi(argv[2]) < 0 || atoi(argv[2]) > 65535 )
         {
             printf("ERROR: invalid port number %s!",argv[2]);
             exit(EXIT_FAILURE);
         }
+        host_ip   = argv[1];
         host_port = argv[2];
     }
 
