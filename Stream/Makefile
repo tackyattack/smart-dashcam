@@ -1,8 +1,8 @@
 all: apps
 
 apps:
-	$(MAKE) -C hello_video
+	$(MAKE) -C dashcam_streamer
 
 
 clean:
-	$(MAKE) -C hello_video clean
+	$(MAKE) -C dashcam_streamer clean

@@ -1,5 +1,5 @@
 OBJS=video.o
-BIN=hello_video.bin
+BIN=dash_stream.bin
 SL=stream.so
 LDFLAGS+=-lilclient
 

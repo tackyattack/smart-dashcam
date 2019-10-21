@@ -1,31 +1,5 @@
-/*
-Copyright (c) 2012, Broadcom Europe Ltd
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-    * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above copyright
-      notice, this list of conditions and the following disclaimer in the
-      documentation and/or other materials provided with the distribution.
-    * Neither the name of the copyright holder nor the
-      names of its contributors may be used to endorse or promote products
-      derived from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY
-DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
-
-// Video deocode demo using OpenMAX IL though the ilcient helper library
+// Henry Bergin 2019
+//./dash_stream.bin 192.168.0.0 8080
 
 // https://kwasi-ich.de/blog/2017/11/26/omx/
 // page 87 of spec has H264 details
@@ -43,6 +17,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <string.h>
+#include <arpa/inet.h>
 
 #include <stdbool.h>
 #include <pthread.h>
@@ -50,6 +25,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define MAX 1000000*1
 #define NAL_BUFFER_SIZE 1000000*1
+#define CHUNK_SIZE 100
+#define RECONNECT_TIMEOUT_S 10
 
 int intArray[MAX];
 int front = 0;
@@ -101,15 +78,13 @@ sem_t empty;
 sem_t mutex;
 sem_t full;
 
-int                 ready_to_send_queue = 0;
-pthread_cond_t      send_cond  = PTHREAD_COND_INITIALIZER;
-pthread_mutex_t     send_mutex = PTHREAD_MUTEX_INITIALIZER;
+int server_port = 8080;
+char server_ip[20] = {0};
 
-unsigned char buf_nw[100];
+unsigned char buf_nw[CHUNK_SIZE];
+int video_decoder_running = 1;
 
-
-
-static int video_decode_test(char *filename)
+static int video_decode()
 {
    OMX_VIDEO_PARAM_PORTFORMATTYPE format;
    OMX_TIME_CONFIG_CLOCKSTATETYPE cstate;
@@ -117,26 +92,21 @@ static int video_decode_test(char *filename)
    COMPONENT_T *list[5];
    TUNNEL_T tunnel[4];
    ILCLIENT_T *client;
-   FILE *in;
    int status = 0;
    unsigned int data_len = 0;
 
    memset(list, 0, sizeof(list));
    memset(tunnel, 0, sizeof(tunnel));
 
-   if((in = fopen(filename, "rb")) == NULL)
-      return -2;
 
    if((client = ilclient_init()) == NULL)
    {
-      fclose(in);
       return -3;
    }
 
    if(OMX_Init() != OMX_ErrorNone)
    {
       ilclient_destroy(client);
-      fclose(in);
       return -4;
    }
 
@@ -196,64 +166,29 @@ static int video_decode_test(char *filename)
       int first_packet = 1;
 
       ilclient_change_component_state(video_decode, OMX_StateExecuting);
-      int frame = 0;
-      int byte_cnt = 0;
       int buf_cnt = 0;
-      while((buf = ilclient_get_input_buffer(video_decode, 130, 1)) != NULL)
+      while(((buf = ilclient_get_input_buffer(video_decode, 130, 1)) != NULL) && video_decoder_running)
       {
          // feed data and wait until we get port settings changed
          unsigned char *dest = buf->pBuffer;
 
-         //data_len += fread(dest, 1, buf->nAllocLen-data_len, in);
-        // printf("%d\n", frame);
-         // byte_cnt = 0;
-         // while(byte_cnt<200)
-         // {
-         //   if(!isEmpty())
-         //   {
-         //   dest[byte_cnt] = removeData();
-         //   byte_cnt++;
-         //   }
-         // }
+         if(buf->nAllocLen-data_len < 10*100) printf("error\n");
 
-       // for(int i = 0; i < 100; i++) dest[i] = buf_nw[i];
-       // data_len += 100;
-       // buf_ready = 0;
+         for(int i = 0; i < 10; i++)
+         {
+         buf_cnt = 0;
+         sem_wait(&full);
+         sem_wait(&mutex);
+         while(buf_cnt < CHUNK_SIZE)
+         {
+         dest[buf_cnt + i*CHUNK_SIZE] = buf_nw[buf_cnt];
+         buf_cnt++;
+         }
+         sem_post(&mutex);
+         sem_post(&empty);
 
-       if(buf->nAllocLen-data_len < 10*100) printf("error\n");
-
-       for(int i = 0; i < 10; i++)
-       {
-       buf_cnt = 0;
-       sem_wait(&full);
-       sem_wait(&mutex);
-       while(buf_cnt < 100)
-       {
-       dest[buf_cnt + i*100] = buf_nw[buf_cnt];
-       buf_cnt++;
-       }
-    //    for (int ii = 0; ii < 100 ;ii++) {
-    //     printf(" %2x", buf_nw[ii]);
-    // }
-    // printf("-----\n\n\n");
-       //data_len += fread(dest, 1, buf->nAllocLen-data_len, in);
-       sem_post(&mutex);
-       sem_post(&empty);
-
-       data_len += 100;
+       data_len += CHUNK_SIZE;
      }
-       //printf("f\n");
-
-       //data_len += fread(dest, 1, 10000, in);
-       //data_len += fread(dest, 1, buf->nAllocLen-data_len, in);
-
-       frame++;
-       if(frame==100)
-       {
-         frame=0;
-         rewind(in);
-       }
-
 
 
          if(port_settings_changed == 0 &&
@@ -310,15 +245,14 @@ static int video_decode_test(char *filename)
          status = -20;
 
       // wait for EOS from render
-      ilclient_wait_for_event(video_render, OMX_EventBufferFlag, 90, 0, OMX_BUFFERFLAG_EOS, 0,
-                              ILCLIENT_BUFFER_FLAG_EOS, -1);
+      // ilclient_wait_for_event(video_render, OMX_EventBufferFlag, 90, 0, OMX_BUFFERFLAG_EOS, 0,
+      //                         ILCLIENT_BUFFER_FLAG_EOS, -1);
 
       // need to flush the renderer to allow video_decode to disable its input port
       ilclient_flush_tunnels(tunnel, 0);
 
-   }
 
-   fclose(in);
+   }
 
    ilclient_disable_tunnel(tunnel);
    ilclient_disable_tunnel(tunnel+1);
@@ -336,39 +270,38 @@ static int video_decode_test(char *filename)
    ilclient_destroy(client);
    return status;
 }
-#define PORT 8080
-void *myThreadFun(void *vargp)
+
+
+void *client_network_thread(void *vargp)
 {
-  int sock = 0, valread;
+    int sock = 0, valread=0;
     struct sockaddr_in serv_addr;
-    char *hello = "Hello from client";
-    char buffer[100] = {0};
+    char buffer[CHUNK_SIZE] = {0};
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
         printf("\n Socket creation error \n");
-        return -1;
     }
     serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(PORT);
+    serv_addr.sin_port = htons(server_port);
 
     // Convert IPv4 and IPv6 addresses from text to binary form
-    if(inet_pton(AF_INET, "131.151.175.144", &serv_addr.sin_addr)<=0)
+    if(inet_pton(AF_INET, server_ip, &serv_addr.sin_addr)<=0)
     {
         printf("\nInvalid address/ Address not supported \n");
-        return -1;
+        video_decoder_running = 0;
+        return NULL;
     }
 
     if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
     {
         printf("\nConnection Failed \n");
-        return -1;
+        video_decoder_running = 0;
+        return NULL;
     }
-    send(sock , hello , strlen(hello) , 0 );
-    printf("Hello message sent\n");
 
-
-    while(valread = read( sock , buffer, 100))
+    while(valread>=0)
     {
+      valread = read( sock , buffer, 100);
       sem_wait(&empty);
       sem_wait(&mutex);
       for(int i = 0; i < 100; i++)
@@ -380,6 +313,7 @@ void *myThreadFun(void *vargp)
 
     }
 
+    video_decoder_running = 0;
     return NULL;
 }
 
@@ -395,24 +329,25 @@ int main (int argc, char **argv)
         return 1;
     }
 
-    pthread_t thread_id;
-    printf("Before Thread\n");
-    pthread_create(&thread_id, NULL, myThreadFun, NULL);
+    strcpy(server_ip, argv[1]);
+    server_port = atoi(argv[2]);
 
-    if (argc < 2) {
-       printf("Usage: %s <filename>\n", argv[0]);
-       exit(1);
-    }
+    printf("opening  %s  port %d\n", server_ip, server_port);
+
+    pthread_t thread_id;
+    printf("Starting network thread\n");
+    pthread_create(&thread_id, NULL, client_network_thread, NULL);
+
     bcm_host_init();
-    return video_decode_test(argv[1]);
+    printf("Entering decoder\n");
+    video_decode();
+    printf("Decode stopped\n");
 
     pthread_join(thread_id, NULL);
-    printf("After Thread\n");
-
-
+    printf("Network thread closed\n");
 }
 
-#define CHUNK_SIZE 100
+
 int get_next_chunk(uint8_t *buf)
 {
   if(size()>CHUNK_SIZE)
@@ -428,13 +363,14 @@ int get_next_chunk(uint8_t *buf)
 
 sem_t server_buf_ready;
 int server_socket;
-void server_init()
+int server_fd;
+int server_addrlen;
+struct sockaddr_in server_address;
+void server_init(int port)
 {
-  int server_fd, valread;
-    struct sockaddr_in address;
+    server_port = port;
     int opt = 1;
-    int addrlen = sizeof(address);
-    char buffer[CHUNK_SIZE] = {0};
+    server_addrlen = sizeof(server_address);
 
     // Creating socket file descriptor
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0)
@@ -443,20 +379,20 @@ void server_init()
         exit(EXIT_FAILURE);
     }
 
-    // Forcefully attaching socket to the port 8080
+    // Forcefully attaching socket to the port
     if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT,
                                                   &opt, sizeof(opt)))
     {
         perror("setsockopt");
         exit(EXIT_FAILURE);
     }
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons( PORT );
+    server_address.sin_family = AF_INET;
+    server_address.sin_addr.s_addr = INADDR_ANY;
+    server_address.sin_port = htons( server_port );
 
     // Forcefully attaching socket to the port 8080
-    if (bind(server_fd, (struct sockaddr *)&address,
-                                 sizeof(address))<0)
+    if (bind(server_fd, (struct sockaddr *)&server_address,
+                                 sizeof(server_address))<0)
     {
         perror("bind failed");
         exit(EXIT_FAILURE);
@@ -466,23 +402,29 @@ void server_init()
         perror("listen");
         exit(EXIT_FAILURE);
     }
-    if ((server_socket = accept(server_fd, (struct sockaddr *)&address,
-                       (socklen_t*)&addrlen))<0)
+    if ((server_socket = accept(server_fd, (struct sockaddr *)&server_address,
+                       (socklen_t*)&server_addrlen))<0)
     {
         perror("accept");
         exit(EXIT_FAILURE);
     }
     sem_init(&server_buf_ready, 0, 1);
+    if (pthread_mutex_init(&queue_lock, NULL) != 0)
+      {
+          printf("\n mutex init has failed\n");
+      }
 }
 
 uint8_t server_buf[CHUNK_SIZE];
+
 void server_loop()
 {
   //wait for chunk size to be ready
   sem_wait(&server_buf_ready);
   if (get_next_chunk(server_buf) == 1)
   {
-    write(server_socket , server_buf , CHUNK_SIZE);
+    int send_code = write(server_socket , server_buf , CHUNK_SIZE);
+    if(send_code<0) server_socket = accept(server_fd, (struct sockaddr *)&server_address,(socklen_t*)&server_addrlen);
   }
 
 }
@@ -497,9 +439,6 @@ uint8_t pattern_pointer = 0;
 uint8_t NAL_signal = 0;
 void record_bytes(uint8_t *buf, uint32_t buf_size)
 {
-
-
-  //let the server know that there's enough bytes to send
 
   uint8_t new_NAL = 0;
   uint32_t new_NAL_sz = 0;
