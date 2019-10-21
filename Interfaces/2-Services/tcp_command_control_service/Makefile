@@ -6,6 +6,11 @@
 #				http://nuclear.mutantstargoat.com/articles/make/#practical-makefile
 # Desc:			
 
+
+# This makes spaces the recipe separator instead of the standard tab '\t' character
+#   Comment out the line to default back to tabs, or make it equal to any character you wish to use as a recipe separator
+.RECIPEPREFIX +=    
+
 ## Parameters ##
 CC=gcc
 CXX=g++
@@ -28,7 +33,7 @@ C_INC=-I$(shell pwd)
 #	-Werror					Treat warnings as errors
 #	-ldashcam_tcp_dbus_clnt	Include dynamic (shared) library containing the dashcam dbus client tcp function calls
 #	-O3:					Optimization more for code size and execution time
-CFLAGS=-Wall -Wextra -ggdb -Werror -ldashcam_tcp_dbus_clnt -O3
+CFLAGS=-Wall -Wextra -ggdb -ldashcam_tcp_dbus_clnt -O3
 
 # Define any parameters to be passed during compile time
 # CDEFINES=
@@ -53,25 +58,24 @@ CFLAGS=-Wall -Wextra -ggdb -Werror -ldashcam_tcp_dbus_clnt -O3
 
 # make build will compile all source code. This is the default if 'make' is run.
 build: command_control
-	echo "\nFinished!"
+    @echo "\nFinished!"
 
 command_control: clean-all
-	# Compile test command_control C code:
-	$(CXX) -o $(EXE) $(C_SRC) $(C_INC) $(CFLAGS)
-
-	chmod 770 $(EXE)
+    # Compile test command_control C code:
+    $(CXX) -o $(EXE) $(C_SRC) $(C_INC) $(CFLAGS)
+    chmod 770 $(EXE)
 
 run: $(EXE)
-	echo "\n -----------------Executing Command Controlt-----------------\n\n"
-	./$(EXE)
+    @echo "\n -----------------Executing Command Control-----------------\n\n"
+    ./$(EXE)
 
 # make setup will go through the setup process needed to compile/run code
 setup: clean-all dependencies download install clean
-	echo "\nSystem setup\n"
+    @echo "\nSystem setup\n"
 
 # make dependencies will install any software/package dependencies needed (ie installs gcc on system)
 dependencies:
-	# Requires libdashcam_dbus_tcp, this can be built/setup by running `make libdashcam_dbus_tcp` in the Networking/dbus_interface folder
+    # Requires libdashcam_dbus_tcp, this can be built/setup by running `make libdashcam_dbus_tcp` in the Networking/dbus_interface folder
 
 # make download will download any items (not software) needed (ie gcc source code for a cross compiler)
 download:
@@ -84,4 +88,4 @@ clean :
 
 # make clean-all will remove all generated/downloaded files. Should essetially revert directories back to original post clone state
 clean-all:
-	rm -rf $(EXE)
+    rm -rf $(EXE)

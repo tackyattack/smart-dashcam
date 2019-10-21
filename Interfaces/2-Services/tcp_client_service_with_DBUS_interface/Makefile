@@ -63,48 +63,52 @@ CFLAGS=-Wall -Wextra -std=gnu99 -ggdb -Werror -ldashcam_socket_clnt -ldashcam_tc
 
 # make build will compile all source code. This is the default if 'make' is run.
 build: service_tcp_clnt
-	echo "\nFinished!"
+    echo "\nFinished!"
 
-service_tcp_clnt: clean-all
-	# Compile test service_tcp_clnt C code:
-	$(CC) -o $(EXE) $(C_SRC) $(C_INC) $(CFLAGS)
+service_tcp_clnt:
+    # Compile test service_tcp_clnt C code:
+    $(CC) -o $(EXE) $(C_SRC) $(C_INC) $(CFLAGS)
 
-	chmod 770 $(EXE)
+    chmod 770 $(EXE)
 
 run: $(EXE)
-	echo "\n -----------------Executing Serverive TCP Client-----------------\n\n"
-	./$(EXE)
+    @echo "\n -----------------Executing Serverive TCP Client-----------------\n\n"
+    ./$(EXE)
 
 $(EXE): service_tcp_clnt
-	echo "Done\n\n"
+    @echo "Done\n\n"
 
 pi3_setup: $(EXE)
     @echo "Setup system for Raspberry Pi 3!\n\n"
 
 pi0_setup: $(EXE)
-	sudo mkdir -p $(SERVICES_DIR)
-	sudo cp $(EXE) $(SERVICES_DIR)/dashcam_tcp_client
-	sudo chmod +x $(SERVICES_DIR)/dashcam_tcp_client
+    sudo mkdir -p $(SERVICES_DIR)
+    sudo cp $(EXE) $(SERVICES_DIR)/dashcam_tcp_client
+    sudo chmod +x $(SERVICES_DIR)/dashcam_tcp_client
 
-	sudo cp dashcam_tcp_client.service $(SYSTEMD_UNIT_DIR)
-	sudo chmod 644 $(SYSTEMD_UNIT_DIR)/dashcam_tcp_client.service
-	sudo systemctl enable dashcam_tcp_client
-	sudo systemctl start dashcam_tcp_client
+    sudo cp dashcam_tcp_client.service $(SYSTEMD_UNIT_DIR)
+    sudo chmod 644 $(SYSTEMD_UNIT_DIR)/dashcam_tcp_client.service
+    sudo systemctl enable dashcam_tcp_client
+    sudo systemctl start dashcam_tcp_client
     @echo "Setup system for Raspberry Pi 0!\n\n"
 
 # make setup will go through the setup process needed to compile/run code
 setup: clean-all dependencies download install clean
-	echo "\nSystem setup\n"
+    @echo "\nSystem setup\n"
+
 # make dependencies will install any software/package dependencies needed (ie installs gcc on system)
 dependencies:
-	# Requires libdashcam_dbus_server, this can be built/setup by running `make libdashcam_dbus_server` in the Networking/dbus_interface folder\
+    # Requires libdashcam_dbus_server, this can be built/setup by running `make libdashcam_dbus_server` in the Networking/dbus_interface folder\
 
 # make download will download any items (not software) needed (ie gcc source code for a cross compiler)
 download:
+
 # make install will install any software/items needed to build/run code but that is not a software package (ie used to build a cross compiler)
 install:
+
 # make clean will remove any generated files that are not needed for executing or compiling code (ie object files)
 clean :
+
 # make clean-all will remove all generated/downloaded files. Should essetially revert directories back to original post clone state
 clean-all:
-	rm -rf $(EXE)
+    sudo rm -rf $(EXE) $(SERVICES_DIR)/dashcam_tcp_client $(SYSTEMD_UNIT_DIR)/dashcam_tcp_client.service

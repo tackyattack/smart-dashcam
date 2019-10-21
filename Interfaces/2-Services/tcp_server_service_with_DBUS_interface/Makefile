@@ -6,6 +6,11 @@
 #				http://nuclear.mutantstargoat.com/articles/make/#practical-makefile
 # Desc:			
 
+
+# This makes spaces the recipe separator instead of the standard tab '\t' character
+#   Comment out the line to default back to tabs, or make it equal to any character you wish to use as a recipe separator
+.RECIPEPREFIX +=    
+
 ## Parameters ##
 CC=gcc
 CXX=g++
@@ -58,30 +63,29 @@ CFLAGS=-Wall -Wextra -std=gnu99 -ggdb -Werror -ldashcam_socket_srv -ldashcam_tcp
 
 # make build will compile all source code. This is the default if 'make' is run.
 build: service_tcp_srv
-	echo "\nFinished!"
+    @echo "\nFinished!"
 
-service_tcp_srv: clean-all
-	# Compile test service_tcp_srv C code:
-	$(CC) -o $(EXE) $(C_SRC) $(C_INC) $(CFLAGS)
-
-	chmod 770 $(EXE)
+service_tcp_srv: 
+    # Compile test service_tcp_srv C code:
+    $(CC) -o $(EXE) $(C_SRC) $(C_INC) $(CFLAGS)
+    chmod 770 $(EXE)
 
 run: $(EXE)
-	echo "\n -----------------Executing TEST Socket Server-----------------\n\n"
-	./$(EXE)
+    @echo "\n -----------------Executing TCP Server Service -----------------\n\n"
+    ./$(EXE)
 
 $(EXE): service_tcp_srv
-	echo "Done\n\n"
+    @echo "Done\n\n"
 
 pi3_setup: $(EXE)
-	sudo mkdir -p $(SERVICES_DIR)
-	sudo cp $(EXE) $(SERVICES_DIR)/dashcam_tcp_server
-	sudo chmod +x $(SERVICES_DIR)/dashcam_tcp_server
+    sudo mkdir -p $(SERVICES_DIR)
+    sudo cp $(EXE) $(SERVICES_DIR)/dashcam_tcp_server
+    sudo chmod +x $(SERVICES_DIR)/dashcam_tcp_server
 
-	sudo cp dashcam_tcp_server.service $(SYSTEMD_UNIT_DIR)
-	sudo chmod 644 $(SYSTEMD_UNIT_DIR)/dashcam_tcp_server.service
-	sudo systemctl enable dashcam_tcp_server
-	sudo systemctl start dashcam_tcp_server
+    sudo cp dashcam_tcp_server.service $(SYSTEMD_UNIT_DIR)
+    sudo chmod 644 $(SYSTEMD_UNIT_DIR)/dashcam_tcp_server.service
+    sudo systemctl enable dashcam_tcp_server
+    sudo systemctl start dashcam_tcp_server
     @echo "Setup system for Raspberry Pi 3!\n\n"
 
 pi0_setup: $(EXE)
@@ -89,10 +93,10 @@ pi0_setup: $(EXE)
 
 # make setup will go through the setup process needed to compile/run code
 setup: clean-all dependencies download install clean
-	echo "\nSystem setup\n"
+    echo "\nSystem setup\n"
 # make dependencies will install any software/package dependencies needed (ie installs gcc on system)
 dependencies:
-	# Requires libdashcam_dbus_server, this can be built/setup by running `make libdashcam_dbus_server` in the Networking/dbus_interface folder\
+    # Requires libdashcam_dbus_server, this can be built/setup by running `make libdashcam_dbus_server` in the Networking/dbus_interface folder\
 
 # make download will download any items (not software) needed (ie gcc source code for a cross compiler)
 download:
@@ -102,4 +106,4 @@ install:
 clean :
 # make clean-all will remove all generated/downloaded files. Should essetially revert directories back to original post clone state
 clean-all:
-	rm -rf $(EXE)
+    sudo rm -rf $(EXE) $(SYSTEMD_UNIT_DIR)/dashcam_tcp_server.service $(SERVICES_DIR)/dashcam_tcp_server

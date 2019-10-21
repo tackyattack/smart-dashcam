@@ -58,8 +58,8 @@ pi0_setup:
 
 # make setup will go through the setup process needed to compile/run code
 setup: clean-all dependencies download install clean
-    # # Run make setup for all sub-directories
-    # for dir in $(LIB_DIRS);                 \
+    @# # Run make setup for all sub-directories
+    @# for dir in $(LIB_DIRS);                 \
     #     do                                  \
     #       $(MAKE) --directory=$$dir setup;  \
     # done
@@ -67,24 +67,24 @@ setup: clean-all dependencies download install clean
 
 # make dependencies will install any software/package dependencies needed (ie installs gcc on system)
 dependencies:
-    # # Run make dependencies for all sub-directories
-    # for dir in $(LIB_DIRS);                         \
+    @# # Run make dependencies for all sub-directories
+    @# for dir in $(LIB_DIRS);                         \
     #     do                                          \
     #       $(MAKE) --directory=$$dir dependencies;   \
     # done
 
 # make download will download any items (not software) needed (ie gcc source code for a cross compiler)
 download:
-    # # Run make download for all sub-directories
-    # for dir in $(LIB_DIRS);                     \
+    @# # Run make download for all sub-directories
+    @# for dir in $(LIB_DIRS);                     \
     #     do                                      \
     #       $(MAKE) --directory=$$dir download;   \
     # done
 
 # make install will install any software/items needed to build/run code but that is not a software package (ie used to build a cross compiler)
 install:
-    # # Run make install for all sub-directories
-    # for dir in $(LIB_DIRS);                     \
+    @# # Run make install for all sub-directories
+    @# for dir in $(LIB_DIRS);                     \
     #     do                                      \
     #       $(MAKE) --directory=$$dir install;    \
     # done

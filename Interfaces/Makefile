@@ -35,12 +35,12 @@ SUB_DIRS= $(shell ls -d */) #List of all library sub-directories, can use $(shel
 
 # make setup will go through the setup process needed to compile/run code
 setup: clean-all dependencies download install build clean
-    # Run make setup for all sub-directories
-    # for dir in $(SUB_DIRS);                 \
+    @# Run make setup for all sub-directories
+    @# for dir in $(SUB_DIRS);                 \
     #     do                                  \
     #       $(MAKE) --directory=$$dir setup;  \
     # done
-    echo "\nInterfaces setup!\n"
+    @echo "\nInterfaces setup!\n"
 
 build: $(SUB_DIRS)
     # Run make build for all sub-directories
