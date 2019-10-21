@@ -29,8 +29,9 @@ C_INC=-I$(shell pwd) #-I../../dbus_interface/
 #	-Werror					Treat warnings as errors
 #	-ldashcam_socket_srv	Include dynamic (shared) library containing the dashcam socket server function calls
 #	-ldashcam_tcp_dbus_srv	Include dynamic (shared) library containing the dashcam dbus server (for tcp server) function calls	
+#	-pthread				Pthread lib
 #	-O3:					Optimization more for code size and execution time
-CFLAGS=-Wall -Wextra -std=gnu99 -ggdb -Werror -ldashcam_socket_srv -ldashcam_tcp_dbus_srv -O3
+CFLAGS=-Wall -Wextra -std=gnu99 -ggdb -Werror -ldashcam_socket_srv -ldashcam_tcp_dbus_srv -pthread -O3
 
 # Define any parameters to be passed during compile time
 # CDEFINES=

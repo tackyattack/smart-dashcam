@@ -13,6 +13,8 @@ static char* host_ip   = SERVER_ADDR;
 static char* host_port = SERVER_PORT;
 static bool ignore_disconnect = false;
 static pthread_mutex_t mutex_ignore_disconnect = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t mutex_tcp_recv_msg = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t mutex_dbus_method_send_tcp_msg_callback = PTHREAD_MUTEX_INITIALIZER;
 
 
 /*-------------------------------------
@@ -49,11 +51,14 @@ void tcp_recv_msg(const char *data, const unsigned int data_sz)
     }
     printf("\"\n");
 
+    pthread_mutex_lock(&mutex_tcp_recv_msg);
     if ( 0 != tcp_dbus_srv_emit_msg_recv_signal(srv_id, "SERVER", data, data_sz) )
     {
+        pthread_mutex_unlock(&mutex_tcp_recv_msg);
         printf("ERROR: raising signal tcp_dbus_srv_emit_msg_recv_signal() FAILED!\n");
         exit(EXIT_FAILURE);
     }
+    pthread_mutex_unlock(&mutex_tcp_recv_msg);
     
   	printf("\n****************END---recv_msg---END****************\n\n");
 } /* tcp_recv_msg() */
@@ -96,10 +101,13 @@ bool dbus_method_send_tcp_msg_callback(const char* tcp_clnt_uuid, const char* da
         return false;
     }
 
+    pthread_mutex_lock(&mutex_dbus_method_send_tcp_msg_callback);
     if( 0 >= socket_client_send_data(data, data_sz) )
     {
+        pthread_mutex_unlock(&mutex_dbus_method_send_tcp_msg_callback);
         return false;
     }
+    pthread_mutex_unlock(&mutex_dbus_method_send_tcp_msg_callback);
 
     return true;
     

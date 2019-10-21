@@ -9,6 +9,10 @@
 |           STATIC VARIABLES           |
 --------------------------------------*/
 static dbus_srv_id srv_id;     /* dbus server instance id */
+static pthread_mutex_t mutex_tcp_recv_msg = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t mutex_connect = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t mutex_disconnect = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t mutex_dbus_method_send_tcp_msg_callback = PTHREAD_MUTEX_INITIALIZER;
 
 
 /*-------------------------------------
@@ -44,12 +48,14 @@ void tcp_recv_msg(const char* uuid, const char *data, const unsigned int data_sz
     //     printf("%c",data[i]);
     // }
     // printf("\"\n");
-
+    pthread_mutex_lock(&mutex_tcp_recv_msg);
     if ( 0 != tcp_dbus_srv_emit_msg_recv_signal(srv_id, uuid, data, data_sz) )
     {
+        pthread_mutex_unlock(&mutex_tcp_recv_msg);
         printf("ERROR: raising signal tcp_dbus_srv_emit_msg_recv_signal() FAILED!\n");
         exit(EXIT_FAILURE);
     }
+    pthread_mutex_unlock(&mutex_tcp_recv_msg);
     
   	// printf("\n****************END---recv_msg---END****************\n\n");
 } /* recv_msg() */
@@ -60,11 +66,14 @@ void tcp_client_connect(const char* uuid)
   	// printf("\n****************client_connect: callback activated.****************\n\n");
 
     // printf("Client connected -> UUID: %s\n", uuid);
+    pthread_mutex_lock(&mutex_connect);
     if ( 0 != tcp_dbus_srv_emit_connect_signal(srv_id, uuid) )
     {
+        pthread_mutex_unlock(&mutex_connect);
         printf("ERROR: raising signal tcp_dbus_srv_emit_connect_signal() FAILED!\n");
         exit(EXIT_FAILURE);
     }
+    pthread_mutex_unlock(&mutex_connect);
 
   	// printf("\n****************END---client_connect---END****************\n\n");
 } /* client_connect() */
@@ -75,11 +84,14 @@ void tcp_client_disconnect(const char* uuid)
   	// printf("\n****************client_disconnect: callback activated.****************\n\n");
 
     // printf("Client disconnected -> UUID: %s\n", uuid);
+    pthread_mutex_lock(&mutex_disconnect);
     if ( 0 != tcp_dbus_srv_emit_connect_signal(srv_id, uuid) )
     {
+        pthread_mutex_unlock(&mutex_disconnect);
         printf("ERROR: raising signal tcp_dbus_srv_emit_connect_signal() FAILED!\n");
         exit(EXIT_FAILURE);
     }
+    pthread_mutex_unlock(&mutex_disconnect);
 
   	// printf("\n****************END---client_disconnect---END****************\n\n");
 } /* client_disconnect() */
@@ -102,17 +114,23 @@ bool dbus_method_send_tcp_msg_callback(const char* tcp_clnt_uuid, const char* da
 
     if( tcp_clnt_uuid == NULL || strlen(tcp_clnt_uuid) == 0 )
     {
+        pthread_mutex_lock(&mutex_dbus_method_send_tcp_msg_callback);
         if( 0 >= socket_server_send_data_all(data, data_sz) )
         {
+            pthread_mutex_unlock(&mutex_dbus_method_send_tcp_msg_callback);
             return false;
         }
+        pthread_mutex_unlock(&mutex_dbus_method_send_tcp_msg_callback);
     }
     else
     {
+        pthread_mutex_lock(&mutex_dbus_method_send_tcp_msg_callback);
         if( 0 >= socket_server_send_data(tcp_clnt_uuid, data, data_sz) )
         {
+            pthread_mutex_unlock(&mutex_dbus_method_send_tcp_msg_callback);
             return false;
         }
+        pthread_mutex_unlock(&mutex_dbus_method_send_tcp_msg_callback);
     }
 
     return true;
