@@ -11,7 +11,7 @@
 #include <stdio.h>
 #include <string.h> /* for strlen() */
 
-/* includes needed for server */
+/* includes needed for client */
 #include <dashcam_sockets/pub_socket_client.h>
 
 

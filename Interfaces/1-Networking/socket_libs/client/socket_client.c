@@ -134,7 +134,7 @@ int socket_client_init(char* server_addr, char *port, socket_lib_clnt_rx_msg rx_
     if ( atoi(port) < 0 || atoi(port) > 65535 )
     {
         printf("ERROR: invalid port number %s!",port);
-        return RETURN_SUCCESS;
+        return RETURN_FAILED;
     }
 
 
@@ -449,7 +449,7 @@ void socket_client_quit()
 
 } /* socket_client_quit() */
 
-bool is_client_executing()
+bool socket_client_is_executing()
 {
     bool return_val;
     /*-----------------------------------
@@ -460,4 +460,4 @@ bool is_client_executing()
     pthread_mutex_unlock(&mutex_isExecuting_thread);
     
     return return_val;
-} /* is_client_executing() */
+} /* socket_client_is_executing() */

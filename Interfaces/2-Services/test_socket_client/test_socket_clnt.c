@@ -111,7 +111,7 @@ int main(int argc, char *argv[])
     {
         count--;
 
-        /* This call will attempt to connect with the server infinitely */
+        /* This call will attempt to connect with the server */
         if( socket_client_init(host_ip, host_port, recv_msg, disconnected) == -1 )
         {
             sleep(2);
@@ -126,7 +126,7 @@ int main(int argc, char *argv[])
 
         for (size_t i = 0; i < 5; i++)
         {
-            if( true == is_client_executing())
+            if( true == socket_client_is_executing())
             {
                 socket_client_send_data("Client message to server", 25);
                 sleep(2);
@@ -144,11 +144,11 @@ int main(int argc, char *argv[])
         }
 
         /* Kill client */
-        if( true == is_client_executing())
+        if( true == socket_client_is_executing())
         {
             socket_client_quit();
             sleep(2);
-            if( false == is_client_executing())
+            if( false == socket_client_is_executing())
             {
                 printf("Client Thread killed.\n");
             }

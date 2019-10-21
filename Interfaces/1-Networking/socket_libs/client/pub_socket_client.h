@@ -96,6 +96,6 @@ void socket_client_quit();
 /**
  * @Returns True if client thread is executing, else false.
  */
-bool is_client_executing();
+bool socket_client_is_executing();
 
 #endif /* PUB_SOCKET_CLIENT_H */

@@ -45,11 +45,6 @@ void tcp_recv_msg(const char* uuid, const char *data, const unsigned int data_sz
     // }
     // printf("\"\n");
 
-    if(socket_server_is_executing() == false)
-    {
-        return;
-    }
-
     if ( 0 != tcp_dbus_srv_emit_msg_recv_signal(srv_id, uuid, data, data_sz) )
     {
         printf("ERROR: raising signal tcp_dbus_srv_emit_msg_recv_signal() FAILED!\n");
