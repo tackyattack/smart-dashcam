@@ -120,7 +120,7 @@ int main(void)
             printf("Failed to initialize client!\nExiting.....\n");
             exit(EXIT_FAILURE);
         }
-        else if ( val == DBUS_SRV_NOT_EXECUTING )
+        else if ( val == DBUS_SRV_NOT_AVAILABLE )
         {
             printf("WARNING: DBUS server is unavailable. Trying again in 2 seconds...\n");
             sleep(2);

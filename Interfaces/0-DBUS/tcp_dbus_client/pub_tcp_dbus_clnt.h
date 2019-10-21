@@ -15,7 +15,7 @@
 
 #define MAX_NUM_CLIENTS             (__UINT8_MAX__) /* Max number of dbus clients (instances) a process can have */
 #define NUM_SIGNALS                 (3)             /* This should match the signals defined in pub_dbus.h and with the server */
-#define DBUS_SRV_NOT_EXECUTING      (-1)            /* This is returned by tcp_dbus_client_init() if dbus server is not active */
+#define DBUS_SRV_NOT_AVAILABLE      (-1)            /* This is returned by tcp_dbus_client_init() if dbus server is not active */
 
 /*-------------------------------------
 |           PUBLIC TYPEDEFS            |

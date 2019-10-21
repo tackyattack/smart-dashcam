@@ -52,20 +52,20 @@ CFLAGS=-Wall -Wextra -std=gnu99 -ggdb -Werror -ldashcam_socket_clnt -ldashcam_tc
 #		prerequisites ->  a file that is used as input to create the target
 #		recipe -> actions taken by make. Tab is required.
 
-.PHONY: build service_tcp_srv run setup download dependencies install clean clean-all
+.PHONY: build service_tcp_clnt run setup download dependencies install clean clean-all
 
 # make build will compile all source code. This is the default if 'make' is run.
-build: service_tcp_srv
+build: service_tcp_clnt
 	echo "\nFinished!"
 
-service_tcp_srv: clean-all
-	# Compile test service_tcp_srv C code:
+service_tcp_clnt: clean-all
+	# Compile test service_tcp_clnt C code:
 	$(CC) -o $(EXE) $(C_SRC) $(C_INC) $(CFLAGS)
 
 	chmod 770 $(EXE)
 
 run: $(EXE)
-	echo "\n -----------------Executing TEST Socket Server-----------------\n\n"
+	echo "\n -----------------Executing Serverive TCP Client-----------------\n\n"
 	./$(EXE)
 
 # make setup will go through the setup process needed to compile/run code

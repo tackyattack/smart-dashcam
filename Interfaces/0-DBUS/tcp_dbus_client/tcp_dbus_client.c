@@ -251,7 +251,7 @@ int tcp_dbus_client_init(dbus_clnt_id clnt_id, char const ** srv_version)
         g_main_loop_unref (dbus_config[clnt_id]->loop);
         g_object_unref(dbus_config[clnt_id]->proxy);
         g_object_unref(dbus_config[clnt_id]->conn);
-        return DBUS_SRV_NOT_EXECUTING;
+        return DBUS_SRV_NOT_AVAILABLE;
     }
 
     g_variant_get(variant, "s", &server_version);
