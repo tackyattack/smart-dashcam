@@ -187,3 +187,5 @@ dmypy.json
 
 #Mac folder tracking junk
 .DS_Store
+*.h264
+*.mp4
