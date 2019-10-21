@@ -6,6 +6,7 @@
 import argparse
 from picamera import PiCamera
 from picamera import PiRenderer
+from picamera import encoders
 from picamera import mmal, mmalobj as mo
 import threading
 import os
@@ -37,10 +38,6 @@ server_loop = stream_lib.server_loop
 server_loop.argtypes = None
 server_loop.restype = None
 
-
-
-
-
 def print_hex_block(block, len):
     a = list(block)
     for i in range(len):
@@ -48,43 +45,32 @@ def print_hex_block(block, len):
 
     print("----")
 
-
-f = open('splitter.h264', 'w+')
-f.close()
-f = open('splitter.h264', 'ab')
-
-
-
-def video_callback(port, buf):
-    # if (SPS is None) or (PPS is None):
-    #     log_data(buf.data)
-    # else:
-    #     write_block(buf.data)
-    #
-    # print(q.qsize())
-    #print('mew')
-    #record_bytes(buf.data)
-    record_bytes_stream(buf.data,len(buf.data))
-    return False
-
-dummy_streamA = io.BytesIO()
-dummy_streamB = io.BytesIO()
-
-
-
 camera = PiCamera()
 camera.resolution = (1640, 922)
 camera.framerate = 20
-camera.start_recording('dummy.h264', format='h264')
 
-camera.start_recording('test.h264', format='h264', splitter_port=3,
-                        resize=(240, 160), quality=20)
+class StreamEncoder(encoders.PiVideoEncoder):
+    def _callback(self, port, buf):
+        record_bytes_stream(buf.data, len(buf.data))
+        return bool(buf.flags & mmal.MMAL_BUFFER_HEADER_FLAG_EOS)
 
-camera._encoders[3].encoder.outputs[0].disable()
-camera._encoders[3].encoder.outputs[0].enable(video_callback)
-# camera.stop_recording()
-# sleep(1)
-# camera.stop_recording()
+def create_stream_encoder(camera, splitter_port, format, resize, quality):
+    output = 'dummy.h264'
+    with camera._encoders_lock:
+        camera_port, output_port = camera._get_ports(True, splitter_port)
+        encoder_format = camera._get_video_format(output, format)
+        encoder = StreamEncoder(parent=camera, camera_port=camera_port, input_port=output_port,
+                                            format=encoder_format, resize=resize, quality=quality)
+        camera._encoders[splitter_port] = encoder
+    try:
+        encoder.start(output)
+    except Exception as e:
+        encoder.close()
+        with camera._encoders_lock:
+            del encoder
+        raise
+
+create_stream_encoder(camera=camera, splitter_port=3, format='h264', resize=(240, 160), quality=30)
 
 server_init(8080)
 try:
@@ -94,6 +80,4 @@ try:
 except KeyboardInterrupt:
     pass
 run = False
-camera.stop_recording()
 camera.close()
-f.close()

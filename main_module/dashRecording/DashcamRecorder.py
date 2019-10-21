@@ -6,13 +6,14 @@
 import argparse
 from picamera import PiCamera
 from picamera import mmal, mmalobj as mo
+from picamera import encoders
 import threading
 import os
 from time import sleep
 import subprocess
 import Queue
 import sys
-import io
+
 
 # note: the frame rate flag for some reason has to be double the framerate
 # ./DashcamRecorder.py --stream | cvlc -vvv stream:///dev/stdin --sout '#standard{access=http,mux=ts,dst=:8090}' :demux=h264 :h264-fps=40
@@ -23,6 +24,32 @@ import io
 
 # to play back
 # omxplayer -o hdmi  rtsp://131.151.175.144:8554/
+
+class StreamEncoder(encoders.PiVideoEncoder):
+    def _callback(self, port, buf):
+        if buf:
+            try:
+                sys.stdout.write(buf.data)
+                sys.stdout.flush()
+            except IOError:
+                return True
+        return bool(buf.flags & mmal.MMAL_BUFFER_HEADER_FLAG_EOS)
+
+def create_stream_encoder(camera, splitter_port, format, resize, quality):
+    output = 'dummy.h264'
+    with camera._encoders_lock:
+        camera_port, output_port = camera._get_ports(True, splitter_port)
+        encoder_format = camera._get_video_format(output, format)
+        encoder = StreamEncoder(parent=camera, camera_port=camera_port, input_port=output_port,
+                                            format=encoder_format, resize=resize, quality=quality)
+        camera._encoders[splitter_port] = encoder
+    try:
+        encoder.start(output)
+    except Exception as e:
+        encoder.close()
+        with camera._encoders_lock:
+            del encoder
+        raise
 
 class Recorder:
     def __init__(self, record_path, recording_interval_s, max_size_mb, stream, stream_width=410,
@@ -48,18 +75,7 @@ class Recorder:
 
         if stream:
             self.silent = True
-            dummy_streamA = io.BytesIO()
-            dummy_streamB = io.BytesIO()
-            # start recording to do setup
-            self.camera.start_recording(dummy_streamA, format='h264')
-            # note: the resolution should be as close to the original aspect ratio as
-            #       possible so that resizer doesn't have to work hard
-            self.camera.start_recording(dummy_streamB, format='h264', splitter_port=3,
-                                    resize=(self.stream_width,self.stream_height), quality=self.stream_quality)
-
-            self.camera._encoders[3].encoder.outputs[0].disable()
-            self.camera._encoders[3].encoder.outputs[0].enable(self.video_callback)
-            self.camera.stop_recording()
+            create_stream_encoder(camera=self.camera, splitter_port=3, format='h264', resize=(240, 160), quality=1)
 
             #mo.print_pipeline(self.camera._encoders[2].encoder.outputs[0])
 
@@ -197,16 +213,6 @@ class Recorder:
         if(not self.silent):
             print("wrapping thread closed")
         self.cleanup()
-
-    def video_callback(self, port, buf):
-        if buf:
-            try:
-                sys.stdout.write(buf.data)
-                sys.stdout.flush()
-
-            except IOError:
-                return True
-        return False
 
 def start_recording_command_line():
     parser = argparse.ArgumentParser(description='recording and streaming module for camera')
