@@ -85,7 +85,7 @@ $(LIB_NAME):
 
     @# Copy header files to system includes directory
     sudo cp $(PUB_HEADER) $(LIB_DIR)
-    chmod 444 $(LIB_DIR)/*.h
+    sudo chmod 444 $(LIB_DIR)/*.h
 
     @# This will test if successful (You have to read the output)
     @echo "\n\n-----------------Results for $(LIB_NAME)-----------------\n"
