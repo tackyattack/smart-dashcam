@@ -36,7 +36,6 @@ build: $(SUB_DIRS)
     @echo "Built all services\n\n"
 
 pi3_setup:
-
 	sudo ./PI_HOST_WIFI_NETWORK_INSTALL.sh
 	sudo ./PI_HOST_WIFI_NETWORK_ENABLE.sh
 	@echo "\n\n\n\nTHE SYSTEM NEEDS TO REBOOT\n\n\n\n"

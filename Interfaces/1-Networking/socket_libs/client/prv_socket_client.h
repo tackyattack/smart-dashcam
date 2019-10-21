@@ -80,4 +80,8 @@ int send_data ( const uint8_t command, const char * data, uint data_sz );
  */
 void* execute_thread(void* args);
 
+/**
+ */
+void close_and_notify();
+
 #endif /* PRV_SOCKET_CLIENT_H */

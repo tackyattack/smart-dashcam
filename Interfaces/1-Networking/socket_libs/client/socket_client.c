@@ -70,7 +70,7 @@ void load_uuid()
         fptr = fopen(UUID_FILE_NAME,"w"); /* UUID_FILE_NAME is defined at compile time */
         fputs(UUID, fptr);
     }
-    
+
 
     /*----------------------------------
     |         SAVE UUID TO UUID         |
@@ -120,7 +120,7 @@ int socket_client_init(char* server_addr, char *port, socket_lib_clnt_rx_msg rx_
     --------------------------------------*/
     _rx_callback        = rx_callback;
     _discont_callback   = discnt_callback;
-    
+
 
     /*-------------------------------------
     |       LOAD AND OR CREATE UUID        |
@@ -158,7 +158,7 @@ int socket_client_init(char* server_addr, char *port, socket_lib_clnt_rx_msg rx_
         close(client_fd);
         return RETURN_FAILED;
     }
-    
+
     return RETURN_SUCCESS;
 } /* socket_client_init() */
 
@@ -211,7 +211,7 @@ int process_recv_msg(const int socket_fd)
             /*----------------------------------
             |           CALL CALLBACK           |
             ------------------------------------*/
-            /* Received message from client. Call callback with message and UUID */
+            /* Received message from server. Call callback with message and UUID */
             if(_rx_callback != NULL)
             {
                 (*_rx_callback)(partial_rx_msg, partial_rx_msg_sz);
@@ -306,23 +306,22 @@ void* execute_thread(void* args)
         {
             /* Select() Error */
             perror("ERROR IN SELECT OPERATION");
-            close(client_fd);
+            close_and_notify();
             exit(EXIT_FAILURE);
         }
         else if (n == 0)
         {
             /* Timeout */
             printf("\nServer ping timeout! Lost connection to server.....\n");
-            if(_discont_callback != NULL )
-            {
-                (*_discont_callback)();
-            }
+            close_and_notify();
             break;
         }
         else if (!FD_ISSET(client_fd, &working_fd_set))
         {
             /* No received messages but no timeout or error */
             printf("\nUNKNOWN ERROR\n");
+            close_and_notify();
+            exit(EXIT_FAILURE);
             break;
         }
 
@@ -332,16 +331,15 @@ void* execute_thread(void* args)
         if( RETURN_FAILED == process_recv_msg(client_fd) )
         {
             printf("\nClient received invalid msg.....Close connection to server....\n");
-            if(_discont_callback != NULL )
-            {
-                (*_discont_callback)();
-            }
+            close_and_notify();
             break;
         }
 
     } /* while(1) */
 
-    close(client_fd);
+    // close(client_fd);
+    // close_and_notify();
+
 
     /*-----------------------------------
     |        SET ISRUNNING FALSE         |
@@ -424,7 +422,7 @@ int send_data ( const uint8_t command, const char * data, uint data_sz )
     if( n < 1 )
     {
         /* Disconnect client if failed to send message */
-        close(client_fd);
+        close_and_notify();
     }
     else
     {
@@ -461,3 +459,13 @@ bool socket_client_is_executing()
     
     return return_val;
 } /* socket_client_is_executing() */
+
+void close_and_notify()
+{
+    close(client_fd);
+
+    if(_discont_callback != NULL )
+    {
+        (*_discont_callback)();
+    }
+}
