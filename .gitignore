@@ -189,3 +189,7 @@ dmypy.json
 .DS_Store
 *.h264
 *.mp4
+*.png
+*.jpg
+*.jpeg
+*.bmp
