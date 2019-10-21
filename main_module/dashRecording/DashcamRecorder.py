@@ -6,13 +6,20 @@
 import argparse
 from picamera import PiCamera
 from picamera import mmal, mmalobj as mo
+from picamera import encoders
 import threading
 import os
+import signal
 from time import sleep
 import subprocess
 import Queue
 import sys
-import io
+import ctypes
+
+
+# --- DEPRECATION: stdio stream since it's slow
+# if you want to still use a pipe, run this with the --stream flag then use
+# netcat on localhost to pipe it into cvlc
 
 # note: the frame rate flag for some reason has to be double the framerate
 # ./DashcamRecorder.py --stream | cvlc -vvv stream:///dev/stdin --sout '#standard{access=http,mux=ts,dst=:8090}' :demux=h264 :h264-fps=40
@@ -24,9 +31,44 @@ import io
 # to play back
 # omxplayer -o hdmi  rtsp://131.151.175.144:8554/
 
+root_path = os.path.dirname(os.path.realpath(__file__))
+stream_lib = ctypes.CDLL(os.path.join(root_path, 'Stream/dashcam_streamer/stream.so'))
+record_bytes_stream = stream_lib.record_bytes
+record_bytes_stream.argtypes = [ctypes.c_char_p, ctypes.c_uint32]
+record_bytes_stream.restype = None
+
+server_init = stream_lib.server_init
+server_init.argtypes = [ctypes.c_int]
+server_init.restype = None
+
+server_loop = stream_lib.server_loop
+server_loop.argtypes = None
+server_loop.restype = None
+
+class StreamEncoder(encoders.PiVideoEncoder):
+    def _callback(self, port, buf):
+        record_bytes_stream(buf.data, len(buf.data))
+        return bool(buf.flags & mmal.MMAL_BUFFER_HEADER_FLAG_EOS)
+
+def create_stream_encoder(camera, splitter_port, format, resize, quality):
+    output = 'dummy.h264'
+    with camera._encoders_lock:
+        camera_port, output_port = camera._get_ports(True, splitter_port)
+        encoder_format = camera._get_video_format(output, format)
+        encoder = StreamEncoder(parent=camera, camera_port=camera_port, input_port=output_port,
+                                            format=encoder_format, resize=resize, quality=quality)
+        camera._encoders[splitter_port] = encoder
+    try:
+        encoder.start(output)
+    except Exception as e:
+        encoder.close()
+        with camera._encoders_lock:
+            del encoder
+        raise
+
 class Recorder:
-    def __init__(self, record_path, recording_interval_s, max_size_mb, stream, stream_width=410,
-                 stream_height=320, stream_quality=1):
+    def __init__(self, record_path, recording_interval_s, max_size_mb, stream, port=8080, stream_width=240,
+                 stream_height=160, stream_quality=30):
         self.camera = PiCamera()
         self.camera.resolution = (1640, 922)
         self.framerate = 20
@@ -36,32 +78,21 @@ class Recorder:
         self.record_interval_s = recording_interval_s
         self.recording_thread = None
         self.wrapping_thread = None
+        self.stream_thread = None
         self.current_recording_name = None
         self.wrapping_queue = Queue.Queue()
         self.max_size_mb = max_size_mb
         self.stream_width = stream_width
         self.stream_height = stream_height
         self.stream_quality = stream_quality
+        self.stream_port = port
         self.silent = False
+        self.do_stream = stream
         if not os.path.exists(self.record_path):
             os.makedirs(self.record_path)
 
-        if stream:
-            self.silent = True
-            dummy_streamA = io.BytesIO()
-            dummy_streamB = io.BytesIO()
-            # start recording to do setup
-            self.camera.start_recording(dummy_streamA, format='h264')
-            # note: the resolution should be as close to the original aspect ratio as
-            #       possible so that resizer doesn't have to work hard
-            self.camera.start_recording(dummy_streamB, format='h264', splitter_port=3,
-                                    resize=(self.stream_width,self.stream_height), quality=self.stream_quality)
-
-            self.camera._encoders[3].encoder.outputs[0].disable()
-            self.camera._encoders[3].encoder.outputs[0].enable(self.video_callback)
-            self.camera.stop_recording()
-
-            #mo.print_pipeline(self.camera._encoders[2].encoder.outputs[0])
+        if self.do_stream:
+            create_stream_encoder(camera=self.camera, splitter_port=3, format='h264', resize=(240, 160), quality=40)
 
 
 
@@ -74,13 +105,16 @@ class Recorder:
         self.recording_thread.start()
         self.wrapping_thread = threading.Thread(target=self.wrapping_thread_func)
         self.wrapping_thread.start()
+        if self.do_stream:
+            self.stream_thread = threading.Thread(target=self.stream_thread_func)
+            self.stream_thread.start()
 
 
     def terminate(self):
         self.terminate_threads = True
-        self.wrapping_thread = None
-        self.recording_thread = None
-
+        while(self.wrapping_thread is not None and self.recording_thread is not None):
+            sleep(0.25)
+        os.kill(os.getpid(), signal.SIGTERM)
 
     def cleanup(self):
         for file in os.listdir(self.record_path):
@@ -159,6 +193,7 @@ class Recorder:
         self.camera.close()
         if(not self.silent):
             print("recording thread closed")
+        self.recording_thread = None
 
     def check_reduce(self):
         size_mb = self.get_size()/1000000
@@ -197,31 +232,33 @@ class Recorder:
         if(not self.silent):
             print("wrapping thread closed")
         self.cleanup()
+        self.wrapping_thread = None
 
-    def video_callback(self, port, buf):
-        if buf:
-            try:
-                sys.stdout.write(buf.data)
-                sys.stdout.flush()
-
-            except IOError:
-                return True
-        return False
+    def stream_thread_func(self):
+        server_init(self.stream_port)
+        while not self.terminate_threads:
+            # this has thread waiting so it won't thrash CPU
+            server_loop()
+            pass
+        if(not self.silent):
+            print("stream thread closed")
+        self.stream_thread = None
 
 def start_recording_command_line():
     parser = argparse.ArgumentParser(description='recording and streaming module for camera')
     parser.add_argument("-t", default=10, type=int, help='sets the recording interval between clips')
     parser.add_argument("-m", default=100, type=int, help='sets the max MB size of the record folder')
     parser.add_argument("-o", default='', help='sets the location for recordings folder')
-    parser.add_argument("-sw", default=410, type=int, help='sets the stream width')
-    parser.add_argument("-sh", default=320, type=int, help='sets the stream height')
-    parser.add_argument("-sq", default=1, type=int, help='sets the stream quality (1:highest 40:lowest)')
+    parser.add_argument("-sw", default=240, type=int, help='sets the stream width')
+    parser.add_argument("-sh", default=160, type=int, help='sets the stream height')
+    parser.add_argument("-sq", default=30, type=int, help='sets the stream quality (1:highest 40:lowest)')
+    parser.add_argument("-p", default=8080, type=int, help='sets the stream port')
     parser.add_argument("--stream", action='store_true', help='stream h264 through stdout')
     args = parser.parse_args()
 
     record_path = os.path.join(args.o, 'recordings')
     record_inst = Recorder(record_path=record_path, recording_interval_s=args.t,
-                           max_size_mb=args.m, stream=args.stream, stream_width=args.sw,
+                           max_size_mb=args.m, stream=args.stream, port=args.p, stream_width=args.sw,
                            stream_height=args.sh, stream_quality=args.sq)
     record_inst.start_recorder()
     exit_main = False
