@@ -29,6 +29,18 @@ get_next_chunk.restype = ctypes.c_int
 queue_chunk = (ctypes.c_char*(4000))()
 
 
+server_init = stream_lib.server_init
+server_init.argtypes = None
+server_init.restype = None
+
+server_loop = stream_lib.server_loop
+server_loop.argtypes = None
+server_loop.restype = None
+
+
+
+
+
 def print_hex_block(block, len):
     a = list(block)
     for i in range(len):
@@ -127,7 +139,7 @@ def video_callback(port, buf):
     #     write_block(buf.data)
     #
     # print(q.qsize())
-    print('mew')
+    #print('mew')
     #record_bytes(buf.data)
     record_bytes_stream(buf.data,len(buf.data))
     return False
@@ -143,7 +155,7 @@ camera.framerate = 20
 camera.start_recording('dummy.h264', format='h264')
 
 camera.start_recording('test.h264', format='h264', splitter_port=3,
-                        resize=(320, 240), quality=10)
+                        resize=(240, 160), quality=30)
 
 camera._encoders[3].encoder.outputs[0].disable()
 camera._encoders[3].encoder.outputs[0].enable(video_callback)
@@ -199,9 +211,11 @@ def start():
             # Clean up the connection
             connection.close()
 
-
+server_init()
 try:
-    start()
+    while True:
+        server_loop()
+    #start()
     #val = ''
     #val = NAL_queue.get(block=False)
     #while len(val) < 100:

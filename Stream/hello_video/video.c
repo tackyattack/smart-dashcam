@@ -48,7 +48,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <pthread.h>
 #include <semaphore.h>
 
-#define MAX 40000
+#define MAX 1000000*1
+#define NAL_BUFFER_SIZE 1000000*1
 
 int intArray[MAX];
 int front = 0;
@@ -99,6 +100,10 @@ int removeData() {
 sem_t empty;
 sem_t mutex;
 sem_t full;
+
+int                 ready_to_send_queue = 0;
+pthread_cond_t      send_cond  = PTHREAD_COND_INITIALIZER;
+pthread_mutex_t     send_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 unsigned char buf_nw[100];
 
@@ -375,8 +380,6 @@ void *myThreadFun(void *vargp)
 
     }
 
-
-
     return NULL;
 }
 
@@ -409,13 +412,13 @@ int main (int argc, char **argv)
 
 }
 
-#define chunk_size 100
+#define CHUNK_SIZE 100
 int get_next_chunk(uint8_t *buf)
 {
-  if(size()>chunk_size)
+  if(size()>CHUNK_SIZE)
   {
   pthread_mutex_lock(&queue_lock);
-  for(int i=0; i<chunk_size;i++)buf[i]=removeData();
+  for(int i=0; i<CHUNK_SIZE;i++)buf[i]=removeData();
   pthread_mutex_unlock(&queue_lock);
   return 1;
   }
@@ -423,7 +426,67 @@ int get_next_chunk(uint8_t *buf)
 
 }
 
-#define NAL_BUFFER_SIZE 0xffff
+sem_t server_buf_ready;
+int server_socket;
+void server_init()
+{
+  int server_fd, valread;
+    struct sockaddr_in address;
+    int opt = 1;
+    int addrlen = sizeof(address);
+    char buffer[CHUNK_SIZE] = {0};
+
+    // Creating socket file descriptor
+    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0)
+    {
+        perror("socket failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Forcefully attaching socket to the port 8080
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT,
+                                                  &opt, sizeof(opt)))
+    {
+        perror("setsockopt");
+        exit(EXIT_FAILURE);
+    }
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_port = htons( PORT );
+
+    // Forcefully attaching socket to the port 8080
+    if (bind(server_fd, (struct sockaddr *)&address,
+                                 sizeof(address))<0)
+    {
+        perror("bind failed");
+        exit(EXIT_FAILURE);
+    }
+    if (listen(server_fd, 3) < 0)
+    {
+        perror("listen");
+        exit(EXIT_FAILURE);
+    }
+    if ((server_socket = accept(server_fd, (struct sockaddr *)&address,
+                       (socklen_t*)&addrlen))<0)
+    {
+        perror("accept");
+        exit(EXIT_FAILURE);
+    }
+    sem_init(&server_buf_ready, 0, 1);
+}
+
+uint8_t server_buf[CHUNK_SIZE];
+void server_loop()
+{
+  //wait for chunk size to be ready
+  sem_wait(&server_buf_ready);
+  if (get_next_chunk(server_buf) == 1)
+  {
+    write(server_socket , server_buf , CHUNK_SIZE);
+  }
+
+}
+
 const uint8_t magic_pattern[] = {0x00, 0x00, 0x00, 0x01};
 uint8_t pattern_len = 4;
 uint8_t NAL_buffer[NAL_BUFFER_SIZE];
@@ -434,10 +497,15 @@ uint8_t pattern_pointer = 0;
 uint8_t NAL_signal = 0;
 void record_bytes(uint8_t *buf, uint32_t buf_size)
 {
+
+
+  //let the server know that there's enough bytes to send
+
   uint8_t new_NAL = 0;
   uint32_t new_NAL_sz = 0;
   for(uint32_t i = 0; i < buf_size; i++)
   {
+    if(size()>CHUNK_SIZE)sem_post(&server_buf_ready);
     new_NAL = 0;
     NAL_buffer[NAL_buf_cnt] = buf[i];
     if(magic_pattern[pattern_pointer] == buf[i])
@@ -513,6 +581,7 @@ void record_bytes(uint8_t *buf, uint32_t buf_size)
       NAL_buffer[2]=0x00;
       NAL_buffer[3]=0x01;
       NAL_buf_cnt=4-1;
+
     }
     NAL_buf_cnt++;
   }
