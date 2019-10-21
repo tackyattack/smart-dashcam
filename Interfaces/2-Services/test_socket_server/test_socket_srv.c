@@ -100,13 +100,16 @@ char* check_parameters(int argc, char *argv[])
     return port;
 } /* check_parameters() */
 
+
+static char  longStr[] = "Server testing very long message to client\nServer testing very long message to client\nServer testing very long message to client\nServer testing very long message to client\nServer testing very long message to client\nServer testing very long message to client\nServer testing very long message to client\nServer testing very long message to client\nServer testing very long message to client\nServer testing very long message to client\nServer testing very long message to client\nServer testing very long message to client\nServer testing very long message to client\nServer testing very long message to client\nServer testing very long message to client\nServer testing very long message to client\n";
+
 // For testing only
 int main(int argc, char *argv[])
 {
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
-    char* port;                              /* Port number for socket server */
+    char* port;   /* Port number for socket server */
     
 
     /*----------------------------------
@@ -136,7 +139,19 @@ int main(int argc, char *argv[])
 
     sleep(10);
 
-    socket_server_send_data_all("TEST MESSAGE",13);
+    if ( 13 < socket_server_send_data_all("TEST MESSAGE",13) )
+    {
+        printf("Failed: server did not send all bytes of the message\n");
+        exit(EXIT_FAILURE);
+    }
+
+    sleep(3);
+
+    if ( (int)strlen(longStr) < socket_server_send_data_all(longStr, strlen(longStr)) )
+    {
+        printf("Failed: server did not send all bytes of the message\n");
+        exit(EXIT_FAILURE);
+    }
 
     printf("Press enter to quit server...\n");
     /* block until ready to quit */

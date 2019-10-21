@@ -11,13 +11,13 @@ CC=gcc
 CXX=g++
 
 # Define names of executable files
-EXE=../exe_tcp_server_service
+EXE=../exe_test_dbus__tcp_client
 
 # Define location of source code files
 C_SRC=$(wildcard *.c)
 
 # Define any directories containing header files other than /usr/include
-C_INC=-I$(shell pwd) #-I../../dbus_interface/
+C_INC=-I$(shell pwd)
 
 # Set compiler flags 
 #src: https://gcc.gnu.org/onlinedocs/gcc/Option-Summary.html
@@ -27,10 +27,9 @@ C_INC=-I$(shell pwd) #-I../../dbus_interface/
 #	-std=gnu99				Sets what language standard is used. gnu99: GNU dialect of ISO C99
 #	-ggdb					Enables debugging symbols for GDB
 #	-Werror					Treat warnings as errors
-#	-ldashcam_socket_srv	Include dynamic (shared) library containing the dashcam socket server function calls
-#	-ldashcam_tcp_dbus_srv	Include dynamic (shared) library containing the dashcam dbus server (for tcp server) function calls	
+#	-ldashcam_tcp_dbus_clnt		Include dynamic (shared) library containing the dashcam dbus client tcp function calls
 #	-O3:					Optimization more for code size and execution time
-CFLAGS=-Wall -Wextra -std=gnu99 -ggdb -Werror -ldashcam_socket_srv -ldashcam_tcp_dbus_srv -O3
+CFLAGS=-Wall -Wextra -std=gnu99 -ggdb -Werror -ldashcam_tcp_dbus_clnt -O3
 
 # Define any parameters to be passed during compile time
 # CDEFINES=
@@ -51,35 +50,39 @@ CFLAGS=-Wall -Wextra -std=gnu99 -ggdb -Werror -ldashcam_socket_srv -ldashcam_tcp
 #		prerequisites ->  a file that is used as input to create the target
 #		recipe -> actions taken by make. Tab is required.
 
-.PHONY: build socket_srv run setup download dependencies install clean clean-all
+.PHONY: build test_dbus__tcp_clnt run setup download dependencies install clean clean-all
 
 # make build will compile all source code. This is the default if 'make' is run.
-build: socket_srv
+build: test_dbus__tcp_clnt
 	echo "\nFinished!"
 
-socket_srv: clean-all
-	# Compile test socket_srv C code:
+test_dbus__tcp_clnt: clean-all
+	# Compile test test_dbus__tcp_clnt C code:
 	$(CC) -o $(EXE) $(C_SRC) $(C_INC) $(CFLAGS)
 
 	chmod 770 $(EXE)
 
 run: $(EXE)
-	echo "\n -----------------Executing TEST Socket Server-----------------\n\n"
+	echo "\n -----------------Executing TEST TCP DBUS Client-----------------\n\n"
 	./$(EXE)
 
 # make setup will go through the setup process needed to compile/run code
 setup: clean-all dependencies download install clean
 	echo "\nSystem setup\n"
+
 # make dependencies will install any software/package dependencies needed (ie installs gcc on system)
 dependencies:
-	# Requires libdashcam_dbus_server, this can be built/setup by running `make libdashcam_dbus_server` in the Networking/dbus_interface folder\
+	# Requires libdashcam_dbus_tcp, this can be built/setup by running `make libdashcam_dbus_tcp` in the Networking/dbus_interface folder
 
 # make download will download any items (not software) needed (ie gcc source code for a cross compiler)
 download:
+
 # make install will install any software/items needed to build/run code but that is not a software package (ie used to build a cross compiler)
 install:
+
 # make clean will remove any generated files that are not needed for executing or compiling code (ie object files)
 clean :
+
 # make clean-all will remove all generated/downloaded files. Should essetially revert directories back to original post clone state
 clean-all:
 	rm -rf $(EXE)

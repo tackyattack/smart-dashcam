@@ -137,8 +137,11 @@ int main(int argc, char *argv[])
             }
         }
 
-        socket_client_send_data(longStr,sizeof(longStr));
-
+        if ( (int)strlen(longStr) < socket_client_send_data(longStr, sizeof(longStr)) )
+        {
+            printf("Failed: server did not send all bytes of the message\n");
+            exit(EXIT_FAILURE);
+        }
 
         /* Kill client */
         if( true == is_client_executing())

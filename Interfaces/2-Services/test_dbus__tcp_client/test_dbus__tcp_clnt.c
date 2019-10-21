@@ -8,7 +8,7 @@
 |           PRIVATE INCLUDES           |
 --------------------------------------*/
 
-#include "service_tcp_clnt.h"
+#include "test_dbus__tcp_clnt.h"
 
 
 /*-------------------------------------

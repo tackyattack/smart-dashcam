@@ -369,7 +369,7 @@ void* server_thread(void *config)
     return NULL;
 }  /* server_thread() */
 
-int tcp_dbus_srv_init(dbus_srv_id srv_id, tcp_send_msg_callback callback)
+int tcp_dbus_srv_init(dbus_srv_id srv_id, dbus_srv__tcp_send_msg_callback callback)
 {
     /*-------------------------------------
     |              VARIABLES               |

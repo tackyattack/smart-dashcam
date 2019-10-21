@@ -8,7 +8,7 @@
 |           PRIVATE INCLUDES           |
 --------------------------------------*/
 
-#include "service_dbus_srv.h"
+#include "test_dbus__tcp_srv.h"
 
 
 /*-------------------------------------

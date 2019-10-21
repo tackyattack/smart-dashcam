@@ -11,7 +11,7 @@ CC=gcc
 CXX=g++
 
 # Define names of executable files
-EXE=../exe_test_tcp_dbus_server
+EXE=../exe_test_socket_server
 
 # Define location of source code files
 C_SRC=$(wildcard *.c)
@@ -27,9 +27,9 @@ C_INC=-I$(shell pwd) #-I../../dbus_interface/
 #	-std=gnu99				Sets what language standard is used. gnu99: GNU dialect of ISO C99
 #	-ggdb					Enables debugging symbols for GDB
 #	-Werror					Treat warnings as errors
-#	-ldashcam_tcp_dbus_srv	Include dynamic (shared) library containing the dashcam dbus server (for tcp server) function calls
+#	-ldashcam_socket_srv	Include dynamic (shared) library containing the dashcam socket server function calls
 #	-O3:					Optimization more for code size and execution time
-CFLAGS=-Wall -Wextra -std=gnu99 -ggdb -Werror -ldashcam_tcp_dbus_srv  -O3
+CFLAGS=-Wall -Wextra -std=gnu99 -ggdb -Werror -ldashcam_socket_srv -O3
 
 # Define any parameters to be passed during compile time
 # CDEFINES=
@@ -50,21 +50,21 @@ CFLAGS=-Wall -Wextra -std=gnu99 -ggdb -Werror -ldashcam_tcp_dbus_srv  -O3
 #		prerequisites ->  a file that is used as input to create the target
 #		recipe -> actions taken by make. Tab is required.
 
-.PHONY: build tcp_dbus_srv run setup download dependencies install clean clean-all
+.PHONY: build tcp_srv_service run setup download dependencies install clean clean-all
 
 # make build will compile all source code. This is the default if 'make' is run.
-build: tcp_dbus_srv
+build: tcp_srv_service
 	echo "\nFinished!"
 
-tcp_dbus_srv: clean-all
-	# Compile test tcp_dbus_srv C code:
+tcp_srv_service: clean-all
+	# Compile test tcp_srv_service C code:
 	$(CC) -o $(EXE) $(C_SRC) $(C_INC) $(CFLAGS)
 
 	chmod 770 $(EXE)
 
 run: $(EXE)
-	echo "\n -----------------Executing TEST TCP DBUS Server-----------------\n\n"
-	sudo ./$(EXE)
+	echo "\n -----------------Executing TEST Socket Server-----------------\n\n"
+	./$(EXE)
 
 # make setup will go through the setup process needed to compile/run code
 setup: clean-all dependencies download install clean

@@ -20,18 +20,18 @@ static dbus_srv_id srv_id;     /* dbus server instance id */
 // typedef void (*socket_lib_srv_rx_msg)(const char* uuid, const char* data, const unsigned int data_sz);
 // typedef void (*socket_lib_srv_connected)(const char* uuid);
 // typedef void (*socket_lib_srv_disconnected)(const char* uuid);
-// typedef bool (*tcp_send_msg_callback)(char* data, unsigned int data_sz);
+// typedef bool (*dbus_srv__tcp_send_msg_callback)(char* data, unsigned int data_sz);
 
 /** Note that data is freed after this callback is called. As such, if 
  * the data in data needs to be saved, a copy of the data must be made.
  * Refer to this guide on mixing C and C++ callbacks due to library
  *  being written in C: https://isocpp.org/wiki/faq/mixing-c-and-cpp */
  /* This callback is data received over TCP and needs to be sent to DBUS clients */
-void recv_msg(const char* uuid, const char *data, const unsigned int data_sz)
+void tcp_recv_msg(const char* uuid, const char *data, const unsigned int data_sz)
 {
   	// printf("\n****************recv_msg: callback activated.****************\n\n");
 
-    // printf("Message from the following UUID: %s\n", uuid);
+    printf("Message from the following UUID: %s\n", uuid);
     // printf("Received %d data bytes as follows:\n\"",data_sz);
     // for (size_t i = 0; i < data_sz; i++)
     // {
@@ -54,7 +54,7 @@ void recv_msg(const char* uuid, const char *data, const unsigned int data_sz)
 } /* recv_msg() */
 
 /* This callback notifies when a tcp client connects */
-void client_connect(const char* uuid)
+void tcp_client_connect(const char* uuid)
 {
   	// printf("\n****************client_connect: callback activated.****************\n\n");
 
@@ -69,7 +69,7 @@ void client_connect(const char* uuid)
 } /* client_connect() */
 
 /* This callback notifies when a tcp client disconnects */
-void client_disconnect(const char* uuid)
+void tcp_client_disconnect(const char* uuid)
 {
   	// printf("\n****************client_disconnect: callback activated.****************\n\n");
 
@@ -88,7 +88,7 @@ void client_disconnect(const char* uuid)
  * Refer to this guide on mixing C and C++ callbacks due to ldashcam_tcp_dbus_srv
  *  being written in C: https://isocpp.org/wiki/faq/mixing-c-and-cpp */
  /* This is a DBUS callback to us with message data to be sent over tcp */
-bool tcp_msg_to_tx_callback(char *data, unsigned int data_sz)
+bool dbus_method_send_tcp_msg_callback(char *data, unsigned int data_sz)
 {
   	// printf("\n****************tcp_msg_to_tx_callback: callback activated.****************\n\n");
 
@@ -172,13 +172,13 @@ int main(int argc, char *argv[])
     |         INITIALIZE SERVERS         |
     ------------------------------------*/
     srv_id = tcp_dbus_srv_create();
-    if ( tcp_dbus_srv_init(srv_id, tcp_msg_to_tx_callback) == EXIT_FAILURE )
+    if ( tcp_dbus_srv_init(srv_id, dbus_method_send_tcp_msg_callback) == EXIT_FAILURE )
     {
         printf("Failed to initialize DBUS server!\nExiting.....\n");
         exit(EXIT_FAILURE);
     }
 
-    if( 0 > socket_server_init(port, recv_msg, client_connect, client_disconnect) )
+    if( 0 > socket_server_init(port, tcp_recv_msg, tcp_client_connect, tcp_client_disconnect) )
     {
         printf("Failed to initialize TCP server!\nExiting.....\n");
         exit(EXIT_FAILURE);

@@ -11,7 +11,7 @@ CC=gcc
 CXX=g++
 
 # Define names of executable files
-EXE=../exe_test_tcp_dbus_client
+EXE=../exe_test_socket_client
 
 # Define location of source code files
 C_SRC=$(wildcard *.c)
@@ -27,9 +27,9 @@ C_INC=-I$(shell pwd)
 #	-std=gnu99				Sets what language standard is used. gnu99: GNU dialect of ISO C99
 #	-ggdb					Enables debugging symbols for GDB
 #	-Werror					Treat warnings as errors
-#	-ldashcam_tcp_dbus_clnt		Include dynamic (shared) library containing the dashcam dbus client tcp function calls
+#	-ldashcam_socket_clnt	Include dynamic (shared) library containing the dashcam socket client function calls
 #	-O3:					Optimization more for code size and execution time
-CFLAGS=-Wall -Wextra -std=gnu99 -ggdb -Werror -ldashcam_tcp_dbus_clnt -O3
+CFLAGS=-Wall -Wextra -std=gnu99 -ggdb -Werror -ldashcam_socket_clnt -O3
 
 # Define any parameters to be passed during compile time
 # CDEFINES=
@@ -50,20 +50,20 @@ CFLAGS=-Wall -Wextra -std=gnu99 -ggdb -Werror -ldashcam_tcp_dbus_clnt -O3
 #		prerequisites ->  a file that is used as input to create the target
 #		recipe -> actions taken by make. Tab is required.
 
-.PHONY: build tcp_dbus_client run setup download dependencies install clean clean-all
+.PHONY: build test_socket_client run setup download dependencies install clean clean-all
 
 # make build will compile all source code. This is the default if 'make' is run.
-build: tcp_dbus_client
+build: test_socket_client
 	echo "\nFinished!"
 
-tcp_dbus_client: clean-all
-	# Compile test tcp_dbus_client C code:
+test_socket_client: clean-all
+	# Compile test test_socket_client C code:
 	$(CC) -o $(EXE) $(C_SRC) $(C_INC) $(CFLAGS)
 
 	chmod 770 $(EXE)
 
 run: $(EXE)
-	echo "\n -----------------Executing TEST TCP DBUS Client-----------------\n\n"
+	echo "\n -----------------Executing TEST Socket Client-----------------\n\n"
 	./$(EXE)
 
 # make setup will go through the setup process needed to compile/run code
@@ -85,4 +85,4 @@ clean :
 
 # make clean-all will remove all generated/downloaded files. Should essetially revert directories back to original post clone state
 clean-all:
-	rm -rf $(EXE)
+	rm -rf $(EXE) ../device-id

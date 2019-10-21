@@ -1,5 +1,5 @@
-#ifndef SERVICE_TCP_CLNT_H
-#define SERVICE_TCP_CLNT_H
+#ifndef DBUS__TCP_CLIENT_H
+#define DBUS__TCP_CLIENT_H
 
 /*-------------------------------------
 |               INCLUDES               |
@@ -21,4 +21,4 @@
 
 
 
-#endif /* SERVICE_TCP_CLNT_H */
+#endif /* DBUS__TCP_CLIENT_H */

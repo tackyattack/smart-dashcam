@@ -37,7 +37,7 @@ typedef uint8_t dbus_srv_id;
 --------------------------------------*/
 
 /* https://isocpp.org/wiki/faq/mixing-c-and-cpp */
-typedef bool (*tcp_send_msg_callback)(char* data, unsigned int data_sz);
+typedef bool (*dbus_srv__tcp_send_msg_callback)(char* data, unsigned int data_sz);
 
 
 /*-------------------------------------
@@ -71,7 +71,7 @@ dbus_srv_id tcp_dbus_srv_create();
  * 
  * Non-blocking
  */
-int tcp_dbus_srv_init(dbus_srv_id srv_id, tcp_send_msg_callback callback);
+int tcp_dbus_srv_init(dbus_srv_id srv_id, dbus_srv__tcp_send_msg_callback callback);
 
 /**
  * This function, given a dbus_srv_id that has 

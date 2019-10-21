@@ -25,7 +25,7 @@ struct dbus_srv_config
 {
     DBusConnection *conn;               /* DBUS bus connection */
     GMainLoop *loop;                    /* Loop that executes server */
-    tcp_send_msg_callback callback;     /* Callback for method DBUS_TCP_SEND_MSG */
+    dbus_srv__tcp_send_msg_callback callback;     /* Callback for method DBUS_TCP_SEND_MSG */
 };
 
 
