@@ -84,7 +84,7 @@ void tcp_clnt_disconnect_callback(const char* tcp_clnt_uuid, const char* data, u
     {
         printf("ERROR: data is not null or data_sz is not 0!");
     }
-    
+
     printf("Client uuid is \"%s\"\n",tcp_clnt_uuid);
     
   	printf("\n****************END---tcp_clnt_disconnect_callback---END****************\n\n");
@@ -145,8 +145,8 @@ int main(void)
         exit(EXIT_FAILURE);
     }
 
-    printf("Call send TCP message method (tcp_dbus_send_msg())\n");
-	tcp_dbus_send_msg( id,"fakeuuid",msg, msg_sz );
+    printf("Call send TCP message method (tcp_dbus_send_msg()) with NULL UUID\n");
+	tcp_dbus_send_msg( id, NULL,msg, msg_sz );
     sleep(2);
 
     printf("Unsubscribe from DBUS_TCP_RECV_SIGNAL signal\n");

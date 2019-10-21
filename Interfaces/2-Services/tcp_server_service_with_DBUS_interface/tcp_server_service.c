@@ -105,9 +105,19 @@ bool dbus_method_send_tcp_msg_callback(const char* tcp_clnt_uuid, const char* da
     // }
     // printf("\"\n");
 
-    if( 0 >= socket_server_send_data(tcp_clnt_uuid, data, data_sz) )
+    if( tcp_clnt_uuid == NULL || strlen(tcp_clnt_uuid) == 0 )
     {
-        return false;
+        if( 0 >= socket_server_send_data_all(data, data_sz) )
+        {
+            return false;
+        }
+    }
+    else
+    {
+        if( 0 >= socket_server_send_data(tcp_clnt_uuid, data, data_sz) )
+        {
+            return false;
+        }
     }
 
     return true;

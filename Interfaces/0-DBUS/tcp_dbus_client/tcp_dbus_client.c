@@ -32,6 +32,7 @@ int tcp_dbus_send_msg(dbus_clnt_id clnt_id, const char* tcp_clnt_uuid, char* dat
     GVariant *gvar;
     GError *error = NULL;
     GVariantBuilder *builder_data;
+    char* temp;
 
 
     /*-------------------------------------
@@ -42,6 +43,12 @@ int tcp_dbus_send_msg(dbus_clnt_id clnt_id, const char* tcp_clnt_uuid, char* dat
     {
         printf("WARNING: Attempting to send_msg with NULL or empty data array!\n");
         return EXIT_FAILURE;
+    }
+
+    if(tcp_clnt_uuid == NULL)
+    {
+        temp = malloc(1);
+        temp[0] = '\0';
     }
 
 
@@ -58,7 +65,15 @@ int tcp_dbus_send_msg(dbus_clnt_id clnt_id, const char* tcp_clnt_uuid, char* dat
         g_variant_builder_add(builder_data, "y", data[i]); /* Added uuid string to builder */
     }
     
-    gvar = g_variant_new("(say)", tcp_clnt_uuid, builder_data);  /* Generate final g_variant to send. G_Variant contains a string (the uuid), and an array of bytes (the data) */
+    if(tcp_clnt_uuid == NULL)
+    {
+        gvar = g_variant_new("(say)", temp, builder_data);  /* Generate final g_variant to send. G_Variant contains a string (the uuid), and an array of bytes (the data) */
+    }
+    else
+    {
+        gvar = g_variant_new("(say)", tcp_clnt_uuid, builder_data);  /* Generate final g_variant to send. G_Variant contains a string (the uuid), and an array of bytes (the data) */
+    }
+    
 
     g_variant_builder_unref(builder_data);   /* cleanup */
 
@@ -84,6 +99,12 @@ int tcp_dbus_send_msg(dbus_clnt_id clnt_id, const char* tcp_clnt_uuid, char* dat
 
     g_variant_get(gvar, "(b)", &send_status);
     g_variant_unref(gvar);
+
+    if(tcp_clnt_uuid == NULL)
+    {
+        free(temp);
+        temp = NULL;
+    }
 
     return send_status;
 } /* tcp_dbus_send_msg() */
