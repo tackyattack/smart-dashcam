@@ -10,7 +10,7 @@ root_path = os.path.dirname(os.path.realpath(__file__))
 
 
 # ---- OGL lane tracking library ----
-ogl_cv_lib = ctypes.CDLL(os.path.join(root_path, 'ogl_cv.so'))
+ogl_cv_lib = ctypes.CDLL(os.path.join(root_path, 'ogl_cv/ogl_accelerator/ogl_cv.so'))
 ogl_cv_init_lane_tracker = ogl_cv_lib.init_lane_tracker
 ogl_cv_init_lane_tracker.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int]
 ogl_cv_init_lane_tracker.restype = None
@@ -53,7 +53,7 @@ class LaneTracker():
     # * shaders must ship with library and path must be set in init
     # ---------------
     MAX_LOG_ENTRIES = 1000
-    SHADER_PATH = os.path.join(root_path, 'shaders')
+    SHADER_PATH = os.path.join(root_path, 'ogl_cv/ogl_accelerator/shaders')
     print("loading shaders from: {0}".format(SHADER_PATH))
 
     def __init__(self, camera, bottom_y_boundry, top_y_boundry, transform_angle, camera_pixel_altitude, debug_view, debug_view_stage, log, screen_width, screen_height):
