@@ -486,7 +486,7 @@ void record_bytes(uint8_t *buf, uint32_t buf_size)
         pthread_mutex_unlock(&queue_lock);
       }
 
-      if(NAL_buffer[4] == 0x28)
+      if(((NAL_buffer[4])&0x1F) == 8)
       {
         if(!PPS_found)
         {
@@ -500,7 +500,7 @@ void record_bytes(uint8_t *buf, uint32_t buf_size)
        }
         PPS_found=1;
       }
-      if(NAL_buffer[4] == 0x27)
+      if(((NAL_buffer[4])&0x1F) == 7)
       {
         if(!SPS_found)
         {
