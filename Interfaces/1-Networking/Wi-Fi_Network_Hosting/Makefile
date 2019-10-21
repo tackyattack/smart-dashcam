@@ -3,16 +3,9 @@
 # Author:		
 # Copyright: 	
 # License:		
-# Date Created:	Oct. 6, 2019
+# Date Created:	Oct. 21, 2019
 # Resources:
-# Desc:	This makefile will create the dashcam system services
-#
-#       Known libraries that may be needed by services
-#   			NAME					GCC INCLUDE                         GCC #include < FILE >
-#   	libdashcam_tcp_dbus_srv         -ldashcam_tcp_dbus_srv              dashcam_dbus/pub_dbus.h && dashcam_dbus/pub_tcp_dbus_srv.h
-#   	libdashcam_tcp_dbus_clnt        -ldashcam_tcp_dbus_clnt             dashcam_dbus/pub_dbus.h && dashcam_dbus/pub_tcp_dbus_clnt.h
-#   	libdashcam_socket_srv           -ldashcam_socket_srv                dashcam_sockets/pub_socket_server.h
-#   	libdashcam_socket_clnt          -ldashcam_socket_clnt               dashcam_sockets/pub_socket_client.h
+# Desc:	This makefile controls the Wi-Fi hosting scripts
 
 
 # include .makerc
@@ -37,30 +30,21 @@ SUB_DIRS= $(shell ls -d */) #List of all library sub-directories, can use $(shel
 .PHONY: pi3_setup pi0_setup build setup download dependencies install clean clean-all
 
 build: $(SUB_DIRS)
-    # Run make build for all sub-directories
-    for dir in $(SUB_DIRS);                 \
-        do                                  \
-          $(MAKE) --directory=$$dir build;  \
-    done
-        
+	# Make scripts executable
+	sudo chmod +x *.sh
+
     @echo "Built all services\n\n"
 
 pi3_setup:
-    # Run make build for all sub-directories
-    for dir in $(SUB_DIRS);                 \
-        do                                  \
-          $(MAKE) --directory=$$dir build;  \
-    done
-        
+
+	sudo ./PI_HOST_WIFI_NETWORK_INSTALL.sh
+	sudo ./PI_HOST_WIFI_NETWORK_ENABLE.sh
+	@echo "\n\n\n\nTHE SYSTEM NEEDS TO REBOOT\n\n\n\n"
     @echo "Setup system for Raspberry Pi 3!\n\n"
 
 pi0_setup:
-    # Run make build for all sub-directories
-    for dir in $(SUB_DIRS);                 \
-        do                                  \
-          $(MAKE) --directory=$$dir pi0_setup;  \
-    done
-        
+	sudo mv /etc/wpa_supplicant/wpa_supplicant.conf backups/
+	sudo cp wpa_supplicant.conf /etc/wpa_supplicant/wpa_supplicant.conf
     @echo "Setup system for Raspberry Pi 0!\n\n"
 
 # make setup will go through the setup process needed to compile/run code
@@ -111,3 +95,4 @@ clean-all:
         do                                      \
           $(MAKE) --directory=$$dir clean-all;  \
     done
+ 

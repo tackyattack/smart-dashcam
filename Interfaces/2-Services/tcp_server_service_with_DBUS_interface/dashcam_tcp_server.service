@@ -1,0 +1,9 @@
+[Unit]
+Description=Dashcam TCP Server service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/dashcam_tcp_server
+
+[Install]
+WantedBy=multi-user.target

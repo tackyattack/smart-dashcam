@@ -12,6 +12,8 @@ CXX=g++
 
 # Define names of executable files
 EXE=../exe_service_tcp_client
+SERVICES_DIR=/usr/bin/
+SYSTEMD_UNIT_DIR=/etc/systemd/system/
 
 # Define location of source code files
 C_SRC=$(wildcard *.c)
@@ -52,7 +54,7 @@ CFLAGS=-Wall -Wextra -std=gnu99 -ggdb -Werror -ldashcam_socket_clnt -ldashcam_tc
 #		prerequisites ->  a file that is used as input to create the target
 #		recipe -> actions taken by make. Tab is required.
 
-.PHONY: build service_tcp_clnt run setup download dependencies install clean clean-all
+.PHONY: pi3_setup pi0_setup build service_tcp_clnt run setup download dependencies install clean clean-all
 
 # make build will compile all source code. This is the default if 'make' is run.
 build: service_tcp_clnt
@@ -67,6 +69,23 @@ service_tcp_clnt: clean-all
 run: $(EXE)
 	echo "\n -----------------Executing Serverive TCP Client-----------------\n\n"
 	./$(EXE)
+
+$(EXE): service_tcp_clnt
+	echo "Done\n\n"
+
+pi3_setup: $(EXE)
+    @echo "Setup system for Raspberry Pi 3!\n\n"
+
+pi0_setup: $(EXE)
+	sudo mkdir -p $(SERVICES_DIR)
+	sudo cp $(EXE) $(SERVICES_DIR)/dashcam_tcp_client
+	sudo chmod +x $(SERVICES_DIR)/dashcam_tcp_client
+
+	sudo cp dashcam_tcp_client.service $(SYSTEMD_UNIT_DIR)
+	sudo chmod 644 $(SYSTEMD_UNIT_DIR)/dashcam_tcp_client.service
+	sudo systemctl enable dashcam_tcp_client
+	sudo systemctl start dashcam_tcp_client
+    @echo "Setup system for Raspberry Pi 0!\n\n"
 
 # make setup will go through the setup process needed to compile/run code
 setup: clean-all dependencies download install clean

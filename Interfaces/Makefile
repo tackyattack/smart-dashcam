@@ -31,7 +31,7 @@ SUB_DIRS= $(shell ls -d */) #List of all library sub-directories, can use $(shel
 #		prerequisites ->  a file that is used as input to create the target
 #		recipe -> actions taken by make. Tab is required.
 
-.PHONY: setup build download dependencies install clean clean-all
+.PHONY: pi3_setup pi0_setup setup build download dependencies install clean clean-all
 
 # make setup will go through the setup process needed to compile/run code
 setup: clean-all dependencies download install build clean
@@ -50,6 +50,24 @@ build: $(SUB_DIRS)
     done
         
     @echo "Built all libraries\n\n"
+
+pi3_setup:
+    # Run make build for all sub-directories
+    for dir in $(SUB_DIRS);                 \
+        do                                  \
+          $(MAKE) --directory=$$dir build;  \
+    done
+        
+    @echo "Setup system for Raspberry Pi 3!\n\n"
+
+pi0_setup:
+    # Run make build for all sub-directories
+    for dir in $(SUB_DIRS);                 \
+        do                                  \
+          $(MAKE) --directory=$$dir pi0_setup;  \
+    done
+        
+    @echo "Setup system for Raspberry Pi 0!\n\n"
 
 # make dependencies will install any software/package dependencies needed (ie installs gcc on system)
 dependencies:
