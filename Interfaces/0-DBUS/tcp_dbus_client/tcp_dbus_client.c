@@ -22,15 +22,17 @@
  |      IMPLEMENTED BY THE SERVER       |
  -------------------------------------*/
 
-int tcp_dbus_send_msg(dbus_clnt_id clnt_id, char* data, uint data_sz)
+int tcp_dbus_send_msg(dbus_clnt_id clnt_id, const char* tcp_clnt_uuid, char* data, uint data_sz)
 {
     /*-------------------------------------
     |              VARIABLES               |
     --------------------------------------*/
 
     bool send_status;
-    GVariant *temp;
+    GVariant *gvar;
     GError *error = NULL;
+    GVariantBuilder *builder_data;
+
 
     /*-------------------------------------
     |             VERIFICATION             |
@@ -42,19 +44,31 @@ int tcp_dbus_send_msg(dbus_clnt_id clnt_id, char* data, uint data_sz)
         return EXIT_FAILURE;
     }
 
+
     /*-------------------------------------
     |           CREATE G_VARIANT           |
     --------------------------------------*/
 
-    temp = g_variant_new_from_data( G_VARIANT_TYPE ("(ay)"), data, data_sz, true, NULL, NULL );
-    /* g_printf("\n%s\n",g_variant_get_type_string(temp)); */
+    builder_data = NULL;
+
+    builder_data = g_variant_builder_new(G_VARIANT_TYPE_ARRAY);
+
+    for (size_t i = 0; i < data_sz; i++)
+    {
+        g_variant_builder_add(builder_data, "y", data[i]); /* Added uuid string to builder */
+    }
+    
+    gvar = g_variant_new("(say)", tcp_clnt_uuid, builder_data);  /* Generate final g_variant to send. G_Variant contains a string (the uuid), and an array of bytes (the data) */
+
+    g_variant_builder_unref(builder_data);   /* cleanup */
 
 
     /*-------------------------------------
     |         SEND DATA OVER DBUS          |
     --------------------------------------*/
 
-    temp = g_dbus_proxy_call_sync(dbus_config[clnt_id]->proxy, DBUS_TCP_SEND_MSG, temp, G_DBUS_CALL_FLAGS_NONE, -1, NULL, &error);
+    /* g_printf("tcp_dbus_send_msg(): %s\n\n",g_variant_get_type_string(gvar)); */
+    gvar = g_dbus_proxy_call_sync(dbus_config[clnt_id]->proxy, DBUS_TCP_SEND_MSG, gvar, G_DBUS_CALL_FLAGS_NONE, -1, NULL, &error);
 
 
     /*-------------------------------------
@@ -68,8 +82,8 @@ int tcp_dbus_send_msg(dbus_clnt_id clnt_id, char* data, uint data_sz)
     |  RECEIVE RESPONSE INDICATING IF SUCCESSFUL  |
     ---------------------------------------------*/
 
-    g_variant_get(temp, "(b)", &send_status);
-    g_variant_unref(temp);
+    g_variant_get(gvar, "(b)", &send_status);
+    g_variant_unref(gvar);
 
     return send_status;
 } /* tcp_dbus_send_msg() */
@@ -278,6 +292,41 @@ int start_main_loop(dbus_clnt_id clnt_id)
     return EXIT_SUCCESS;
 } /* start_main_loop() */
 
+uint get_data_arry(GVariantIter **iter, char** data)
+{
+    /*-------------------------------------
+    |              VARIABLES               |
+    --------------------------------------*/
+
+    uint i,arry_sz;
+    gchar c;
+
+
+    /*-------------------------------------
+    |           INITIALIZATIONS            |
+    --------------------------------------*/
+
+    i       = 0;
+    arry_sz = 0;
+
+
+    /*-------------------------------------
+    |          COPY DATA TO ARRAY          |
+    --------------------------------------*/
+
+    arry_sz = g_variant_iter_n_children(*iter);
+    *data    = malloc(arry_sz);
+    
+    while (g_variant_iter_loop(*iter, "y", &c))
+    {
+        // g_print("\t%c\n", c);
+        (*data)[i] = c;
+        i++;
+    }
+
+    return arry_sz;
+} /* get_data_arry() */
+
 void SubscriberCallback(GDBusConnection *conn, const gchar *sender_name, const gchar *object_path, const gchar *interface_name, const gchar *signal_name, GVariant *parameters,gpointer callback_data)
 {
     // g_printf("\n****************SubscriberCallback: signal \"%s\" received.****************\n\n", signal_name);
@@ -292,37 +341,34 @@ void SubscriberCallback(GDBusConnection *conn, const gchar *sender_name, const g
     --------------------------------------*/
 
     GVariantIter *iter;
-    gchar c;
-    gchar *arry;
-    uint i,arry_sz;
+    const gchar *uuid;
+    char* data;
+    uint data_sz;
+
 
 
     /*-------------------------------------
     |           INITIALIZATIONS            |
     --------------------------------------*/
-    i       = 0;
-    iter    = NULL;
+    uuid    = NULL;
+    data    = NULL;
+    data_sz = 0;
 
 
     /*-------------------------------------
     |        GET ITERATOR OVER DATA        |
     --------------------------------------*/
 
-    g_variant_get(parameters, "(ay)", &iter);
+    /* g_printf("\n%s\n",g_variant_get_type_string(parameters)); */
 
-
-    /*-------------------------------------
-    |        COPY DATA TO NEW ARRAY        |
-    --------------------------------------*/
-
-    arry_sz = g_variant_iter_n_children(iter);
-    arry    = malloc(arry_sz);
-    
-    while (g_variant_iter_loop(iter, "y", &c))
+    if( 0 == strcmp(signal_name, DBUS_TCP_RECV_SIGNAL) )
     {
-        // g_print("\t%c\n", c);
-        arry[i] = c;
-        i++;
+        g_variant_get(parameters, "(say)", &uuid, &iter); /* 1st parameter is type 's' (string) and is the uuid. 2nd parameter is an array of bytes. These are contained in a tuple "()" */
+        data_sz = get_data_arry(&iter, &data);
+    }
+    else
+    {
+        g_variant_get(parameters, "(s)", &uuid);
     }
 
 
@@ -330,15 +376,18 @@ void SubscriberCallback(GDBusConnection *conn, const gchar *sender_name, const g
     |  CALL USER CALLBACK WITH ARRY DATA   |
     --------------------------------------*/
 
-    (*(((struct dbus_subscriber*)callback_data)->user_callback))(arry, arry_sz);
+    (*(((struct dbus_subscriber*)callback_data)->user_callback))(uuid, data, data_sz);
 
 
     /*-------------------------------------
     |               CLEANUP                |
     --------------------------------------*/
 
-    g_variant_iter_free(iter);
-    free(arry);
+    if( 0 == strcmp(signal_name, DBUS_TCP_RECV_SIGNAL) )
+    {
+        g_variant_iter_free(iter);
+        free(data);
+    }
 
 } /* SubscriberCallback */
 

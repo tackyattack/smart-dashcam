@@ -1,5 +1,5 @@
-#ifndef PRV_DBUS_SRV_H
-#define PRV_DBUS_SRV_H
+#ifndef PRV_DBUS_SRV_INTERFACE_H
+#define PRV_DBUS_SRV_INTERFACE_H
 
 /*-------------------------------------
 |               INCLUDES               |
@@ -23,9 +23,9 @@
     represents a configuration set.*/
 struct dbus_srv_config
 {
-    DBusConnection *conn;               /* DBUS bus connection */
-    GMainLoop *loop;                    /* Loop that executes server */
-    dbus_srv__tcp_send_msg_callback callback;     /* Callback for method DBUS_TCP_SEND_MSG */
+    DBusConnection *conn;                       /* DBUS bus connection */
+    GMainLoop *loop;                            /* Loop that executes server */
+    dbus_srv__tcp_send_msg_callback callback;   /* Callback for method DBUS_TCP_SEND_MSG */
 };
 
 
@@ -50,11 +50,11 @@ static struct dbus_srv_config *SRV_CONFIGS_ARRY[MAX_NUM_SERVERS] = {0};
  *
  * 'com.dashcam.tcp_iface' offers 1 method(s) and 3 signal(s):
  *
- *    	- TCP_SEND_MSG(): 	    Send the given data over TCP
- * 	  	- TCP_RECV_SIGNAL:	    Signal is emitted when data is received over TCP. 
- * 							    	Data is passed with signal to all subscribers
- * 		-TCP_CONNECT_SIGNAL:    A signal is emitted when tcp client connects with clients uuid
- * 		-TCP_DISCONNECT_SIGNAL: A signal is emitted when tcp client disconnects with clients uuid
+ *    	- TCP_SEND_MSG(): 	    Sends array of data given as the second parameter to the client tcp_clnt_uuid specified in the first parameter. Returns true if successful or false if failed to send.
+ * 	  	- TCP_RECV_SIGNAL:	    Signal is emitted when data is received over TCP. Emitten signal contains the client's tcp_clnt_uuid we're receiving data from and
+ * 							    	the Data array of data. All subscribers will get this notification via callback.
+ * 		-TCP_CONNECT_SIGNAL:    A signal is emitted when tcp client connects with clients tcp_clnt_uuid. All subscribers will get this notification via callback.
+ * 		-TCP_DISCONNECT_SIGNAL: A signal is emitted when tcp client disconnects with clients tcp_clnt_uuid. All subscribers will get this notification via callback.
  */
 static const char *server_introspection_xml =
     DBUS_INTROSPECT_1_0_XML_DOCTYPE_DECL_NODE
@@ -82,6 +82,7 @@ static const char *server_introspection_xml =
     "    <property name='Version' type='s' access='read' />\n"
 
     "    <method name='"DBUS_TCP_SEND_MSG"'>\n"
+    "      <arg name='string' direction='in' type='s' />\n"
     "      <arg name='string' direction='in' type=\"(ay)\" />\n"
     "      <arg type='b' direction='out' />\n"
     "    </method>\n"
@@ -148,4 +149,4 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
 void* server_thread(void *config);
 
 
-#endif /* PRV_DBUS_SRV_H */
+#endif /* PRV_DBUS_SRV_INTERFACE_H */

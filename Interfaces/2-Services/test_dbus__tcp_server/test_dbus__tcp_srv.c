@@ -15,15 +15,23 @@
 |          CALLBACK FUNCTIONS          |
 --------------------------------------*/
 
+/**
+ * When a dbus client of this dbus server calls the DBUS_TCP_SEND_MSG method on this dbus server, 
+ * we extract the method parameters and call the dbus_srv__tcp_send_msg_callback. This callback is
+ * implemented by whomever is setting up this dbus server and will call the appropiate tcp/socket server
+ * function to send the message over the socket */
+// typedef bool (*dbus_srv__tcp_send_msg_callback)(const char* tcp_clnt_uuid, const char* data, unsigned int data_sz);
+
+
 /** Note that data is freed after this callback is called. As such, if 
  * the data in data needs to be saved, a copy of the data must be made.
  * Refer to this guide on mixing C and C++ callbacks due to ldashcam_tcp_dbus_srv
  *  being written in C: https://isocpp.org/wiki/faq/mixing-c-and-cpp */
-bool tcp_msg_to_tx_callback(char *data, unsigned int data_sz)
+bool tcp_msg_to_tx_callback(const char* tcp_clnt_uuid, const char* data, unsigned int data_sz)
 {
   	printf("\n****************tcp_msg_to_tx_callback: callback activated.****************\n\n");
 
-    printf("Received %d bytes as follows:\n\"",data_sz);
+    printf("Received %d bytes from uuid %s as follows:\n\"",data_sz, tcp_clnt_uuid);
     for (size_t i = 0; i < data_sz; i++)
     {
         printf("%c",data[i]);
@@ -82,15 +90,15 @@ int main(void)
         // for ( ; ; )
         {
             printf("Emit signals\n");
-            if ( 0 != tcp_dbus_srv_emit_msg_recv_signal(srv_id, "TCP\0 has received a message and emitted a signal.\n", 51) )
+            if ( 0 != tcp_dbus_srv_emit_msg_recv_signal(srv_id,"fakeuuid", "TCP\0 has received a message and emitted a signal.\n", 51) )
             {
                 printf("ERROR: raising signal tcp_dbus_srv_emit_msg_recv_signal() FAILED!\n");
             }
-            if ( 0 != tcp_dbus_srv_emit_connect_signal(srv_id, "TCP\0 client has connected.\n", 28) )
+            if ( 0 != tcp_dbus_srv_emit_connect_signal(srv_id, "TCP client uuid") )
             {
                 printf("ERROR: raising signal tcp_dbus_srv_emit_connect_signal() FAILED!\n");
             }
-            if ( 0 != tcp_dbus_srv_emit_disconnect_signal(srv_id, "TCP\0 client has disconnected.\n", 31) )
+            if ( 0 != tcp_dbus_srv_emit_disconnect_signal(srv_id, "TCP client uuid") )
             {
                 printf("ERROR: raising signal tcp_dbus_srv_emit_disconnect_signal() FAILED!\n");
             }

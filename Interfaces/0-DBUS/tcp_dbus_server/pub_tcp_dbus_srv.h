@@ -37,7 +37,13 @@ typedef uint8_t dbus_srv_id;
 --------------------------------------*/
 
 /* https://isocpp.org/wiki/faq/mixing-c-and-cpp */
-typedef bool (*dbus_srv__tcp_send_msg_callback)(char* data, unsigned int data_sz);
+
+/**
+ * When a dbus client of this dbus server calls the DBUS_TCP_SEND_MSG method on this dbus server, 
+ * we extract the method parameters and call the dbus_srv__tcp_send_msg_callback. This callback is
+ * implemented by whomever is setting up this dbus server and will call the appropiate tcp/socket server
+ * function to send the message over the socket */
+typedef bool (*dbus_srv__tcp_send_msg_callback)(const char* tcp_clnt_uuid, const char* data, unsigned int data_sz);
 
 
 /*-------------------------------------
@@ -128,7 +134,7 @@ void tcp_dbus_srv_delete(dbus_srv_id srv_id);
  * 
  * Returns EXIT_FAILURE or EXIT_SUCCESS
  */
-bool tcp_dbus_srv_emit_msg_recv_signal(dbus_srv_id srv_id, const char *msg, uint msg_sz);
+bool tcp_dbus_srv_emit_msg_recv_signal(dbus_srv_id srv_id, const char *tcp_clnt_uuid, const char *msg, uint msg_sz);
 
 /**
  * Calling this function (with a valid created, initialized, and executing 
@@ -138,11 +144,11 @@ bool tcp_dbus_srv_emit_msg_recv_signal(dbus_srv_id srv_id, const char *msg, uint
  * tcp dbus clients  contains the tcp client id for the client that connected 
  * to the tcp server given to this function. This signal represents a new tcp
  * client connection to the tcp server and passes that new clients id to all
- * subscribers (subscriber-publisher setup).
+ * subscribers (subscriber-publisher setup). tcp_clnt_uuid is null terminated
  * 
  * Non-blocking
  */
-bool tcp_dbus_srv_emit_connect_signal(dbus_srv_id srv_id, const char *tcp_clnt_id, uint size);
+bool tcp_dbus_srv_emit_connect_signal(dbus_srv_id srv_id, const char *tcp_clnt_uuid);
 
 /**
  * Calling this function (with a valid created, initialized, and executing 
@@ -152,13 +158,13 @@ bool tcp_dbus_srv_emit_connect_signal(dbus_srv_id srv_id, const char *tcp_clnt_i
  * tcp dbus clients  contains the tcp client id for the client that disconnected 
  * to the tcp server given to this function. This signal represents a new tcp
  * client disconnection to the tcp server and passes that new clients id to all
- * subscribers (subscriber-publisher setup).
+ * subscribers (subscriber-publisher setup). tcp_clnt_uuid is null terminated
  * 
  * Non-blocking
  * 
  * Returns EXIT_FAILURE or EXIT_SUCCESS
  */
-bool tcp_dbus_srv_emit_disconnect_signal(dbus_srv_id srv_id, const char *tcp_clnt_id, uint size);
+bool tcp_dbus_srv_emit_disconnect_signal(dbus_srv_id srv_id, const char *tcp_clnt_uuid);
 
 
 #endif /* PUB_DBUS_SRV_INTERFACE_H */

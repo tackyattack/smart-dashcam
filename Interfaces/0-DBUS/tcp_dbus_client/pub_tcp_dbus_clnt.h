@@ -29,7 +29,30 @@ typedef uint8_t dbus_clnt_id;
 --------------------------------------*/
 
 /* https://isocpp.org/wiki/faq/mixing-c-and-cpp */
-typedef void (*tcp_rx_signal_callback)(char* data, unsigned int data_sz);
+
+/**
+ * This is the universal signal received callback used when a signal is received from dbus server.
+ * Use this function prototype when subscribing to signals using tcp_dbus_client_Subscribe2Recv().
+ * 
+ * When a socket message is received, the dbus server emits signal DBUS_TCP_RECV_SIGNAL. We catch 
+ * that signal and call this callback with the socket message sender's uuid, data array, and the
+ * size of the data array. tcp_clnt_uuid is a null terminated string, data contains the data received
+ * from the tcp client, and data_sz is the size of data.
+ * 
+ * When a tcp server client connects or disconects, the dbus server emits signal DBUS_TCP_CONNECT_SIGNAL,
+ * or DBUS_TCP_DISCONNECT_SIGNAL. We catch these signals after having subscribed to them and when one
+ * is caught, this callback is called with the uuid (tcp_clnt_uuid) of the client that
+ * connected/disconnected. tcp_clnt_uuid is a null terminated string, data == NULL, and data_sz == 0.
+ */
+ typedef void (*tcp_rx_signal_callback)(const char* tcp_clnt_uuid, const char* data, unsigned int data_sz);
+
+// /**
+//  * When a tcp server client connects or disconects, the dbus server emits signal DBUS_TCP_CONNECT_SIGNAL,
+//  * or DBUS_TCP_DISCONNECT_SIGNAL. We catch these signals after having subscribed to them and when one
+//  * is caught, this callback is called with the uuid (tcp_clnt_uuid) of the client that
+//  * connected/disconnected. tcp_clnt_uuid is a null terminated string.
+//  */
+//  typedef void (*tcp_connection_signal_callback)(const char* tcp_clnt_uuid);
 
 
 /*-------------------------------------
@@ -38,13 +61,16 @@ typedef void (*tcp_rx_signal_callback)(char* data, unsigned int data_sz);
 
 /**
  * This function may be called only after tcp_dbus_client_create() and
- * tcp_dbus_client_init(). Calling this function with the client ID,
- * a data array, and the size of that array (including any termination
- * characters) will send the data to the tcp DBUS server and therefore
- * send the data array over tcp to all tcp clients.
+ * tcp_dbus_client_init(). Calling this function with the client ID, the
+ * uuid of the socket receiver that this message is be to sent to (tcp_clnt_uuid),
+ * a data array (data), and the size of that array (data_sz, includes any termination
+ * characters) will send the data to the tcp DBUS server and therefore send 
+ * the data array over tcp to specified tcp clients. If tcp_clnt_uuid == NULL,
+ * then data will be sent to all connected clients.
+ * 
+ * @Returns true if sending data was successful, else false.
  */
-int tcp_dbus_send_msg(dbus_clnt_id clnt_id, char* data, uint data_sz);
-
+int tcp_dbus_send_msg(dbus_clnt_id clnt_id, const char* tcp_clnt_uuid, char* data, uint data_sz);
 
 
 /*-------------------------------------

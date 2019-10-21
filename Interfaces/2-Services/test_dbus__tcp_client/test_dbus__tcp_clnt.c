@@ -20,15 +20,31 @@
 |              CALLBACKS               |
 --------------------------------------*/
 
+/**
+ * This is the universal signal received callback used when a signal is received from dbus server.
+ * Use this function prototype when subscribing to signals using tcp_dbus_client_Subscribe2Recv().
+ * 
+ * When a socket message is received, the dbus server emits signal DBUS_TCP_RECV_SIGNAL. We catch 
+ * that signal and call this callback with the socket message sender's uuid, data array, and the
+ * size of the data array. tcp_clnt_uuid is a null terminated string, data contains the data received
+ * from the tcp client, and data_sz is the size of data.
+ * 
+ * When a tcp server client connects or disconects, the dbus server emits signal DBUS_TCP_CONNECT_SIGNAL,
+ * or DBUS_TCP_DISCONNECT_SIGNAL. We catch these signals after having subscribed to them and when one
+ * is caught, this callback is called with the uuid (tcp_clnt_uuid) of the client that
+ * connected/disconnected. tcp_clnt_uuid is a null terminated string, data == NULL, and data_sz == 0.
+ */
+//  typedef void (*tcp_rx_signal_callback)(const char* tcp_clnt_uuid, const char* data, unsigned int data_sz);
+
 /** Note that data is freed after this callback is called. As such, if 
  * the data in data needs to be saved, a copy of the data must be made.
  * Refer to this guide on mixing C and C++ callbacks due to ldashcam_tcp_dbus_clnt
  *  being written in C: https://isocpp.org/wiki/faq/mixing-c-and-cpp */
-void tcp_rx_data_callback(char* data, unsigned int data_sz)
+void tcp_rx_data_callback(const char* tcp_clnt_uuid, const char* data, unsigned int data_sz)
 {
   	printf("\n****************tcp_rx_data_callback: callback activated.****************\n\n");
 
-    printf("Received %d bytes as follows:\n\"",data_sz);
+    printf("Received %d bytes from client %s as follows:\n\"",data_sz, tcp_clnt_uuid);
     for (size_t i = 0; i < data_sz; i++)
     {
         printf("%c",data[i]);
@@ -42,16 +58,16 @@ void tcp_rx_data_callback(char* data, unsigned int data_sz)
  * the data in data needs to be saved, a copy of the data must be made.
  * Refer to this guide on mixing C and C++ callbacks due to ldashcam_tcp_dbus_clnt
  *  being written in C: https://isocpp.org/wiki/faq/mixing-c-and-cpp */
-void tcp_clnt_connect_callback(char* clnt_uuid, unsigned int clnt_uuid_sz)
+void tcp_clnt_connect_callback(const char* tcp_clnt_uuid, const char* data, unsigned int data_sz)
 {
   	printf("\n****************tcp_clnt_connect_callback: callback activated.****************\n\n");
 
-    printf("Client uuid is %d bytes with uuid \"",clnt_uuid_sz);
-    for (size_t i = 0; i < clnt_uuid_sz; i++)
+    if(data != NULL || data_sz != 0)
     {
-        printf("%c",clnt_uuid[i]);
+        printf("ERROR: data is not null or data_sz is not 0!");
     }
-    printf("\"\n");
+
+    printf("Client uuid is \"%s\"\n",tcp_clnt_uuid);
     
   	printf("\n****************END---tcp_clnt_connect_callback---END****************\n\n");
 } /* tcp_clnt_connect_callback() */
@@ -60,16 +76,16 @@ void tcp_clnt_connect_callback(char* clnt_uuid, unsigned int clnt_uuid_sz)
  * the data in data needs to be saved, a copy of the data must be made.
  * Refer to this guide on mixing C and C++ callbacks due to ldashcam_tcp_dbus_clnt
  *  being written in C: https://isocpp.org/wiki/faq/mixing-c-and-cpp */
-void tcp_clnt_disconnect_callback(char* clnt_uuid, unsigned int clnt_uuid_sz)
+void tcp_clnt_disconnect_callback(const char* tcp_clnt_uuid, const char* data, unsigned int data_sz)
 {
   	printf("\n****************tcp_clnt_disconnect_callback: callback activated.****************\n\n");
 
-    printf("Client uuid is %d bytes with uuid \"",clnt_uuid_sz);
-    for (size_t i = 0; i < clnt_uuid_sz; i++)
+    if(data != NULL || data_sz != 0)
     {
-        printf("%c",clnt_uuid[i]);
+        printf("ERROR: data is not null or data_sz is not 0!");
     }
-    printf("\"\n");
+    
+    printf("Client uuid is \"%s\"\n",tcp_clnt_uuid);
     
   	printf("\n****************END---tcp_clnt_disconnect_callback---END****************\n\n");
 } /* tcp_clnt_disconnect_callback() */
@@ -120,7 +136,7 @@ int main(void)
 	printf("Testing server interface v%s\n", server_version);
     
     printf("Call send TCP message method (tcp_dbus_send_msg())\n");
-	tcp_dbus_send_msg( id,msg, msg_sz );
+	tcp_dbus_send_msg( id,"fakeuuid",msg, msg_sz );
 
     printf("Subscribe to DBUS_TCP_RECV_SIGNAL signal\n");
     if ( EXIT_FAILURE == tcp_dbus_client_Subscribe2Recv( id, DBUS_TCP_RECV_SIGNAL, &tcp_rx_data_callback) )
@@ -130,7 +146,7 @@ int main(void)
     }
 
     printf("Call send TCP message method (tcp_dbus_send_msg())\n");
-	tcp_dbus_send_msg( id,msg, msg_sz );
+	tcp_dbus_send_msg( id,"fakeuuid",msg, msg_sz );
     sleep(2);
 
     printf("Unsubscribe from DBUS_TCP_RECV_SIGNAL signal\n");
@@ -171,7 +187,7 @@ int main(void)
         sleep(1);
         /* Test server methods */
         printf("Call send TCP message method (tcp_dbus_send_msg())\n");
-        tcp_dbus_send_msg( id,msg, msg_sz );
+        tcp_dbus_send_msg( id,"fakeuuid",msg, msg_sz );
     }
 
     printf("Unsubscribe from signals\n");

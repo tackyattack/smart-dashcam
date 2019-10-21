@@ -199,16 +199,36 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
         dbus_bool_t return_val;
         int data_sz, i;
         DBusMessageIter iter,subiter;
+        char* uuid;
 
 
         /*-------------------------------------
         |           INITIALIZATIONS            |
         --------------------------------------*/
 
+        uuid = NULL;
         i = 0;
         return_val = EXIT_SUCCESS;
 
         if (!dbus_message_iter_init(message, &iter))
+        {
+            goto fail;
+        }
+
+
+        /*-------------------------------------
+        |   GET UUID (1ST ARG) FROM MESSAGE    |
+        --------------------------------------*/
+
+        if ( DBUS_TYPE_STRING != dbus_message_iter_get_arg_type(&iter) )
+        {
+            printf("DBUS Server method %s expected argument type string but received something else!\n",DBUS_TCP_SEND_MSG);
+            goto fail;
+        }
+
+        dbus_message_iter_get_basic(&iter, &uuid);
+
+        if (false == dbus_message_iter_next(&iter) )
         {
             goto fail;
         }
@@ -218,7 +238,7 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
 
 
         /*-------------------------------------
-        |       METHOD ARG VERIFICATIONS       |
+        |     METHOD 2ND ARG VERIFICATIONS     |
         --------------------------------------*/
 
         if( DBUS_TYPE_ARRAY != dbus_message_iter_get_arg_type(&iter) || DBUS_TYPE_BYTE != dbus_message_iter_get_arg_type(&subiter) )
@@ -260,8 +280,6 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
             i+=1;
         }
 
-        //TODO implement callback
-
     #else /* So instead, we use this method. Less efficient iterating through all the elements, but accurate */
         
         /*-------------------------------------
@@ -286,6 +304,7 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
             i+=1;
         }while (dbus_message_iter_next(&subiter) == true &&  i < data_sz);
 
+    #endif
 
         /*-------------------------------------
         |   CALL USER CALLBACK WITH MSG DATA   |
@@ -293,15 +312,11 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
 
         if( ((struct dbus_srv_config*)config)->callback != NULL )
         {
-            return_val = (*(((struct dbus_srv_config*)config)->callback))(data, data_sz);
+            return_val = (*(((struct dbus_srv_config*)config)->callback))(uuid, data, data_sz);
         }
-        
-
-    #endif
 
         // printf("\"\n");
         // printf("\n****************END---tcp_dbus_server.c: send_msg function---END****************\n\n");
-
 
 
         /*-------------------------------------
@@ -315,7 +330,7 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
 
         dbus_message_append_args(reply, DBUS_TYPE_BOOLEAN, &return_val, DBUS_TYPE_INVALID);
 
-    } 
+    } /* dbus_message_is_method_call(message, DBUS_TCP_IFACE, DBUS_TCP_SEND_MSG) */
     else
     {
         return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
@@ -599,7 +614,7 @@ void tcp_dbus_srv_kill(dbus_srv_id srv_id)
     // TODO addition cleanup needed?
 } /* tcp_dbus_srv_kill() */
 
-bool tcp_dbus_srv_emit_msg_recv_signal(dbus_srv_id srv_id, const char *msg, uint msg_sz)
+bool tcp_dbus_srv_emit_msg_recv_signal(dbus_srv_id srv_id, const char* tcp_clnt_uuid, const char *msg, uint msg_sz)
 {
     /*-------------------------------------
     |              VARIABLES               |
@@ -647,7 +662,8 @@ bool tcp_dbus_srv_emit_msg_recv_signal(dbus_srv_id srv_id, const char *msg, uint
 
     if ( (dbus_msg = dbus_message_new_signal(DBUS_TCP_OPATH, DBUS_TCP_IFACE, DBUS_TCP_RECV_SIGNAL)) )
     {
-        dbus_message_append_args (dbus_msg, DBUS_TYPE_ARRAY, DBUS_TYPE_BYTE, &msg, msg_sz, DBUS_TYPE_INVALID);
+        /* Append 1st arg (tcp_clnt_uuid string) and 2nd arg (byte array) */
+        dbus_message_append_args (dbus_msg, DBUS_TYPE_STRING, &tcp_clnt_uuid, DBUS_TYPE_ARRAY, DBUS_TYPE_BYTE, &msg, msg_sz, DBUS_TYPE_INVALID);
 
         if ( dbus_connection_send(config->conn, dbus_msg, NULL) )
         {
@@ -684,7 +700,7 @@ bool tcp_dbus_srv_emit_msg_recv_signal(dbus_srv_id srv_id, const char *msg, uint
     return return_val;
 }
 
-bool tcp_dbus_srv_emit_connect_signal(dbus_srv_id srv_id, const char *tcp_clnt_id, uint size)
+bool tcp_dbus_srv_emit_connect_signal(dbus_srv_id srv_id, const char *tcp_clnt_uuid)
 {
     /*-------------------------------------
     |              VARIABLES               |
@@ -719,9 +735,9 @@ bool tcp_dbus_srv_emit_connect_signal(dbus_srv_id srv_id, const char *tcp_clnt_i
     |          VERIFY PARAMETERS           |
     --------------------------------------*/
 
-    if ( tcp_clnt_id == NULL || size == 0 )
+    if ( tcp_clnt_uuid == NULL )
     {
-        printf("WARNING, called tcp_dbus_srv_emit_connect_signal() for server id %d but  tcp_clnt_id == NULL or size == 0!\n", srv_id);
+        printf("WARNING, called tcp_dbus_srv_emit_connect_signal() for server id %d but  tcp_clnt_uuid == NULL!\n", srv_id);
         return EXIT_FAILURE;
     }
 
@@ -732,7 +748,7 @@ bool tcp_dbus_srv_emit_connect_signal(dbus_srv_id srv_id, const char *tcp_clnt_i
 
     if ( (dbus_msg = dbus_message_new_signal(DBUS_TCP_OPATH, DBUS_TCP_IFACE, DBUS_TCP_CONNECT_SIGNAL)) )
     {
-        dbus_message_append_args (dbus_msg, DBUS_TYPE_ARRAY, DBUS_TYPE_BYTE, &tcp_clnt_id, size, DBUS_TYPE_INVALID);
+        dbus_message_append_args (dbus_msg, DBUS_TYPE_STRING, &tcp_clnt_uuid, DBUS_TYPE_INVALID);
 
         if ( dbus_connection_send(config->conn, dbus_msg, NULL) )
         {
@@ -769,7 +785,7 @@ bool tcp_dbus_srv_emit_connect_signal(dbus_srv_id srv_id, const char *tcp_clnt_i
     return return_val;
 }
 
-bool tcp_dbus_srv_emit_disconnect_signal(dbus_srv_id srv_id, const char *tcp_clnt_id, uint size)
+bool tcp_dbus_srv_emit_disconnect_signal(dbus_srv_id srv_id, const char *tcp_clnt_uuid)
 {
     /*-------------------------------------
     |              VARIABLES               |
@@ -804,9 +820,9 @@ bool tcp_dbus_srv_emit_disconnect_signal(dbus_srv_id srv_id, const char *tcp_cln
     |          VERIFY PARAMETERS           |
     --------------------------------------*/
 
-    if ( tcp_clnt_id == NULL || size == 0 )
+    if ( tcp_clnt_uuid == NULL )
     {
-        printf("WARNING, called tcp_dbus_srv_emit_disconnect_signal() for server id %d but  tcp_clnt_id == NULL or size == 0!\n", srv_id);
+        printf("WARNING, called tcp_dbus_srv_emit_disconnect_signal() for server id %d but  tcp_clnt_uuid == NULL!\n", srv_id);
         return EXIT_FAILURE;
     }
 
@@ -817,7 +833,7 @@ bool tcp_dbus_srv_emit_disconnect_signal(dbus_srv_id srv_id, const char *tcp_cln
 
     if ( (dbus_msg = dbus_message_new_signal(DBUS_TCP_OPATH, DBUS_TCP_IFACE, DBUS_TCP_DISCONNECT_SIGNAL)) )
     {
-        dbus_message_append_args (dbus_msg, DBUS_TYPE_ARRAY, DBUS_TYPE_BYTE, &tcp_clnt_id, size, DBUS_TYPE_INVALID);
+        dbus_message_append_args (dbus_msg, DBUS_TYPE_STRING, &tcp_clnt_uuid, DBUS_TYPE_INVALID);
 
         if ( dbus_connection_send(config->conn, dbus_msg, NULL) )
         {

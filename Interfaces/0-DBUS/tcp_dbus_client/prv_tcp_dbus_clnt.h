@@ -104,7 +104,17 @@ static struct dbus_clnt_config *dbus_config[MAX_NUM_CLIENTS]     = {0};
     to provide services for subscribed DBUS client implementations */
 void* GMainLoop_Thread(void *loop);
 
-/* When a subscriber receives data, this callback is called. */
+/**
+ * Given an initialized iterator to an array of bytes (**iter), and an
+ * empty data (char**), returns the same of the array of bytes put into
+ * (*data).
+ * 
+ * Helper function.
+ */
+uint get_data_arry(GVariantIter **iter, char** data);
+
+/* When a subscriber (this instance of the dbus client that is subscribed to the dbus server) receives 
+ * data, this callback is called. */
 void SubscriberCallback(GDBusConnection *conn, const gchar *sender_name, const gchar *object_path, const gchar *interface_name, const gchar *signal_name, GVariant *parameters,gpointer callback_data);
 
 /* This is the thread that is spawned when a subscription is made to a signal on the dbus server */
