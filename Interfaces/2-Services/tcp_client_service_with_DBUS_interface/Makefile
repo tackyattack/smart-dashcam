@@ -6,6 +6,11 @@
 #				http://nuclear.mutantstargoat.com/articles/make/#practical-makefile
 # Desc:			
 
+
+# This makes spaces the recipe separator instead of the standard tab '\t' character
+#   Comment out the line to default back to tabs, or make it equal to any character you wish to use as a recipe separator
+.RECIPEPREFIX +=    
+
 ## Parameters ##
 CC=gcc
 CXX=g++
