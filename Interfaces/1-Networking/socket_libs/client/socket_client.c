@@ -11,7 +11,7 @@
 --------------------------------------*/
 
 static int  client_fd                                  = -1;    /* Stores the socket_fd for our connection to the server */
-static char UUID[UUID_SZ+1]                            = {0};   /* Stores our UUID. +1 because uuid_unparse generates a str with UUID_SZ ascii characters plus a termination char */
+static char UUID[UUID_STR_LEN]                         = {0};   /* Stores our UUID including termination char */
 static bool isRunning                                  = false; /* Set true to execute the client execute thread */
 static socket_lib_clnt_rx_msg _rx_callback             = NULL;  /* Callback called when a message is received from the server */
 static socket_lib_clnt_disconnected _discont_callback  = NULL;  /* Callback called when we've disconnected from the server */
@@ -76,7 +76,7 @@ void load_uuid()
     |         SAVE UUID TO UUID         |
     ------------------------------------*/
     memcpy(UUID,buffer,UUID_SZ); /* Copy data */
-
+    printf("Socket Client: UUID is %s\n",UUID);
 
     /*----------------------------------
     |             CLEAN-UP              |
@@ -90,24 +90,16 @@ int send_uuid()
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
-    char temp[UUID_SZ+1]; /* UUID_SZ + 1 for command byte */
     int sent_bytes;
-
-
-    /*----------------------------------
-    |          INITIALIZATIONS          |
-    ------------------------------------*/
-    temp[0] = COMMAND_UUID; /* Set command byte */
-    memcpy(&temp[sizeof(COMMAND_UUID)],UUID,UUID_SZ);
 
 
     /*----------------------------------
     |             SEND UUID             |
     ------------------------------------*/
-    sent_bytes = socket_send_data(client_fd, temp, UUID_SZ+sizeof(COMMAND_UUID));   /* Send UUID plus UUID command to server to identify ourselves */
-    if(sent_bytes != UUID_SZ+sizeof(COMMAND_UUID))
+    sent_bytes = send_data(COMMAND_UUID, UUID, UUID_STR_LEN);   /* Send UUID with null termination to server to identify ourselves */
+    if(sent_bytes != UUID_STR_LEN+COMMAND_SZ)
     {
-        printf("ERROR: failed to send UUID correctly to server...\n");
+        printf("\nERROR: failed to send UUID correctly to server. Send %d bytes but expected %d bytes...\n\n", sent_bytes, UUID_STR_LEN);
     }
 
     return sent_bytes;
@@ -153,9 +145,9 @@ int socket_client_init(char* server_addr, char *port, socket_lib_clnt_rx_msg rx_
     |         SEND UUID AND VERIFY         |
     --------------------------------------*/
 
-    if( send_uuid(port) != UUID_SZ+sizeof(COMMAND_UUID) )
+    if( send_uuid() != UUID_STR_LEN+COMMAND_SZ )
     {
-        close(client_fd);
+        close_and_notify(client_fd);
         return RETURN_FAILED;
     }
 
@@ -250,7 +242,7 @@ int process_recv_msg(const int socket_fd)
     {
     case COMMAND_PING:
     case COMMAND_UUID:
-        send_uuid(client_fd);
+        send_uuid();
         break;
     case COMMAND_NONE:
         /*----------------------------------

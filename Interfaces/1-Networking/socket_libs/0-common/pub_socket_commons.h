@@ -49,7 +49,7 @@
 #define MAX_TX_MSG_SZ           (512)                               /* max size of the message that will be sent over socket. NOTE, this should not be used outside of this file */
 #define MAX_MSG_SZ              (MAX_TX_MSG_SZ-MSG_HEADER_SZ)       /* max size of the message payload that can be sent */
 #define CONNECT_TIMEOUT         (1)                                 /* Set a timeout of 1 second for socket client connect attempt */
-#define UUID_SZ                 (36)                                /* UUID is 4 hyphens + 32 digits. This does not include termination character! */
+#define UUID_SZ                 (37)                                /* UUID is 4 hyphens + 32 digits. This does include termination character! */
 #define TIME_BETWEEN_PINGS      (1)                                 /* Time (in seconds) between pings from the server. The server sends a ping to all clients every TIME_BETWEEN_PINGS seconds */
 
 

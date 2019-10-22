@@ -31,7 +31,7 @@
 struct client_info
 {
     int fd;
-    char uuid[UUID_SZ+1];       /* +1 for termination char */
+    char uuid[UUID_SZ];         /* UUID of client */
     struct in_addr address;     /* in_addr struct of server's address */
     struct client_info *next;   /* pointer to next client_info struct in the linked list of structs */
     char* partialMSG;           /* This will point to arrays of partial messages received that are waiting for the rest of the message to be received */

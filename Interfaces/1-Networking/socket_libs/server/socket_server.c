@@ -410,7 +410,7 @@ int process_recv_msg(int client_fd)
     switch (client->partialMSG[0])
     {
     case COMMAND_UUID:
-        if (client->partialMSG_sz < (ssize_t)sizeof(COMMAND_PING)+COMMAND_SZ)
+        if ( client->partialMSG_sz < (ssize_t)(COMMAND_SZ+UUID_SZ) )
         {
             return client->partialMSG_sz;
         }
@@ -421,6 +421,7 @@ int process_recv_msg(int client_fd)
         if(client->uuid[0] == 0x00)
         {
             memcpy(client->uuid,&client->partialMSG[1],UUID_SZ);
+            printf("Socket Server: Setting client UUID for the first time. UUID is %s\n",client->uuid);
 
             /*----------------------------------
             |           CALL CALLBACK           |
