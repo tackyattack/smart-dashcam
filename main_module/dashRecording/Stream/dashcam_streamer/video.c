@@ -480,7 +480,6 @@ int insert_PPS_SPS()
   reset_queue();
   for(int i = 0; i < SPS_sz; i++) insert(SPS_buffer[i]);
   for(int i = 0; i < PPS_sz; i++) insert(PPS_buffer[i]);
-  hex_block_print(queue_array, PPS_sz+SPS_sz);
   pthread_mutex_unlock(&queue_lock);
   ret_val = 1;
   }
