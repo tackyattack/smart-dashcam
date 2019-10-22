@@ -437,9 +437,7 @@ socket_receive_data( const int socket_fd, char* buffer, const size_t buffer_sz, 
     ------------------------------------*/
     ssize_t bytes_read;
 
-    *received_bytes = socket_bytes_to_recv(socket_fd);
-
-    if ( *received_bytes <= 0 )
+    if ( socket_bytes_to_recv(socket_fd) <= 0 )
     {
         return RECV_ERROR;
     }
@@ -462,6 +460,8 @@ socket_receive_data( const int socket_fd, char* buffer, const size_t buffer_sz, 
         /* Soft error: didn't receive minumum number of bytes expected */
         return RECV_ERROR;
     }
+
+    *received_bytes = (int)bytes_read;
 
     /* Info print */
     printf ("Received %zd bytes of raw data: ", bytes_read);
@@ -564,8 +564,8 @@ int socket_send_data ( const int socket_fd, const char * data, const uint16_t da
         {
             buffer[bytes_to_send-sizeof(MSG_END)] = MSG_END;
         }
-        
-        
+
+
         /* if this is the last message to send in a sequence, set appropiate flag */ /* For send flags, see https://linux.die.net/man/2/send */
         // if (i == n_buffers_to_send-1 )
         // {
@@ -575,10 +575,10 @@ int socket_send_data ( const int socket_fd, const char * data, const uint16_t da
         // {
         //     send_flags = send_flags | MSG_MORE;
         // }
-        
+
         /* Send the message */
         bytes_sent = send ( socket_fd, buffer, bytes_to_send, send_flags );
-        
+
         /* Verify bytes were sent */
         if ( bytes_sent != bytes_to_send )
         {

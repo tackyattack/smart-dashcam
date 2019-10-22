@@ -447,13 +447,15 @@ int process_recv_msg(int client_fd)
         break;
     }
 
+    n_recv_bytes = client->partialMSG_sz;
+
     /*-------------------------------------
     |               CLEANUP                |
     --------------------------------------*/
     free(client->partialMSG);
     client->partialMSG_sz = 0;
 
-    return client->partialMSG_sz;
+    return n_recv_bytes;
 } /* process_recv_msg */
 
 int socket_server_send_data_all(const char* data, const uint data_sz)

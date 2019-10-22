@@ -155,6 +155,13 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
+    printf("\ntest_socket_client: test sending long message of %zu bytes.\n", strlen(longStr));
+    if ( (int)strlen(longStr) > socket_client_send_data(longStr, sizeof(longStr)) )
+    {
+        printf("Failed: client did not send all bytes of the message\n");
+        exit(EXIT_FAILURE);
+    }
+
 
 
     printf("\n-----Killing client: Expect disconnect callback-----\n\t-----and a message saying lost connection to server-----\n");

@@ -154,6 +154,13 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
+    printf("\ntest_socket_server: test sending long message of %zu bytes.\n", strlen(longStr));
+    if ( (int)strlen(longStr) > socket_server_send_data_all(longStr, strlen(longStr)) )
+    {
+        printf("Failed: server did not send all bytes of the message\n");
+        exit(EXIT_FAILURE);
+    }
+
     printf("Press enter to quit server...\n");
     /* block until ready to quit */
     getchar();
