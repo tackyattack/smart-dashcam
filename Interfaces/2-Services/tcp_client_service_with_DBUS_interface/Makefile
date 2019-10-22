@@ -73,7 +73,7 @@ service_tcp_clnt:
 
 run: $(EXE)
     @echo "\n -----------------Executing Serverive TCP Client-----------------\n\n"
-    ./$(EXE)
+    sudo ./$(EXE)
 
 $(EXE): service_tcp_clnt
     @echo "Done\n\n"
