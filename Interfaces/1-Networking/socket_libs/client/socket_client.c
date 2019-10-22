@@ -239,7 +239,7 @@ int process_recv_msg(const int socket_fd)
         /* Received message from client. Call callback with message and UUID */
         if(_rx_callback != NULL)
         {
-            (*_rx_callback)(partial_rx_msg, partial_rx_msg_sz);
+            (*_rx_callback)(&partial_rx_msg[COMMAND_SZ], partial_rx_msg_sz-COMMAND_SZ);
         }
         break;
 

@@ -437,7 +437,7 @@ int process_recv_msg(int client_fd)
         /* Received message from client. Call callback with message and UUID */
         if(_rx_callback != NULL)
         {
-            (*_rx_callback)(client->uuid, client->partialMSG, client->partialMSG_sz);
+            (*_rx_callback)(client->uuid, &(client->partialMSG)[COMMAND_SZ], client->partialMSG_sz-COMMAND_SZ);
         }
 
         break;
