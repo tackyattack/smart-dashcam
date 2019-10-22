@@ -8,9 +8,26 @@
 |           PRIVATE INCLUDES           |
 --------------------------------------*/
 
-#include "command_control.h"
+#include "test_send_data_pi0.h"
+// #include <iostream>
+// #include <fstream>
+// #include <mutex>
+// #include <queue>
+#include <stdio.h>
+#include <signal.h>
+// #include <string.h>
+// #include <sys/time.h>
 
+using namespace std;
 
+/*-------------------------------------
+|           STATIC VARIABLES           |
+--------------------------------------*/
+// static std::ofstream testFile;
+// static std::mutex mutex_queue;
+// static std::queue<char*> data_queue;
+static char* data;
+static dbus_clnt_id id;
 /*-------------------------------------
 |     MAIN FUNCTION OF THE SERVICE     |
 --------------------------------------*/
@@ -42,7 +59,13 @@
  *  being written in C: https://isocpp.org/wiki/faq/mixing-c-and-cpp */
 void tcp_rx_data_callback(const char* tcp_clnt_uuid, const char* data, unsigned int data_sz)
 {
-  	printf("\n****************tcp_rx_data_callback: callback activated.****************\n\n");
+    //   printf("\n****************tcp_rx_data_callback: callback activated.****************\n\n");
+    // char *temp = (char*)malloc(data_sz);
+    // memcpy(temp,data,data_sz);
+
+    // mutex_queue.lock();
+    // data_queue.push(temp);
+    // mutex_queue.unlock();
 
     printf("Received %d bytes from client %s as follows:\n\"",data_sz, tcp_clnt_uuid);
     for (size_t i = 0; i < data_sz; i++)
@@ -51,30 +74,51 @@ void tcp_rx_data_callback(const char* tcp_clnt_uuid, const char* data, unsigned 
     }
     printf("\"\n");
     
-  	printf("\n****************END---tcp_rx_data_callback---END****************\n\n");
+    //   printf("\n****************END---tcp_rx_data_callback---END****************\n\n");
 } /* tcp_rx_data_callback() */
 
-void process_recv_data(char* data, uint data_sz)
-{
-    //Process commands here to do things
-}
+// void process_recv_data(char* data, uint data_sz)
+// {
+//     //Process commands here to do things
+// }
 
 /*-------------------------------------
 |                 MAIN                 |
 --------------------------------------*/
 
+void  INThandler(int sig)
+{
+    signal(sig, SIG_IGN);
+    printf("\nCtrl-C detected. Exiting....\n");
+    /*-------------------------------------
+    |               SHUTDOWN               |
+    -------------------------------------*/
+    tcp_dbus_client_disconnect(id);
+    tcp_dbus_client_delete(id);
+    exit(EXIT_SUCCESS);
+}
+
 int main(void)
 {
+    /*----------------------------------
+    |       SETUP SIGNAL HANDLERS       |
+    ------------------------------------*/
+    struct sigaction act_sigint;
+    act_sigint.sa_handler = INThandler;
+    sigaction(SIGINT, &act_sigint, NULL);
+
     /*-------------------------------------
     |              VARIABLES               |
     -------------------------------------*/
-    dbus_clnt_id id;
     int val;
     const char* server_version;
+    // char* data;
+    // struct timeval tv;
 
     /*-------------------------------------
     |           INITIALIZATIONS            |
     -------------------------------------*/
+    // testFile.open ("command_control.log");
 
     id = tcp_dbus_client_create();
 
@@ -98,7 +142,7 @@ int main(void)
     |          CLIENT OPERATIONS           |
     -------------------------------------*/
 
-	printf("Testing server interface v%s\n", server_version);
+    printf("Testing server interface v%s\n", server_version);
     
     printf("Subscribe to DBUS_TCP_RECV_SIGNAL signal\n");
     if ( EXIT_FAILURE == tcp_dbus_client_Subscribe2Recv( id, (char*)DBUS_TCP_RECV_SIGNAL, &tcp_rx_data_callback) )
@@ -120,12 +164,45 @@ int main(void)
     //     EXIT_FAILURE;
     // }
 
+    #define DATA_SZ    (1000)
+
+    data = (char*)malloc(DATA_SZ);
+
+    for (size_t i = 0; i < DATA_SZ; i++)
+    {
+        data[i] = 'a';
+    }
+    data[DATA_SZ-1] = '\0';
+
 
     /*-------------------------------------
     |            INFINITE LOOP             |
     --------------------------------------*/
+    while(1)
+    {
+        usleep(50000);
+        // mutex_queue.lock();
+        // if(data_queue.empty() == false)
+        // {
+        //     data = data_queue.front();
+        //     data_queue.pop();
+        // }
+        // mutex_queue.unlock();
 
-    while(1){ sleep(10); }
+        // gettimeofday(&tv, 0);
+        // /* Write timestamp to file in milliseconds */
+        // testFile << (tv.tv_usec / 1000 + tv.tv_sec * 1000) << endl;
+        // /* Write data to file */
+        // testFile << *data << endl;
+        // free(data);
+        if( tcp_dbus_send_msg(id, NULL, data, DATA_SZ) == false )
+        {
+            printf("Failed to send data");
+        }
+    }
+
+    free(data);
+    data = NULL;
 
     printf("Unsubscribe from signals\n");
     tcp_dbus_client_UnsubscribeRecv(id,(char*)DBUS_TCP_RECV_SIGNAL);
@@ -142,5 +219,5 @@ int main(void)
     tcp_dbus_client_disconnect(id);
     tcp_dbus_client_delete(id);
 
-	return 0;
+    return 0;
 }

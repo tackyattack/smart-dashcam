@@ -16,13 +16,13 @@ CC=gcc
 CXX=g++
 
 # Define names of executable files
-EXE=../exe_command_control
+EXE=../exe_test_recv_data
 
 # Define location of source code files
-C_SRC=$(wildcard *.c)
+C_SRC=$(wildcard *.cpp)
 
 # Define any directories containing header files other than /usr/include
-C_INC=-I$(shell pwd)
+# C_INC=-I$(shell pwd)
 
 # Set compiler flags 
 #src: https://gcc.gnu.org/onlinedocs/gcc/Option-Summary.html
@@ -33,7 +33,7 @@ C_INC=-I$(shell pwd)
 #	-Werror					Treat warnings as errors
 #	-ldashcam_tcp_dbus_clnt	Include dynamic (shared) library containing the dashcam dbus client tcp function calls
 #	-O3:					Optimization more for code size and execution time
-CFLAGS=-Wall -Wextra -ggdb -ldashcam_tcp_dbus_clnt -O3
+CFLAGS=-std=c++11 -Wall -Wextra -g -O3
 
 # Define any parameters to be passed during compile time
 # CDEFINES=
@@ -54,15 +54,15 @@ CFLAGS=-Wall -Wextra -ggdb -ldashcam_tcp_dbus_clnt -O3
 #		prerequisites ->  a file that is used as input to create the target
 #		recipe -> actions taken by make. Tab is required.
 
-.PHONY: build command_control run setup download dependencies install clean clean-all
+.PHONY: build test_recv_data run setup download dependencies install clean clean-all
 
 # make build will compile all source code. This is the default if 'make' is run.
-build: command_control
+build: test_recv_data
     @echo "\nFinished!"
 
-command_control: clean-all
-    # Compile test command_control C code:
-    $(CXX) -o $(EXE) $(C_SRC) $(C_INC) $(CFLAGS)
+test_recv_data: clean-all
+    # Compile test test_recv_data C code:
+    $(CXX)  $(CFLAGS) -o $(EXE) $(C_SRC) -ldashcam_tcp_dbus_clnt
     chmod 770 $(EXE)
 
 run: $(EXE)
