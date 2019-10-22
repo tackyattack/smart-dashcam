@@ -452,7 +452,11 @@ int process_recv_msg(int client_fd)
     /*-------------------------------------
     |               CLEANUP                |
     --------------------------------------*/
-    free(client->partialMSG);
+    if (client->partialMSG_sz != 0)
+    {
+        free(client->partialMSG);
+    }
+    client->partialMSG = NULL;
     client->partialMSG_sz = 0;
 
     return n_recv_bytes;
