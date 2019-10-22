@@ -12,8 +12,8 @@ static dbus_srv_id srv_id;     /* dbus server instance id */
 static char* host_ip   = SERVER_ADDR;
 static char* host_port = SERVER_PORT;
 static bool ignore_disconnect = false;
-static pthread_mutex_t mutex_ignore_disconnect = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t mutex_tcp_recv_msg = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t mutex_ignore_disconnect = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t mutex_dbus_method_send_tcp_msg_callback = PTHREAD_MUTEX_INITIALIZER;
 
 
@@ -68,7 +68,6 @@ void tcp_disconnect()
 {
   	printf("\n****************tcp_disconnect: callback activated.****************\n\n");
 
-    // printf("Client disconnected -> UUID: %s\n", uuid);
     pthread_mutex_lock(&mutex_ignore_disconnect);
     if(ignore_disconnect == true)
     {
@@ -77,8 +76,6 @@ void tcp_disconnect()
     }
     pthread_mutex_unlock(&mutex_ignore_disconnect);
     
-    /* Attempt to reconnect to server indefinitely */
-
   	printf("\n****************END---tcp_disconnect---END****************\n\n");
 } /* tcp_disconnect() */
 
@@ -184,13 +181,18 @@ int main(int argc, char *argv[])
         if( socket_client_is_executing() == false && socket_client_init(host_ip, host_port, tcp_recv_msg, tcp_disconnect) == -1 )
         {
             printf("Failed to initialize TCP server!\nRetrying.....\n\n");
-            sleep(2);
+            usleep(200000);
             continue;
         }
 
-        /* Run the client. Run forever. */
+        /* Run the client. Returns immediately after spawning server. */
         socket_client_execute(); /* Shouldn't return unless lost connection */
 
+        while(socket_client_is_executing() == true)
+        {
+            usleep(200000);
+        }
+            
         printf("\nFailed: lost tcp server connection!\n\n");
     }
 

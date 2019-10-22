@@ -72,7 +72,7 @@ service_tcp_srv:
 
 run: $(EXE)
     @echo "\n -----------------Executing TCP Server Service -----------------\n\n"
-    ./$(EXE)
+    sudo ./$(EXE)
 
 $(EXE): service_tcp_srv
     @echo "Done\n\n"
