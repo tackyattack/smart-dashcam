@@ -351,6 +351,17 @@ int process_recv_msg(int client_fd)
     /* Receive data from client. Returns number of bytes received. */
     recv_flag = socket_receive_data( client_fd, buffer, MAX_TX_MSG_SZ, &n_recv_bytes );
 
+    /*-------------------------------------
+    |             VERIFICATION             |
+    --------------------------------------*/
+
+    if( n_recv_bytes <= 0 )
+    {
+        printf("Socket Server: Received client disconnect/socket error. Disconnecting client...\n");
+        close_client_conn(client_fd);
+        return RETURN_SUCCESS;
+    }
+
     if(recv_flag == RECV_ERROR)
     {
         printf("Socket Server: Message header error. Message discarded.\n");
@@ -376,10 +387,19 @@ int process_recv_msg(int client_fd)
     if( recv_flag == RECV_SEQUENCE_CONTINUE || recv_flag == RECV_SEQUENCE_END )
     {
         temp = malloc(client->partialMSG_sz + n_recv_bytes);
-        memcpy(temp, client->partialMSG, client->partialMSG_sz);
+
+        if (client->partialMSG_sz != 0)
+        {
+            memcpy(temp, client->partialMSG, client->partialMSG_sz);
+        }
+
         memcpy( (temp + client->partialMSG_sz), buffer, n_recv_bytes );
 
-        free(client->partialMSG);
+        if (client->partialMSG_sz != 0)
+        {
+            free(client->partialMSG);
+        }
+
         client->partialMSG = temp;
         client->partialMSG_sz += n_recv_bytes;
 
@@ -395,7 +415,7 @@ int process_recv_msg(int client_fd)
         client->partialMSG    = buffer;
         client->partialMSG_sz = n_recv_bytes;
     }
-    
+
 
     /*-----------------------------------
     |      HANDLE RECEIVED COMMANDS      |

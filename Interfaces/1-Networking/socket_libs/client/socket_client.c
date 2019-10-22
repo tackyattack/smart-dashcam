@@ -190,6 +190,17 @@ int process_recv_msg(const int socket_fd)
     ------------------------------------*/
     recv_flag = socket_receive_data(socket_fd,buffer,MAX_TX_MSG_SZ,&n_recv_bytes);
 
+    /*-------------------------------------
+    |             VERIFICATION             |
+    --------------------------------------*/
+
+    if( n_recv_bytes <= 0 )
+    {
+        printf("Socket Client: Received disconnect/socket error. Disconnecting from server...\n");
+        close_and_notify();
+        return RETURN_DISCONNECT;
+    }
+
     if ( RECV_ERROR == recv_flag )
     {
         printf("\nClient received invalid msg header.\n");
@@ -202,10 +213,19 @@ int process_recv_msg(const int socket_fd)
     if( recv_flag == RECV_SEQUENCE_CONTINUE || recv_flag == RECV_SEQUENCE_END )
     {
         temp = malloc(partial_rx_msg_sz + n_recv_bytes);
-        memcpy(temp, partial_rx_msg, partial_rx_msg_sz);
+
+        if (partial_rx_msg_sz != 0)
+        {
+            memcpy(temp, partial_rx_msg, partial_rx_msg_sz);
+        }
+
         memcpy( (temp + partial_rx_msg_sz), buffer, n_recv_bytes );
 
-        free(partial_rx_msg);
+        if (partial_rx_msg_sz != 0)
+        {
+            free(partial_rx_msg);
+        }
+
         partial_rx_msg = temp;
         partial_rx_msg_sz += n_recv_bytes;
 
