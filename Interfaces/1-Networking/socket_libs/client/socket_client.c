@@ -253,7 +253,11 @@ int process_recv_msg(const int socket_fd)
     /*-------------------------------------
     |               CLEANUP                |
     --------------------------------------*/
-    free(partial_rx_msg);
+    if (partial_rx_msg_sz != 0)
+    {
+        free(partial_rx_msg);
+    }
+    partial_rx_msg = NULL;
     partial_rx_msg_sz = 0;
 
     return return_val;
