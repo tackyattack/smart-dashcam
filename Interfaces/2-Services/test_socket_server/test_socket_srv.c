@@ -147,7 +147,8 @@ int main(int argc, char *argv[])
 
     sleep(3);
 
-    if ( (int)strlen(longStr) < socket_server_send_data_all(longStr, strlen(longStr)) )
+    printf("\ntest_socket_server: test sending long message of %lu bytes.\n", strlen(longStr));
+    if ( (int)strlen(longStr) > socket_server_send_data_all(longStr, strlen(longStr)) )
     {
         printf("Failed: server did not send all bytes of the message\n");
         exit(EXIT_FAILURE);

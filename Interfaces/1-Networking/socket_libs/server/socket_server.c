@@ -316,7 +316,7 @@ int process_recv_msg(int client_fd)
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
-    ssize_t n_recv_bytes;                  /* Number of received bytes */
+    int n_recv_bytes;                  /* Number of received bytes */
     char* buffer;                          /* Buffer for reception of data */
     struct client_info *client;            /* client_infos client for given client_fd */
     int recv_flag;                         /* Used to receive message flags from the socket_receive_data function call */
@@ -332,7 +332,7 @@ int process_recv_msg(int client_fd)
     /* if client wasn't found in our list assert. There is a discrepancy. */
     assert(client != NULL);
 
-    printf("\nSERVER: Bytes to read from socket: %zd\n", socket_bytes_to_recv(client_fd));
+    printf("\nSERVER: Bytes to read from socket: %d\n", socket_bytes_to_recv(client_fd));
 
     /*-------------------------------------
     |             VERIFICATION             |
@@ -358,7 +358,7 @@ int process_recv_msg(int client_fd)
     }
 
     /* Info prints. Data read. */    
-    fprintf(stderr, "SERVER: received %zd bytes\n", n_recv_bytes);
+    fprintf(stderr, "SERVER: received %d bytes\n", n_recv_bytes);
     // fprintf(stderr, "Server: received %d bytes with message: \"%s\"\n", n_recv_bytes, buffer);
 
     // putchar('0');

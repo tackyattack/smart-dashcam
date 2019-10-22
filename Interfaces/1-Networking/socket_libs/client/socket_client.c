@@ -170,7 +170,7 @@ int process_recv_msg(const int socket_fd)
     char *buffer;
     int return_val;
     char* temp;
-    ssize_t n_recv_bytes;
+    int n_recv_bytes;
     enum SOCKET_RECEIVE_DATA_FLAGS recv_flag;
 
 

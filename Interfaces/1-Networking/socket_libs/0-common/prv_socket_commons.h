@@ -63,6 +63,6 @@ int client_connect(struct addrinfo *address_info_set);
  * invalid (invalid message headers).
  */
 enum SOCKET_RECEIVE_DATA_FLAGS \
-remove_msg_header(char *buffer, int buffer_sz, ssize_t *contained_msg_sz);
+remove_msg_header(char *buffer, int buffer_sz, int *contained_msg_sz);
 
 #endif /* PRV_SOCK_COMMONS_H */

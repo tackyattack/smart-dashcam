@@ -127,7 +127,7 @@ int socket_create_socket (char* port, enum SOCKET_TYPES socket_type,  const char
  *       closing their socket and hence connection to the server.
  */
 enum SOCKET_RECEIVE_DATA_FLAGS \
-socket_receive_data( const int socket_fd, char* buffer, const size_t buffer_sz, ssize_t *received_bytes );
+socket_receive_data( const int socket_fd, char* buffer, const size_t buffer_sz, int *received_bytes );
 
 /**
  * Given a open socket_fd, will return the number of bytes available to be read
@@ -135,7 +135,7 @@ socket_receive_data( const int socket_fd, char* buffer, const size_t buffer_sz, 
  * 
  * @Returns number of bytes to be read from socket_fd or RETURN_FAILED.
  */
-ssize_t socket_bytes_to_recv( const int socket_fd );
+int socket_bytes_to_recv( const int socket_fd );
 
 /**
  * Given a char* data array up to 2^16 in size and a socket_fd,

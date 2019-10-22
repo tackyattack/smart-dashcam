@@ -365,7 +365,7 @@ int socket_create_socket( char* port, enum SOCKET_TYPES socket_type,  const char
 } /* socket_create_socket() */
 
 enum SOCKET_RECEIVE_DATA_FLAGS \
-remove_msg_header(char *buffer, int buffer_sz, ssize_t *contained_msg_sz)
+remove_msg_header(char *buffer, int buffer_sz, int *contained_msg_sz)
 {
     /*----------------------------------
     |             VARIABLES             |
@@ -429,7 +429,7 @@ remove_msg_header(char *buffer, int buffer_sz, ssize_t *contained_msg_sz)
 } /* remove_msg_header */
 
 enum SOCKET_RECEIVE_DATA_FLAGS \
-socket_receive_data( const int socket_fd, char* buffer, const size_t buffer_sz, ssize_t *received_bytes )
+socket_receive_data( const int socket_fd, char* buffer, const size_t buffer_sz, int *received_bytes )
 {
     //TODO see if data received is broken into MAX_MSG_SZ chucks or is received in its entirety
     /*----------------------------------
@@ -477,9 +477,9 @@ socket_receive_data( const int socket_fd, char* buffer, const size_t buffer_sz, 
 
 } /* socket_receive_data() */
 
-ssize_t socket_bytes_to_recv( const int socket_fd )
+int socket_bytes_to_recv( const int socket_fd )
 {
-    ssize_t bytes;
+    int bytes;
     if( 0 == ioctl(socket_fd,FIONREAD,&bytes) )
     {
         return bytes;
