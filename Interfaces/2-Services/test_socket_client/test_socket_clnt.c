@@ -148,7 +148,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    printf("\ntest_socket_client: test sending long message of %lu bytes.\n", strlen(longStr));
+    printf("\ntest_socket_client: test sending long message of %zu bytes.\n", strlen(longStr));
     if ( (int)strlen(longStr) > socket_client_send_data(longStr, sizeof(longStr)) )
     {
         printf("Failed: client did not send all bytes of the message\n");
