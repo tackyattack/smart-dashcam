@@ -1,7 +1,9 @@
 [Unit]
 Description=Dashcam TCP Server service
+After=network.target
 
 [Service]
+User=root
 Type=simple
 ExecStart=/usr/bin/dashcam_tcp_server
 

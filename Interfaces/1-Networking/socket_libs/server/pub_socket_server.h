@@ -1,6 +1,10 @@
 #ifndef PUB_SOCKET_SERVER_H
 #define PUB_SOCKET_SERVER_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*-------------------------------------
 |           PUBLIC INCLUDES            |
 --------------------------------------*/
@@ -115,5 +119,10 @@ bool socket_server_is_executing();
  * Non-Blocking
  */
 void socket_server_quit();
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* PUB_SOCKET_SERVER_H */

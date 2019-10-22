@@ -1,6 +1,10 @@
 #ifndef PUB_DBUS_TCP_CLNT_INTERFACE_H
 #define PUB_DBUS_TCP_CLNT_INTERFACE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*-------------------------------------
 |               INCLUDES               |
 --------------------------------------*/
@@ -130,5 +134,10 @@ void tcp_dbus_client_disconnect(dbus_clnt_id clnt_id);
  * Non-blocking
  */
 void tcp_dbus_client_delete(dbus_clnt_id clnt_id);
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* PUB_DBUS_TCP_CLNT_INTERFACE_H */

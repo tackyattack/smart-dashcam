@@ -1,6 +1,10 @@
 #ifndef PUB_DBUS_SRV_INTERFACE_H
 #define PUB_DBUS_SRV_INTERFACE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*-------------------------------------
 |               INCLUDES               |
 --------------------------------------*/
@@ -166,5 +170,9 @@ bool tcp_dbus_srv_emit_connect_signal(dbus_srv_id srv_id, const char *tcp_clnt_u
  */
 bool tcp_dbus_srv_emit_disconnect_signal(dbus_srv_id srv_id, const char *tcp_clnt_uuid);
 
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* PUB_DBUS_SRV_INTERFACE_H */

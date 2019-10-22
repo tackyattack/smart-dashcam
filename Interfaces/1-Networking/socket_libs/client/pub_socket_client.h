@@ -1,6 +1,10 @@
 #ifndef PUB_SOCKET_CLIENT_H
 #define PUB_SOCKET_CLIENT_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*-------------------------------------
 |           PUBLIC INCLUDES            |
 --------------------------------------*/
@@ -97,5 +101,10 @@ void socket_client_quit();
  * @Returns True if client thread is executing, else false.
  */
 bool socket_client_is_executing();
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* PUB_SOCKET_CLIENT_H */

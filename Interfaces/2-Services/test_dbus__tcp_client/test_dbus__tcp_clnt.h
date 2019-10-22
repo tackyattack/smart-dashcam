@@ -10,7 +10,7 @@
 #include <unistd.h> /* for sleep */
 #include <stdio.h>
 
-/* includes needed for server */
+/* includes needed for dbus client */
 #include <dashcam_dbus/pub_tcp_dbus_clnt.h>
 #include <dashcam_dbus/pub_dbus.h>
 
