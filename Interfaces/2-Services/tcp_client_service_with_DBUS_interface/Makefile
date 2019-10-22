@@ -72,7 +72,7 @@ service_tcp_clnt:
     chmod 770 $(EXE)
 
 run: $(EXE)
-    @echo "\n -----------------Executing Serverive TCP Client-----------------\n\n"
+    @echo "\n -----------------Executing Service TCP Client-----------------\n\n"
     sudo ./$(EXE)
 
 $(EXE): service_tcp_clnt

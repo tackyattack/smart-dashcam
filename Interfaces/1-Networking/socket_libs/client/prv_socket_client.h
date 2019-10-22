@@ -14,6 +14,13 @@
 
 
 /*-------------------------------------
+|           PRIVATE DEFINES            |
+--------------------------------------*/
+
+#define RETURN_DISCONNECT   (-2) /* Used by process_recv_msg() to indicate we disconnected from the server */
+
+
+/*-------------------------------------
 |    PRIVATE FUNCTION DECLARATIONS     |
 --------------------------------------*/
 

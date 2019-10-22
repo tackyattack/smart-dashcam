@@ -168,15 +168,30 @@ int process_recv_msg(const int socket_fd)
     |              VARIABLES               |
     --------------------------------------*/
     char *buffer;
+    int return_val;
     char* temp;
     ssize_t n_recv_bytes;
     enum SOCKET_RECEIVE_DATA_FLAGS recv_flag;
+
+
+    /*-------------------------------------
+    |             VERIFICATION             |
+    --------------------------------------*/
+
+    if( socket_bytes_to_recv(socket_fd) <= 0 )
+    {
+        printf("Socket Client: Received disconnect/socket error. Disconnecting from server...\n");
+        close_and_notify();
+        return RETURN_DISCONNECT;
+    }
+
 
     /*-------------------------------------
     |           INITIALIZATIONS            |
     --------------------------------------*/
     buffer = malloc(MAX_TX_MSG_SZ); /* We use this instead of MAX_MSG_SZ because we have to account for the message headers that are included even though they aren't returned */
     bzero(buffer,MAX_TX_MSG_SZ);
+    return_val = RETURN_SUCCESS;
 
     /*----------------------------------
     |     RECEIVE DATA FROM SERVER      |
@@ -187,10 +202,6 @@ int process_recv_msg(const int socket_fd)
     {
         printf("\nClient received invalid msg header.\n");
         return RETURN_SUCCESS;
-    }
-    if (n_recv_bytes <= 0)
-    {
-        return RETURN_FAILED;
     }
 
     /*-----------------------------------
@@ -254,6 +265,8 @@ int process_recv_msg(const int socket_fd)
 
     default:
         printf("ERROR: socket client received message without valid COMMAND\n");
+
+        return_val = RETURN_FAILED;
         break;
     }
 
@@ -263,7 +276,7 @@ int process_recv_msg(const int socket_fd)
     free(partial_rx_msg);
     partial_rx_msg_sz = 0;
 
-    return RETURN_SUCCESS;
+    return return_val;
 
 } /* process_recv_msg() */
 
@@ -274,6 +287,7 @@ void* execute_thread(void* args)
     ------------------------------------*/
     fd_set client_fd_set,working_fd_set;
     struct timeval timeout;
+    int val;
 
 
     /*----------------------------------
@@ -325,20 +339,31 @@ void* execute_thread(void* args)
             break;
         }
 
+        /*-------------------------------------
+        |        CHECK IF DISCONNECTED         |
+        --------------------------------------*/
+        if( socket_bytes_to_recv(client_fd) <= 0 )
+        {
+            printf("Socket Client: Received disconnect/socket error. Disconnecting from server...\n");
+            close_and_notify(client_fd);
+            break;
+        }
+
+
         /*----------------------------------
         |     PROCESS DATA FROM SERVER      |
         ------------------------------------*/
-        if( RETURN_FAILED == process_recv_msg(client_fd) )
+        val = process_recv_msg(client_fd);
+        if( RETURN_FAILED == val )
         {
-            printf("\nClient received invalid msg.....Close connection to server....\n");
-            close_and_notify();
+            printf("socket client: received invalid message! ERROR: Failed to process received message!");
+        }
+        else if( val == RETURN_DISCONNECT )
+        {
             break;
         }
 
     } /* while(1) */
-
-    // close(client_fd);
-    // close_and_notify();
 
 
     /*-----------------------------------
@@ -463,6 +488,8 @@ bool socket_client_is_executing()
 void close_and_notify()
 {
     close(client_fd);
+
+    client_fd = -1;
 
     if(_discont_callback != NULL )
     {

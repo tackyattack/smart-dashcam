@@ -139,7 +139,7 @@ int main(int argc, char *argv[])
 
     sleep(10);
 
-    if ( 13 < socket_server_send_data_all("TEST MESSAGE",13) )
+    if ( 13 > socket_server_send_data_all("TEST MESSAGE",13) )
     {
         printf("Failed: server did not send all bytes of the message\n");
         exit(EXIT_FAILURE);

@@ -111,48 +111,61 @@ int main(int argc, char *argv[])
     {
         count--;
 
-        /* This call will attempt to connect with the server */
-        if( socket_client_init(host_ip, host_port, recv_msg, disconnected) == -1 )
+        if( false == socket_client_is_executing())
         {
-            sleep(2);
-            continue;
-        }
-
-        /* Info print */
-        printf ("Successfully opened socket to server \"%s\" on port %s.\n", host_ip, host_port);
-
-        /* Main loop for client to receive/process data */
-        socket_client_execute();
-
-        for (size_t i = 0; i < 5; i++)
-        {
-            if( true == socket_client_is_executing())
+            /* This call will attempt to connect with the server */
+            if( socket_client_init(host_ip, host_port, recv_msg, disconnected) == -1 )
             {
-                socket_client_send_data("Client message to server", 25);
                 sleep(2);
+                continue;
             }
-            else
-            {
-                break;
-            }
-        }
 
-        if ( (int)strlen(longStr) < socket_client_send_data(longStr, sizeof(longStr)) )
-        {
-            printf("Failed: server did not send all bytes of the message\n");
-            exit(EXIT_FAILURE);
-        }
+            /* Info print */
+            printf ("Successfully opened socket to server \"%s\" on port %s.\n", host_ip, host_port);
 
-        /* Kill client */
+            /* Main loop for client to receive/process data */
+            socket_client_execute();
+        }
+        sleep(3);
+    }
+
+    if( false == socket_client_is_executing())
+    {
+        printf("Failed after x attempts to connect to server. Quitting...\n");
+        exit(EXIT_FAILURE);
+    }
+
+    for (size_t i = 0; i < 5; i++)
+    {
         if( true == socket_client_is_executing())
         {
-            socket_client_quit();
+            socket_client_send_data("Client message to server", 25);
             sleep(2);
-            if( false == socket_client_is_executing())
-            {
-                printf("Client Thread killed.\n");
-            }
+        }
+        else
+        {
             break;
+        }
+    }
+
+    printf("\ntest_socket_client: test sending long message of %lu bytes.\n", strlen(longStr));
+    if ( (int)strlen(longStr) > socket_client_send_data(longStr, sizeof(longStr)) )
+    {
+        printf("Failed: client did not send all bytes of the message\n");
+        exit(EXIT_FAILURE);
+    }
+
+
+
+    printf("\n-----Killing client: Expect disconnect callback-----\n\t-----and a message saying lost connection to server-----\n");
+    /* Kill client */
+    if( true == socket_client_is_executing())
+    {
+        socket_client_quit();
+        sleep(2);
+        if( false == socket_client_is_executing())
+        {
+            printf("Client Thread killed.\n");
         }
     }
 
