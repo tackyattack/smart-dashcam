@@ -209,26 +209,14 @@ int process_recv_msg(const int socket_fd)
         partial_rx_msg = temp;
         partial_rx_msg_sz += n_recv_bytes;
 
-        if (recv_flag == RECV_SEQUENCE_END)
+        if (recv_flag != RECV_SEQUENCE_END)
         {
-            /*----------------------------------
-            |           CALL CALLBACK           |
-            ------------------------------------*/
-            /* Received message from server. Call callback with message and UUID */
-            if(_rx_callback != NULL)
-            {
-                (*_rx_callback)(partial_rx_msg, partial_rx_msg_sz);
-            }
-
-            /* Continue to message command processing */
-
-        } /* if RECV_SEQUENCE_END */
-        else /* Nothing more to do until finished receiving data*/
-        {
+            /* Nothing more to do until finished receiving data */
             return RETURN_SUCCESS;
-        }
+        } /* if didn't receive RECV_SEQUENCE_END flag */
+
     } /* handle msg flags */
-    else /* Nothing special */
+    else /* Nothing special (no msg flags to handle) */
     {
         partial_rx_msg    = buffer;
         partial_rx_msg_sz = n_recv_bytes;
