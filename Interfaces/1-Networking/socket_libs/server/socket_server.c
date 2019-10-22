@@ -383,23 +383,16 @@ int process_recv_msg(int client_fd)
         client->partialMSG = temp;
         client->partialMSG_sz += n_recv_bytes;
 
-        if (recv_flag == RECV_SEQUENCE_END)
+        if (recv_flag != RECV_SEQUENCE_END)
         {
-            /*----------------------------------
-            |           CALL CALLBACK           |
-            ------------------------------------*/
-            /* Received message from client. Call callback with message and UUID */
-            if(_rx_callback != NULL)
-            {
-                (*_rx_callback)(client->uuid, client->partialMSG, client->partialMSG_sz);
-            }
-        } /* if RECV_SEQUENCE_END */
+            /* Nothing more to do until finished receiving data */
+            return RETURN_SUCCESS;
+        } /* if didn't receive RECV_SEQUENCE_END flag */
 
-        return n_recv_bytes;
-    }
-    else
+    } /* handle msg flags */
+    else /* Nothing special (no msg flags to handle) */
     {
-        client->partialMSG = buffer;
+        client->partialMSG    = buffer;
         client->partialMSG_sz = n_recv_bytes;
     }
     
@@ -444,12 +437,13 @@ int process_recv_msg(int client_fd)
         /* Received message from client. Call callback with message and UUID */
         if(_rx_callback != NULL)
         {
-            (*_rx_callback)(client->uuid, buffer, n_recv_bytes);
+            (*_rx_callback)(client->uuid, client->partialMSG, client->partialMSG_sz);
         }
 
         break;
     default:
         printf("ERROR: socket client received message without valid COMMAND\n");
+        return 0;
         break;
     }
 
@@ -459,7 +453,7 @@ int process_recv_msg(int client_fd)
     free(client->partialMSG);
     client->partialMSG_sz = 0;
 
-    return n_recv_bytes;
+    return client->partialMSG_sz;
 } /* process_recv_msg */
 
 int socket_server_send_data_all(const char* data, const uint data_sz)
