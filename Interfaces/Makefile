@@ -52,8 +52,8 @@ build: $(SUB_DIRS)
     @echo "Built all libraries\n\n"
 
 pi3_setup:
-    # Run make pi3_setup for all sub-directories
-    for dir in $(SUB_DIRS);                 \
+    # Run make pi3_setup for all sub-directories. The '-' symbol is a make command to ignore errors and continue
+    -for dir in $(SUB_DIRS);                 \
         do                                  \
           $(MAKE) --directory=$$dir pi3_setup;  \
     done
@@ -61,8 +61,8 @@ pi3_setup:
     @echo "Setup system for Raspberry Pi 3!\n\n"
 
 pi0_setup:
-    # Run make build for all sub-directories
-    for dir in $(SUB_DIRS);                 \
+    # Run make build for all sub-directories. The '-' symbol is a make command to ignore errors and continue
+    -for dir in $(SUB_DIRS);                 \
         do                                  \
           $(MAKE) --directory=$$dir pi0_setup;  \
     done

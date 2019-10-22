@@ -82,11 +82,10 @@ pi3_setup: $(EXE)
     @echo "Setup system for Raspberry Pi 3!\n\n"
 
 pi0_setup: $(EXE)
-    sudo mkdir -p $(SERVICES_DIR)
-    sudo cp $(EXE) $(SERVICES_DIR)/dashcam_tcp_client
+    sudo cp -f $(EXE) $(SERVICES_DIR)/dashcam_tcp_client
     sudo chmod +x $(SERVICES_DIR)/dashcam_tcp_client
 
-    sudo cp dashcam_tcp_client.service $(SYSTEMD_UNIT_DIR)
+    sudo cp -f dashcam_tcp_client.service $(SYSTEMD_UNIT_DIR)
     sudo chmod 644 $(SYSTEMD_UNIT_DIR)/dashcam_tcp_client.service
     sudo systemctl enable dashcam_tcp_client
     sudo systemctl start dashcam_tcp_client

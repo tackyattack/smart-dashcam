@@ -78,11 +78,10 @@ $(EXE): service_tcp_srv
     @echo "Done\n\n"
 
 pi3_setup: $(EXE)
-    sudo mkdir -p $(SERVICES_DIR)
-    sudo cp $(EXE) $(SERVICES_DIR)/dashcam_tcp_server
+    sudo cp -f $(EXE) $(SERVICES_DIR)/dashcam_tcp_server
     sudo chmod +x $(SERVICES_DIR)/dashcam_tcp_server
 
-    sudo cp dashcam_tcp_server.service $(SYSTEMD_UNIT_DIR)
+    sudo cp -f dashcam_tcp_server.service $(SYSTEMD_UNIT_DIR)
     sudo chmod 644 $(SYSTEMD_UNIT_DIR)/dashcam_tcp_server.service
     sudo systemctl enable dashcam_tcp_server
     sudo systemctl start dashcam_tcp_server
