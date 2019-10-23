@@ -23,65 +23,131 @@
 #include <pthread.h>
 #include <semaphore.h>
 
-#define MAX 1000000*1
-#define NAL_BUFFER_SIZE 1000000*1
-#define CHUNK_SIZE 100
-#define RECONNECT_TIMEOUT_S 10
+#define NAL_UNIT_TYPE_NON_IDR 1
+#define NAL_UNIT_TYPE_IDR 5
+#define NAL_UNIT_TYPE_SPS 7
+#define NAL_UNIT_TYPE_PPS 8
 
-int intArray[MAX];
-int front = 0;
-int rear = -1;
-int itemCount = 0;
+#define CHUNK_SIZE 100
+uint32_t OMX_buffer_handoff_size = 500;
+
+void hex_block_print(uint8_t *buf, int sz)
+{
+    for (int i = 0; i < sz ;i++)
+    {
+        printf(" %2x", buf[i]);
+    }
+  printf("-----\n\n\n");
+}
+
+
+struct Queue
+{
+    uint32_t front, rear, size;
+    uint32_t capacity;
+    uint8_t* array;
+};
+// function to create a queue of given capacity.
+// It initializes size of queue as 0
+struct Queue* createQueue(uint32_t capacity)
+{
+    struct Queue* queue = (struct Queue*) malloc(sizeof(struct Queue));
+    queue->capacity = capacity;
+    queue->front = queue->size = 0;
+    queue->rear = capacity - 1;  // This is important, see the enqueue
+    queue->array = (uint8_t*) malloc(queue->capacity * sizeof(uint8_t));
+    return queue;
+}
+
+void destructQueue(struct Queue** queue)
+{
+  free((*queue)->array);
+  free(*queue);
+}
+
+// Queue is full when size becomes equal to the capacity
+int isFull(struct Queue* queue)
+{  return (queue->size == queue->capacity);  }
+
+// Queue is empty when size is 0
+int isEmpty(struct Queue* queue)
+{  return (queue->size == 0); }
+
+// Function to add an item to the queue.
+// It changes rear and size
+void enqueue(struct Queue* queue, uint8_t item)
+{
+    if (isFull(queue))
+        return;
+    queue->rear = (queue->rear + 1)%queue->capacity;
+    queue->array[queue->rear] = item;
+    queue->size = queue->size + 1;
+}
+
+// Function to remove an item from queue.
+// It changes front and size
+uint8_t dequeue(struct Queue* queue)
+{
+    if (isEmpty(queue))
+    {
+      printf("error: queue is empty\n");
+      return 0;
+    }
+    int item = queue->array[queue->front];
+    queue->front = (queue->front + 1)%queue->capacity;
+    queue->size = queue->size - 1;
+    return item;
+}
+
+// Function to get front of queue
+uint32_t front(struct Queue* queue)
+{
+    if (isEmpty(queue))
+    {
+      printf("error: queue is empty\n");
+      return 0;
+    }
+    return queue->array[queue->front];
+}
+
+// Function to get rear of queue
+uint32_t rear(struct Queue* queue)
+{
+    if (isEmpty(queue))
+    {
+      printf("error: queue is empty\n");
+      return 0;
+    }
+    return queue->array[queue->rear];
+}
+
+void reset_queue(struct Queue* queue) {
+   queue->front = queue->size = 0;
+   queue->rear = queue->capacity - 1;  // This is important, see the enqueue
+}
+
+void expand_queue(struct Queue** queue, uint32_t size)
+{
+  struct Queue *new_queue = createQueue(size);
+  struct Queue **old_queue = queue;
+  for(uint32_t i = 0; i < (*queue)->size; i++) enqueue(new_queue, dequeue(*queue));
+  destructQueue(old_queue);
+  *queue = new_queue;
+
+}
+
+struct Queue *client_queue;
+struct Queue *server_queue;
 
 pthread_mutex_t queue_lock;
 
-int peek() {
-   return intArray[front];
-}
-
-bool isEmpty() {
-   return itemCount == 0;
-}
-
-bool isFull() {
-   return itemCount == MAX;
-}
-
-int size() {
-   return itemCount;
-}
-
-void insert(int data) {
-   if(!isFull()) {
-
-      if(rear == MAX-1) {
-         rear = -1;
-      }
-
-      intArray[++rear] = data;
-      itemCount++;
-   }
-}
-
-int removeData() {
-   int data = intArray[front++];
-
-   if(front == MAX) {
-      front = 0;
-   }
-
-   itemCount--;
-   return data;
-}
-
-sem_t empty;
+sem_t emptied;
 sem_t mutex;
-sem_t full;
+sem_t filled;
 
 int server_port = 8080;
-char server_ip[20] = {0};
+char server_ip[40] = {0};
 
-unsigned char buf_nw[CHUNK_SIZE];
 int video_decoder_running = 1;
 
 static int video_decode()
@@ -93,7 +159,7 @@ static int video_decode()
    TUNNEL_T tunnel[4];
    ILCLIENT_T *client;
    int status = 0;
-   unsigned int data_len = 0;
+   uint32_t data_len = 0;
 
    memset(list, 0, sizeof(list));
    memset(tunnel, 0, sizeof(tunnel));
@@ -166,29 +232,39 @@ static int video_decode()
       int first_packet = 1;
 
       ilclient_change_component_state(video_decode, OMX_StateExecuting);
-      int buf_cnt = 0;
       while(((buf = ilclient_get_input_buffer(video_decode, 130, 1)) != NULL) && video_decoder_running)
       {
-         // feed data and wait until we get port settings changed
-         unsigned char *dest = buf->pBuffer;
+       // feed data and wait until we get port settings changed
+       unsigned char *dest = buf->pBuffer;
 
-         if(buf->nAllocLen-data_len < 10*100) printf("error\n");
-
-         for(int i = 0; i < 10; i++)
+       uint32_t data_size = 0;
+       int buffer_ready = 0;
+       do
+       {
+         pthread_mutex_lock(&queue_lock);
+         data_size = client_queue->size;
+         pthread_mutex_unlock(&queue_lock);
+         if(data_size > OMX_buffer_handoff_size)
          {
-         buf_cnt = 0;
-         sem_wait(&full);
-         sem_wait(&mutex);
-         while(buf_cnt < CHUNK_SIZE)
-         {
-         dest[buf_cnt + i*CHUNK_SIZE] = buf_nw[buf_cnt];
-         buf_cnt++;
+           buffer_ready = 1;
          }
-         sem_post(&mutex);
-         sem_post(&empty);
+         else
+         {
+           buffer_ready = 0;
+           sem_wait(&filled);
+         }
 
-       data_len += CHUNK_SIZE;
-     }
+       }while(!buffer_ready);
+
+       pthread_mutex_lock(&queue_lock);
+       data_size = OMX_buffer_handoff_size;
+       if(data_size > buf->nAllocLen)data_size=buf->nAllocLen;
+       for(uint32_t i = 0; i < data_size; i++) dest[i] = dequeue(client_queue);
+       pthread_mutex_unlock(&queue_lock);
+       data_len+=data_size;
+       sem_post(&emptied);
+       //hex_block_print(dest, 100);
+
 
 
          if(port_settings_changed == 0 &&
@@ -299,17 +375,43 @@ void *client_network_thread(void *vargp)
         return NULL;
     }
 
+    uint32_t data_size = 0;
+    int buffer_room = 0;
+    uint32_t sz;
+    uint32_t capacity = 0;
     while(valread>=0)
     {
-      valread = read( sock , buffer, 100);
-      sem_wait(&empty);
-      sem_wait(&mutex);
-      for(int i = 0; i < 100; i++)
+      valread = read( sock , buffer, CHUNK_SIZE);
+
+      do
       {
-        buf_nw[i] = buffer[i];
-      }
-      sem_post(&mutex);
-      sem_post(&full);
+        pthread_mutex_lock(&queue_lock);
+        data_size = client_queue->size;
+        capacity = client_queue->capacity;
+        pthread_mutex_unlock(&queue_lock);
+        if(capacity-data_size > CHUNK_SIZE*2)
+        {
+          buffer_room = 1;
+        }
+        else
+        {
+          buffer_room = 0;
+
+          pthread_mutex_lock(&queue_lock);
+          sz = capacity*2;
+          expand_queue(&client_queue, sz);
+          pthread_mutex_unlock(&queue_lock);
+          printf("expanded buffer to %d", sz);
+          sem_wait(&emptied);
+        }
+
+      }while(!buffer_room);
+
+      pthread_mutex_lock(&queue_lock);
+      for(uint32_t i = 0; i < valread; i++) enqueue(client_queue, buffer[i]);
+      pthread_mutex_unlock(&queue_lock);
+      sem_post(&filled);
+
 
     }
 
@@ -319,9 +421,17 @@ void *client_network_thread(void *vargp)
 
 int main (int argc, char **argv)
 {
+client_queue = createQueue(OMX_buffer_handoff_size);
   sem_init(&mutex, 0, 1);
-  sem_init(&full, 0, 0);
-  sem_init(&empty, 0, 1);
+  sem_init(&filled, 0, 0);
+  sem_init(&emptied, 0, 1);
+
+  // start off with 100 and resize later if network is trying to shove
+  // in more than it can handle
+  // queue_size = OMX_buffer_handoff_size+1;
+  // queue_array = (uint8_t *)malloc(queue_size);
+
+
 
   if (pthread_mutex_init(&queue_lock, NULL) != 0)
     {
@@ -345,29 +455,41 @@ int main (int argc, char **argv)
 
     pthread_join(thread_id, NULL);
     printf("Network thread closed\n");
+    //free(queue_array);
 }
 
 
 int get_next_chunk(uint8_t *buf)
 {
-  if(size()>CHUNK_SIZE)
-  {
+  int ret_val = 0;
   pthread_mutex_lock(&queue_lock);
-  for(int i=0; i<CHUNK_SIZE;i++)buf[i]=removeData();
-  pthread_mutex_unlock(&queue_lock);
-  return 1;
+  if(server_queue->size>CHUNK_SIZE)
+  {
+  for(uint32_t i=0; i<CHUNK_SIZE;i++)buf[i]=dequeue(server_queue);
+  ret_val = 1;
   }
-  return -1;
+  else
+  {
+  ret_val = -1;
+  }
+  pthread_mutex_unlock(&queue_lock);
+  return ret_val;
 
 }
-
+pthread_mutex_t server_lock;
 sem_t server_buf_ready;
 int server_socket;
 int server_fd;
 int server_addrlen;
 struct sockaddr_in server_address;
-void server_init(int port)
+int server_connected = 0;
+int server_has_init = 0;
+uint32_t chosen_server_buffer_size = 0;
+void server_init(int port, uint32_t buffer_size)
 {
+    server_queue = createQueue(buffer_size);
+    chosen_server_buffer_size = buffer_size;
+
     server_port = port;
     int opt = 1;
     server_addrlen = sizeof(server_address);
@@ -402,51 +524,113 @@ void server_init(int port)
         perror("listen");
         exit(EXIT_FAILURE);
     }
-    if ((server_socket = accept(server_fd, (struct sockaddr *)&server_address,
-                       (socklen_t*)&server_addrlen))<0)
-    {
-        perror("accept");
-        exit(EXIT_FAILURE);
-    }
     sem_init(&server_buf_ready, 0, 1);
     if (pthread_mutex_init(&queue_lock, NULL) != 0)
       {
           printf("\n mutex init has failed\n");
       }
+    if (pthread_mutex_init(&server_lock, NULL) != 0)
+      {
+          printf("\n mutex init has failed\n");
+      }
+    server_connected = 0;
+    server_has_init = 1;
+}
+
+uint8_t *PPS_buffer = NULL;
+uint8_t *SPS_buffer = NULL;
+uint8_t PPS_sz = 0;
+uint8_t SPS_sz = 0;
+
+int insert_PPS_SPS()
+{
+  int ret_val = -1;
+  pthread_mutex_lock(&server_lock);
+  if(PPS_sz > 0 && SPS_sz > 0)
+  {
+  pthread_mutex_lock(&queue_lock);
+  reset_queue(server_queue);
+  for(uint32_t i = 0; i < SPS_sz; i++) enqueue(server_queue, SPS_buffer[i]);
+  for(uint32_t i = 0; i < PPS_sz; i++) enqueue(server_queue, PPS_buffer[i]);
+  pthread_mutex_unlock(&queue_lock);
+  ret_val = 1;
+  }
+  pthread_mutex_unlock(&server_lock);
+  return ret_val;
+
 }
 
 uint8_t server_buf[CHUNK_SIZE];
-
+int send_code;
 void server_loop()
 {
   //wait for chunk size to be ready
   sem_wait(&server_buf_ready);
   if (get_next_chunk(server_buf) == 1)
   {
-    int send_code = write(server_socket , server_buf , CHUNK_SIZE);
-    if(send_code<0) server_socket = accept(server_fd, (struct sockaddr *)&server_address,(socklen_t*)&server_addrlen);
+    if(server_connected) send_code = write(server_socket , server_buf , CHUNK_SIZE);
+    if(send_code < 0) server_connected = 0;
+
+    if(!server_connected)
+    {
+      printf("waiting on connect\n");
+     server_socket = accept(server_fd, (struct sockaddr *)&server_address,(socklen_t*)&server_addrlen);
+     server_connected = 1;
+     printf("connected\n");
+     while(insert_PPS_SPS() != 1) sleep(1);
+     printf("inserting PPS SPS\n");
+   }
   }
 
 }
 
 const uint8_t magic_pattern[] = {0x00, 0x00, 0x00, 0x01};
 uint8_t pattern_len = 4;
-uint8_t NAL_buffer[NAL_BUFFER_SIZE];
-uint8_t PPS_found = 0;
-uint8_t SPS_found = 0;
+uint8_t *NAL_buffer = NULL;
+uint32_t NAL_buffer_sz = 0;
 uint32_t NAL_buf_cnt = 0;
 uint8_t pattern_pointer = 0;
 uint8_t NAL_signal = 0;
 void record_bytes(uint8_t *buf, uint32_t buf_size)
 {
-
+  if(!server_has_init) return;
   uint8_t new_NAL = 0;
   uint32_t new_NAL_sz = 0;
+  if(NAL_buffer == NULL)
+  {
+    NAL_buffer = (uint8_t *)malloc(buf_size);
+    NAL_buffer_sz = buf_size;
+  }
+  else
+  {
+    // check if we're going to probe further than what
+    // the NAL buffer can hold
+    uint32_t probe_size = buf_size+NAL_buf_cnt+1;
+    if (probe_size > NAL_buffer_sz)
+    {
+      uint8_t *temp = (uint8_t *)realloc(NAL_buffer, probe_size);
+      if(temp != NULL)
+      {
+        NAL_buffer = temp;
+        NAL_buffer_sz = probe_size;
+        printf("probe resized: %d\n", NAL_buffer_sz);
+      }
+      else
+      {
+        printf("failed memory realloc\n");
+        NAL_buf_cnt = 0;
+        pattern_pointer = 0;
+        NAL_signal = 0;
+        return;
+      }
+    }
+  }
   for(uint32_t i = 0; i < buf_size; i++)
   {
-    if(size()>CHUNK_SIZE)sem_post(&server_buf_ready);
+    sem_post(&server_buf_ready); // kick server
     new_NAL = 0;
     NAL_buffer[NAL_buf_cnt] = buf[i];
+    NAL_buf_cnt++;
     if(magic_pattern[pattern_pointer] == buf[i])
     {
       pattern_pointer++;
@@ -469,59 +653,75 @@ void record_bytes(uint8_t *buf, uint32_t buf_size)
 
     if(new_NAL)
     {
-    //      for (int ii = 0; ii < 10 ;ii++) {
-    //       printf(" %2x", NAL_buffer[ii]);
-    //   }
-      //printf("-----\n\n\n");
-      //printf("%d\n", size());
-      new_NAL_sz = NAL_buf_cnt-3;
 
-      if(PPS_found && SPS_found)
+      pthread_mutex_lock(&server_lock);
+      new_NAL_sz = NAL_buf_cnt-4;
+
+      pthread_mutex_lock(&queue_lock);
+
+      if(new_NAL_sz > chosen_server_buffer_size)
       {
-        pthread_mutex_lock(&queue_lock);
-        if(MAX-size() > new_NAL_sz)
+        uint32_t new_sz = new_NAL_sz*2;
+        printf("expanding buffer size to accommodate at least one NAL unit: %d\n", new_sz);
+        expand_queue(&server_queue, new_sz);
+        chosen_server_buffer_size = server_queue->capacity;
+      }
+
+      static int need_to_send_I_frame = 0;
+      if(server_queue->capacity-server_queue->size > new_NAL_sz)
+      {
+        //printf("moving in %d\n",new_NAL_sz);
+        if(need_to_send_I_frame)
         {
-        for(int i=0; i<new_NAL_sz;i++)insert(NAL_buffer[i]);
+          // Push in an I frame if there's a buffer overrun
+          // so that it doesn't distort from macroblocks too far
+          // into the future
+          if(((NAL_buffer[4])&0x1F) == NAL_UNIT_TYPE_IDR)
+          {
+          for(uint32_t i=0; i<new_NAL_sz;i++)enqueue(server_queue, NAL_buffer[i]);
+          need_to_send_I_frame = 0;
+          }
         }
-        pthread_mutex_unlock(&queue_lock);
+        else
+        {
+          for(uint32_t i=0; i<new_NAL_sz;i++)enqueue(server_queue, NAL_buffer[i]);
+        }
       }
+      else
+      {
+        //printf("buffer overrun\n");
+        need_to_send_I_frame = 1;
+      }
+      pthread_mutex_unlock(&queue_lock);
 
-      if(((NAL_buffer[4])&0x1F) == 8)
+
+      if(((NAL_buffer[4])&0x1F) == NAL_UNIT_TYPE_PPS)
       {
-        if(!PPS_found)
+        if(PPS_sz == 0)
         {
-          pthread_mutex_lock(&queue_lock);
-          if(MAX-size() > new_NAL_sz)
-          {
-          for(int i=0; i<new_NAL_sz;i++)insert(NAL_buffer[i]);
-          }
-          pthread_mutex_unlock(&queue_lock);
-          printf("found PPS %d\n",new_NAL_sz);
+          PPS_sz = new_NAL_sz;
+          PPS_buffer = (uint8_t *)malloc(PPS_sz);
+          for(uint32_t i=0; i<PPS_sz;i++) PPS_buffer[i] = NAL_buffer[i];
+          printf("found PPS %d\n",PPS_sz);
        }
-        PPS_found=1;
       }
-      if(((NAL_buffer[4])&0x1F) == 7)
+      if(((NAL_buffer[4])&0x1F) == NAL_UNIT_TYPE_SPS)
       {
-        if(!SPS_found)
+        if(SPS_sz == 0)
         {
-          pthread_mutex_lock(&queue_lock);
-          if(MAX-size() > new_NAL_sz)
-          {
-          for(int i=0; i<new_NAL_sz;i++)insert(NAL_buffer[i]);
-          }
-          pthread_mutex_unlock(&queue_lock);
-          printf("found SPS %d\n", new_NAL_sz);
+          SPS_sz = new_NAL_sz;
+          SPS_buffer = (uint8_t *)malloc(SPS_sz);
+          for(uint32_t i=0; i<SPS_sz;i++) SPS_buffer[i] = NAL_buffer[i];
+          printf("found SPS %d\n", SPS_sz);
        }
-       SPS_found=1;
       }
       new_NAL=0;
       NAL_buffer[0]=0x00;
       NAL_buffer[1]=0x00;
       NAL_buffer[2]=0x00;
       NAL_buffer[3]=0x01;
-      NAL_buf_cnt=4-1;
-
+      NAL_buf_cnt=4;
+      pthread_mutex_unlock(&server_lock);
     }
-    NAL_buf_cnt++;
   }
 }
