@@ -38,7 +38,7 @@ record_bytes_stream.argtypes = [ctypes.c_char_p, ctypes.c_uint32]
 record_bytes_stream.restype = None
 
 server_init = stream_lib.server_init
-server_init.argtypes = [ctypes.c_int]
+server_init.argtypes = [ctypes.c_int, ctypes.c_uint32]
 server_init.restype = None
 
 server_loop = stream_lib.server_loop
@@ -68,7 +68,7 @@ def create_stream_encoder(camera, splitter_port, format, resize, quality):
 
 class Recorder:
     def __init__(self, record_path, recording_interval_s, max_size_mb, stream, port=8080, stream_width=240,
-                 stream_height=160, stream_quality=30):
+                 stream_height=160, stream_quality=30, stream_buffer=10000):
         self.camera = PiCamera()
         self.camera.resolution = (1640, 922)
         self.framerate = 20
@@ -86,6 +86,7 @@ class Recorder:
         self.stream_height = stream_height
         self.stream_quality = stream_quality
         self.stream_port = port
+        self.stream_buffer = stream_buffer
         self.silent = False
         self.do_stream = stream
         if not os.path.exists(self.record_path):
@@ -235,7 +236,7 @@ class Recorder:
         self.wrapping_thread = None
 
     def stream_thread_func(self):
-        server_init(self.stream_port)
+        server_init(self.stream_port, 10000)
         while not self.terminate_threads:
             # this has thread waiting so it won't thrash CPU
             server_loop()
@@ -253,13 +254,14 @@ def start_recording_command_line():
     parser.add_argument("-sh", default=160, type=int, help='sets the stream height')
     parser.add_argument("-sq", default=30, type=int, help='sets the stream quality (1:highest 40:lowest)')
     parser.add_argument("-p", default=8080, type=int, help='sets the stream port')
+    parser.add_argument("-sb", default=10000, type=int, help='sets the stream buffer in bytes')
     parser.add_argument("--stream", action='store_true', help='stream h264 through stdout')
     args = parser.parse_args()
 
     record_path = os.path.join(args.o, 'recordings')
     record_inst = Recorder(record_path=record_path, recording_interval_s=args.t,
                            max_size_mb=args.m, stream=args.stream, port=args.p, stream_width=args.sw,
-                           stream_height=args.sh, stream_quality=args.sq)
+                           stream_height=args.sh, stream_quality=args.sq, stream_buffer=args.sb)
     record_inst.start_recorder()
     exit_main = False
     while(not exit_main):

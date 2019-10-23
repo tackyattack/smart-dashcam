@@ -24,14 +24,8 @@ record_bytes_stream = stream_lib.record_bytes
 record_bytes_stream.argtypes = [ctypes.c_char_p, ctypes.c_uint32]
 record_bytes_stream.restype = None
 
-get_next_chunk = stream_lib.get_next_chunk
-get_next_chunk.argtypes = [ctypes.c_char_p]
-get_next_chunk.restype = ctypes.c_int
-queue_chunk = (ctypes.c_char*(4000))()
-
-
 server_init = stream_lib.server_init
-server_init.argtypes = [ctypes.c_int]
+server_init.argtypes = [ctypes.c_int, ctypes.c_uint32]
 server_init.restype = None
 
 server_loop = stream_lib.server_loop
@@ -72,7 +66,7 @@ def create_stream_encoder(camera, splitter_port, format, resize, quality):
 
 create_stream_encoder(camera=camera, splitter_port=3, format='h264', resize=(240, 160), quality=30)
 
-server_init(8080)
+server_init(8080, 100)
 try:
     while True:
         server_loop()
