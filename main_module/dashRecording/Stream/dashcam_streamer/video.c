@@ -5,7 +5,7 @@
 // page 87 of spec has H264 details
 // You need to grab SPS PPS NAL units to start the decoder
 
-
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -78,7 +78,10 @@ int isEmpty(struct Queue* queue)
 void enqueue(struct Queue* queue, uint8_t item)
 {
     if (isFull(queue))
-        return;
+    {
+      printf("error: queue is full\n");
+      return;
+    }
     queue->rear = (queue->rear + 1)%queue->capacity;
     queue->array[queue->rear] = item;
     queue->size = queue->size + 1;
@@ -122,7 +125,8 @@ uint32_t rear(struct Queue* queue)
 }
 
 void reset_queue(struct Queue* queue) {
-   queue->front = queue->size = 0;
+   queue->size = 0;
+   queue->front = 0;
    queue->rear = queue->capacity - 1;  // This is important, see the enqueue
 }
 
@@ -130,10 +134,16 @@ void expand_queue(struct Queue** queue, uint32_t size)
 {
   struct Queue *new_queue = createQueue(size);
   struct Queue **old_queue = queue;
-  for(uint32_t i = 0; i < (*queue)->size; i++) enqueue(new_queue, dequeue(*queue));
+  uint32_t items_to_remove = (*queue)->size;
+  for(uint32_t i = 0; i < items_to_remove; i++) enqueue(new_queue, dequeue(*queue));
+  if((*queue)->size != 0)
+  {
+    printf("Error: queue size is still %d\n", (*queue)->size);
+    assert((*queue)->size == 0);
+  }
+
   destructQueue(old_queue);
   *queue = new_queue;
-
 }
 
 struct Queue *client_queue;
@@ -401,7 +411,7 @@ void *client_network_thread(void *vargp)
           sz = capacity*2;
           expand_queue(&client_queue, sz);
           pthread_mutex_unlock(&queue_lock);
-          printf("expanded buffer to %d", sz);
+          printf("expanded buffer to %d\n", sz);
           sem_wait(&emptied);
         }
 
@@ -421,16 +431,10 @@ void *client_network_thread(void *vargp)
 
 int main (int argc, char **argv)
 {
-client_queue = createQueue(OMX_buffer_handoff_size);
+  client_queue = createQueue(OMX_buffer_handoff_size+1);
   sem_init(&mutex, 0, 1);
   sem_init(&filled, 0, 0);
   sem_init(&emptied, 0, 1);
-
-  // start off with 100 and resize later if network is trying to shove
-  // in more than it can handle
-  // queue_size = OMX_buffer_handoff_size+1;
-  // queue_array = (uint8_t *)malloc(queue_size);
-
 
 
   if (pthread_mutex_init(&queue_lock, NULL) != 0)
