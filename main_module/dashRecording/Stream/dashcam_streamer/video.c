@@ -489,7 +489,6 @@ void server_init(int port, uint32_t buffer_size)
 {
     server_queue = createQueue(buffer_size);
     chosen_server_buffer_size = buffer_size;
-    printf("xxxxxxxx%d\n", chosen_server_buffer_size);
 
     server_port = port;
     int opt = 1;
@@ -594,6 +593,7 @@ uint8_t pattern_pointer = 0;
 uint8_t NAL_signal = 0;
 void record_bytes(uint8_t *buf, uint32_t buf_size)
 {
+  if(!server_has_init) return;
   uint8_t new_NAL = 0;
   uint32_t new_NAL_sz = 0;
   if(NAL_buffer == NULL)

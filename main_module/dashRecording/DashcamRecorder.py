@@ -236,11 +236,10 @@ class Recorder:
         self.wrapping_thread = None
 
     def stream_thread_func(self):
-        server_init(self.stream_port, 10000)
+        server_init(self.stream_port, self.stream_buffer)
         while not self.terminate_threads:
             # this has thread waiting so it won't thrash CPU
             server_loop()
-            pass
         if(not self.silent):
             print("stream thread closed")
         self.stream_thread = None
