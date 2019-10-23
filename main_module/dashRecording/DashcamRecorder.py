@@ -93,7 +93,8 @@ class Recorder:
             os.makedirs(self.record_path)
 
         if self.do_stream:
-            create_stream_encoder(camera=self.camera, splitter_port=3, format='h264', resize=(240, 160), quality=40)
+            create_stream_encoder(camera=self.camera, splitter_port=3, format='h264',
+                                 resize=(self.stream_width, self.stream_height), quality=self.stream_quality)
 
 
 
@@ -113,7 +114,7 @@ class Recorder:
 
     def terminate(self):
         self.terminate_threads = True
-        while(self.wrapping_thread is not None and self.recording_thread is not None):
+        while((self.wrapping_thread is not None) or (self.recording_thread is not None)):
             sleep(0.25)
         os.kill(os.getpid(), signal.SIGTERM)
 
@@ -197,7 +198,7 @@ class Recorder:
         self.recording_thread = None
 
     def check_reduce(self):
-        size_mb = self.get_size()/1000000
+        size_mb = self.get_size(self.record_path)/1000000
         if(size_mb > self.max_size_mb):
             file_paths = []
             file_paths = self.get_sorted_video_paths()
