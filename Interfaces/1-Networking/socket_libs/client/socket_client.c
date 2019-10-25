@@ -117,7 +117,10 @@ int socket_client_init(char* server_addr, char *port, socket_lib_clnt_rx_msg rx_
     /*-------------------------------------
     |       LOAD AND OR CREATE UUID        |
     --------------------------------------*/
-    load_uuid();
+    if( UUID[0] == '\0' )
+    {
+        load_uuid();
+    }
 
 
     /*-------------------------------------
@@ -165,19 +168,6 @@ int process_recv_msg(const int socket_fd)
     int n_recv_bytes;
     enum SOCKET_RECEIVE_DATA_FLAGS recv_flag;
 
-
-    /*-------------------------------------
-    |             VERIFICATION             |
-    --------------------------------------*/
-
-    if( socket_bytes_to_recv(socket_fd) <= 0 )
-    {
-        printf("Socket Client: Received disconnect/socket error. Disconnecting from server...\n");
-        close_and_notify();
-        return RETURN_DISCONNECT;
-    }
-
-
     /*-------------------------------------
     |           INITIALIZATIONS            |
     --------------------------------------*/
@@ -193,8 +183,7 @@ int process_recv_msg(const int socket_fd)
     /*-------------------------------------
     |             VERIFICATION             |
     --------------------------------------*/
-
-    if( n_recv_bytes <= 0 )
+    if( recv_flag == RECV_DISCONNECT || n_recv_bytes <= 0 )
     {
         printf("Socket Client: Received disconnect/socket error. Disconnecting from server...\n");
         close_and_notify();
@@ -257,9 +246,10 @@ int process_recv_msg(const int socket_fd)
         |           CALL CALLBACK           |
         ------------------------------------*/
         /* Received message from client. Call callback with message and UUID */
-        if(_rx_callback != NULL)
+        if(_rx_callback != NULL && partial_rx_msg_sz > 0)
         {
             (*_rx_callback)(&partial_rx_msg[COMMAND_SZ], partial_rx_msg_sz-COMMAND_SZ);
+            
         }
         break;
 
@@ -340,16 +330,6 @@ void* execute_thread(void* args)
             printf("\nUNKNOWN ERROR\n");
             close_and_notify();
             exit(EXIT_FAILURE);
-            break;
-        }
-
-        /*-------------------------------------
-        |        CHECK IF DISCONNECTED         |
-        --------------------------------------*/
-        if( socket_bytes_to_recv(client_fd) <= 0 )
-        {
-            printf("Socket Client: Received disconnect/socket error. Disconnecting from server...\n");
-            close_and_notify(client_fd);
             break;
         }
 

@@ -82,9 +82,10 @@ pi3_setup: $(EXE)
     sudo chmod +x $(SERVICES_DIR)/dashcam_tcp_server
 
     sudo cp -f dashcam_tcp_server.service $(SYSTEMD_UNIT_DIR)
-    sudo chmod 644 $(SYSTEMD_UNIT_DIR)/dashcam_tcp_server.service
+    sudo chmod 0755 $(SYSTEMD_UNIT_DIR)/dashcam_tcp_server.service
     sudo systemctl enable dashcam_tcp_server
-    sudo systemctl start dashcam_tcp_server
+    sudo systemctl daemon-reload
+    sudo systemctl restart dashcam_tcp_server
     @echo "Setup system for Raspberry Pi 3!\n\n"
 
 pi0_setup: $(EXE)
@@ -106,3 +107,4 @@ clean :
 # make clean-all will remove all generated/downloaded files. Should essetially revert directories back to original post clone state
 clean-all:
     sudo rm -rf $(EXE) $(SYSTEMD_UNIT_DIR)/dashcam_tcp_server.service $(SERVICES_DIR)/dashcam_tcp_server
+    

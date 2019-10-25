@@ -437,31 +437,31 @@ socket_receive_data( const int socket_fd, char* buffer, const size_t buffer_sz, 
     ------------------------------------*/
     ssize_t bytes_read;
 
-    if ( socket_bytes_to_recv(socket_fd) <= 0 )
-    {
-        return RECV_ERROR;
-    }
-
     /*----------------------------------
     |   READ DATA FROM FILE DESCRIPTOR  |
     ------------------------------------*/
     //TODO see what happens if buffer is too small for received data
     bytes_read = read(socket_fd, buffer, buffer_sz);
 
+    *received_bytes = (int)bytes_read;
+
     if (bytes_read < 0)
     {
         /* Read error. */
         fprintf (stderr, "errno = %d ", errno);
         perror("read");
-        return RECV_ERROR;
+        return RECV_DISCONNECT;
+    }
+    else if (bytes_read == 0)
+    {
+        /* Received disconect */
+        return RECV_DISCONNECT;
     }
     else if (bytes_read < (ssize_t)MSG_HEADER_SZ )
     {
         /* Soft error: didn't receive minumum number of bytes expected */
         return RECV_ERROR;
     }
-
-    *received_bytes = (int)bytes_read;
 
     /* Info print */
     printf ("Received %zd bytes of raw data: ", bytes_read);
@@ -476,17 +476,6 @@ socket_receive_data( const int socket_fd, char* buffer, const size_t buffer_sz, 
     return remove_msg_header(buffer, bytes_read, received_bytes);
 
 } /* socket_receive_data() */
-
-int socket_bytes_to_recv( const int socket_fd )
-{
-    int bytes;
-    if( 0 == ioctl(socket_fd,FIONREAD,&bytes) )
-    {
-        return bytes;
-    }
-
-    return RETURN_FAILED;
-} /* socket_bytes_to_recv() */
 
 int socket_send_data ( const int socket_fd, const char * data, const uint16_t data_sz )
 {

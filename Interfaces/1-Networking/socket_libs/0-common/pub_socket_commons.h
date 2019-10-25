@@ -84,6 +84,7 @@ enum SOCKET_TYPES
 /* Flags used/returned by socket_receive_data() function */
 enum SOCKET_RECEIVE_DATA_FLAGS
 {
+    RECV_DISCONNECT = -2,               /* Indicates a disconnect/connection loss */
     RECV_ERROR      = RETURN_FAILED,    /* Indicates an error with message headers */
     RECV_NO_FLAGS   = RETURN_SUCCESS,   /* Indicates no flags/no information */
     RECV_SEQUENCE_CONTINUE,             /* Indicates a message received is part of a sequence of messages and more are expected */
@@ -128,14 +129,6 @@ int socket_create_socket (char* port, enum SOCKET_TYPES socket_type,  const char
  */
 enum SOCKET_RECEIVE_DATA_FLAGS \
 socket_receive_data( const int socket_fd, char* buffer, const size_t buffer_sz, int *received_bytes );
-
-/**
- * Given a open socket_fd, will return the number of bytes available to be read
- * from the socket.
- * 
- * @Returns number of bytes to be read from socket_fd or RETURN_FAILED.
- */
-int socket_bytes_to_recv( const int socket_fd );
 
 /**
  * Given a char* data array up to 2^16 in size and a socket_fd,

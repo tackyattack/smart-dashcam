@@ -86,9 +86,10 @@ pi0_setup: $(EXE)
     sudo chmod +x $(SERVICES_DIR)/dashcam_tcp_client
 
     sudo cp -f dashcam_tcp_client.service $(SYSTEMD_UNIT_DIR)
-    sudo chmod 644 $(SYSTEMD_UNIT_DIR)/dashcam_tcp_client.service
+    sudo chmod 0755 $(SYSTEMD_UNIT_DIR)/dashcam_tcp_client.service
     sudo systemctl enable dashcam_tcp_client
-    sudo systemctl start dashcam_tcp_client
+    sudo systemctl daemon-reload
+    sudo systemctl restart dashcam_tcp_client
     @echo "Setup system for Raspberry Pi 0!\n\n"
 
 # make setup will go through the setup process needed to compile/run code
@@ -110,4 +111,5 @@ clean :
 
 # make clean-all will remove all generated/downloaded files. Should essetially revert directories back to original post clone state
 clean-all:
-    sudo rm -rf $(EXE) $(SERVICES_DIR)/dashcam_tcp_client $(SYSTEMD_UNIT_DIR)/dashcam_tcp_client.service
+    sudo rm -rf $(EXE) $(SERVICES_DIR)/dashcam_tcp_client $(SYSTEMD_UNIT_DIR)/dashcam_tcp_client.service  $(SERVICES_DIR)/device-id
+

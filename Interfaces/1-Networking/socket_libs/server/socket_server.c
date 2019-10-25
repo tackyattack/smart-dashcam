@@ -332,19 +332,6 @@ int process_recv_msg(int client_fd)
     /* if client wasn't found in our list assert. There is a discrepancy. */
     assert(client != NULL);
 
-    printf("\nSERVER: Bytes to read from socket: %d\n", socket_bytes_to_recv(client_fd));
-
-    /*-------------------------------------
-    |             VERIFICATION             |
-    --------------------------------------*/
-
-    if( socket_bytes_to_recv(client_fd) <= 0 )
-    {
-        printf("Socket Server: Received client disconnect/socket error. Disconnecting client...\n");
-        close_client_conn(client_fd);
-        return RETURN_SUCCESS;
-    }
-
     /*-----------------------------------
     |       RECEIVE SOCKET MESSAGE       |
     ------------------------------------*/
@@ -355,14 +342,13 @@ int process_recv_msg(int client_fd)
     |             VERIFICATION             |
     --------------------------------------*/
 
-    if( n_recv_bytes <= 0 )
+    if( recv_flag == RECV_DISCONNECT || n_recv_bytes <= 0 )
     {
         printf("Socket Server: Received client disconnect/socket error. Disconnecting client...\n");
         close_client_conn(client_fd);
         return RETURN_SUCCESS;
     }
-
-    if(recv_flag == RECV_ERROR)
+    else if( recv_flag == RECV_ERROR )
     {
         printf("Socket Server: Message header error. Message discarded.\n");
         return RETURN_FAILED; /* Return one to prevent indication of client disconect */
