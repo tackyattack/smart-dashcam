@@ -14,14 +14,13 @@
 #include "ilclient.h"
 
 #include <unistd.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <string.h>
-#include <arpa/inet.h>
 
 #include <stdbool.h>
 #include <pthread.h>
 #include <semaphore.h>
+
+#include "network.h"
+#include "queue.h"
 
 #define NAL_UNIT_TYPE_NON_IDR 1
 #define NAL_UNIT_TYPE_IDR 5
@@ -37,114 +36,9 @@ void hex_block_print(uint8_t *buf, int sz)
     {
         printf(" %2x", buf[i]);
     }
-  printf("-----\n\n\n");
+  printf("\n-----\n\n\n");
 }
 
-
-struct Queue
-{
-    uint32_t front, rear, size;
-    uint32_t capacity;
-    uint8_t* array;
-};
-// function to create a queue of given capacity.
-// It initializes size of queue as 0
-struct Queue* createQueue(uint32_t capacity)
-{
-    struct Queue* queue = (struct Queue*) malloc(sizeof(struct Queue));
-    queue->capacity = capacity;
-    queue->front = queue->size = 0;
-    queue->rear = capacity - 1;  // This is important, see the enqueue
-    queue->array = (uint8_t*) malloc(queue->capacity * sizeof(uint8_t));
-    return queue;
-}
-
-void destructQueue(struct Queue** queue)
-{
-  free((*queue)->array);
-  free(*queue);
-}
-
-// Queue is full when size becomes equal to the capacity
-int isFull(struct Queue* queue)
-{  return (queue->size == queue->capacity);  }
-
-// Queue is empty when size is 0
-int isEmpty(struct Queue* queue)
-{  return (queue->size == 0); }
-
-// Function to add an item to the queue.
-// It changes rear and size
-void enqueue(struct Queue* queue, uint8_t item)
-{
-    if (isFull(queue))
-    {
-      printf("error: queue is full\n");
-      return;
-    }
-    queue->rear = (queue->rear + 1)%queue->capacity;
-    queue->array[queue->rear] = item;
-    queue->size = queue->size + 1;
-}
-
-// Function to remove an item from queue.
-// It changes front and size
-uint8_t dequeue(struct Queue* queue)
-{
-    if (isEmpty(queue))
-    {
-      printf("error: queue is empty\n");
-      return 0;
-    }
-    int item = queue->array[queue->front];
-    queue->front = (queue->front + 1)%queue->capacity;
-    queue->size = queue->size - 1;
-    return item;
-}
-
-// Function to get front of queue
-uint32_t front(struct Queue* queue)
-{
-    if (isEmpty(queue))
-    {
-      printf("error: queue is empty\n");
-      return 0;
-    }
-    return queue->array[queue->front];
-}
-
-// Function to get rear of queue
-uint32_t rear(struct Queue* queue)
-{
-    if (isEmpty(queue))
-    {
-      printf("error: queue is empty\n");
-      return 0;
-    }
-    return queue->array[queue->rear];
-}
-
-void reset_queue(struct Queue* queue) {
-   queue->size = 0;
-   queue->front = 0;
-   queue->rear = queue->capacity - 1;  // This is important, see the enqueue
-}
-
-void expand_queue(struct Queue** queue, uint32_t size)
-{
-  struct Queue *new_queue = createQueue(size);
-  struct Queue **old_queue = queue;
-  uint32_t items_to_remove = (*queue)->size;
-  for(uint32_t i = 0; i < items_to_remove; i++) enqueue(new_queue, dequeue(*queue));
-  if((*queue)->size != 0)
-  {
-    printf("Error: queue size is still %d\n", (*queue)->size);
-    assert((*queue)->size == 0);
-  }
-
-  destructQueue(old_queue);
-  *queue = new_queue;
-}
 
 struct Queue *client_queue;
 struct Queue *server_queue;
@@ -155,10 +49,14 @@ sem_t emptied;
 sem_t mutex;
 sem_t filled;
 
+pthread_mutex_t server_lock;
+sem_t server_buf_ready;
+
 int server_port = 8080;
 char server_ip[40] = {0};
 
 int video_decoder_running = 1;
+int server_has_init = 0;
 
 static int video_decode()
 {
@@ -276,7 +174,6 @@ static int video_decode()
        //hex_block_print(dest, 100);
 
 
-
          if(port_settings_changed == 0 &&
             ((data_len > 0 && ilclient_remove_event(video_decode, OMX_EventPortSettingsChanged, 131, 0, 0, 1) == 0) ||
              (data_len == 0 && ilclient_wait_for_event(video_decode, OMX_EventPortSettingsChanged, 131, 0, 0, 1,
@@ -358,108 +255,91 @@ static int video_decode()
 }
 
 
-void *client_network_thread(void *vargp)
+void *client_thread(void *vargp)
 {
-    int sock = 0, valread=0;
-    struct sockaddr_in serv_addr;
-    char buffer[CHUNK_SIZE] = {0};
-    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-    {
-        printf("\n Socket creation error \n");
-    }
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(server_port);
-
-    // Convert IPv4 and IPv6 addresses from text to binary form
-    if(inet_pton(AF_INET, server_ip, &serv_addr.sin_addr)<=0)
-    {
-        printf("\nInvalid address/ Address not supported \n");
-        video_decoder_running = 0;
-        return NULL;
-    }
-
-    if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
-    {
-        printf("\nConnection Failed \n");
-        video_decoder_running = 0;
-        return NULL;
-    }
-
-    uint32_t data_size = 0;
-    int buffer_room = 0;
-    uint32_t sz;
-    uint32_t capacity = 0;
-    while(valread>=0)
-    {
-      valread = read( sock , buffer, CHUNK_SIZE);
-
-      do
-      {
-        pthread_mutex_lock(&queue_lock);
-        data_size = client_queue->size;
-        capacity = client_queue->capacity;
-        pthread_mutex_unlock(&queue_lock);
-        if(capacity-data_size > CHUNK_SIZE*2)
-        {
-          buffer_room = 1;
-        }
-        else
-        {
-          buffer_room = 0;
-
-          pthread_mutex_lock(&queue_lock);
-          sz = capacity*2;
-          expand_queue(&client_queue, sz);
-          pthread_mutex_unlock(&queue_lock);
-          printf("expanded buffer to %d\n", sz);
-          sem_wait(&emptied);
-        }
-
-      }while(!buffer_room);
-
-      pthread_mutex_lock(&queue_lock);
-      for(uint32_t i = 0; i < valread; i++) enqueue(client_queue, buffer[i]);
-      pthread_mutex_unlock(&queue_lock);
-      sem_post(&filled);
-
-
-    }
-
+  uint8_t ret_code = network_client_init(server_ip, server_port);
+  if(ret_code != NETWORK_INIT_OK)
+  {
     video_decoder_running = 0;
     return NULL;
+  }
+
+  uint8_t buffer[CHUNK_SIZE] = {0};
+
+  uint32_t data_size = 0;
+  int buffer_room = 0;
+  uint32_t sz;
+  uint32_t capacity = 0;
+  uint32_t num_bytes_recvd = 0;
+
+  while(1)
+  {
+    num_bytes_recvd = network_client_recv(buffer, CHUNK_SIZE);
+
+    do
+    {
+      pthread_mutex_lock(&queue_lock);
+      data_size = client_queue->size;
+      capacity = client_queue->capacity;
+      pthread_mutex_unlock(&queue_lock);
+      if(capacity-data_size > num_bytes_recvd*2)
+      {
+        buffer_room = 1;
+      }
+      else
+      {
+        buffer_room = 0;
+
+        pthread_mutex_lock(&queue_lock);
+        sz = capacity*2;
+        expand_queue(&client_queue, sz);
+        pthread_mutex_unlock(&queue_lock);
+        printf("expanded buffer to %d\n", sz);
+        sem_wait(&emptied);
+      }
+
+    }while(!buffer_room);
+
+    pthread_mutex_lock(&queue_lock);
+    for(uint32_t i = 0; i < num_bytes_recvd; i++) enqueue(client_queue, buffer[i]);
+    pthread_mutex_unlock(&queue_lock);
+    sem_post(&filled);
+  }
+
+  video_decoder_running = 0;
+  return NULL;
 }
 
-int main (int argc, char **argv)
+int main(int argc, char **argv)
 {
   client_queue = createQueue(OMX_buffer_handoff_size+1);
   sem_init(&mutex, 0, 1);
   sem_init(&filled, 0, 0);
   sem_init(&emptied, 0, 1);
 
+  if(pthread_mutex_init(&queue_lock, NULL) != 0)
+  {
+    printf("\n mutex init has failed\n");
+    return 1;
+  }
 
-  if (pthread_mutex_init(&queue_lock, NULL) != 0)
-    {
-        printf("\n mutex init has failed\n");
-        return 1;
-    }
+  strcpy(server_ip, argv[1]);
+  server_port = atoi(argv[2]);
 
-    strcpy(server_ip, argv[1]);
-    server_port = atoi(argv[2]);
+  printf("opening  %s  port %d\n", server_ip, server_port);
 
-    printf("opening  %s  port %d\n", server_ip, server_port);
+  pthread_t thread_id;
+  printf("Starting network thread\n");
+  pthread_create(&thread_id, NULL, client_thread, NULL);
 
-    pthread_t thread_id;
-    printf("Starting network thread\n");
-    pthread_create(&thread_id, NULL, client_network_thread, NULL);
+  bcm_host_init();
+  printf("Entering decoder\n");
+  video_decode();
+  printf("Decode stopped\n");
 
-    bcm_host_init();
-    printf("Entering decoder\n");
-    video_decode();
-    printf("Decode stopped\n");
-
-    pthread_join(thread_id, NULL);
-    printf("Network thread closed\n");
-    //free(queue_array);
+  pthread_join(thread_id, NULL);
+  printf("Network thread closed\n");
+  destructQueue(&client_queue);
 }
 
 
@@ -478,68 +358,16 @@ int get_next_chunk(uint8_t *buf)
   }
   pthread_mutex_unlock(&queue_lock);
   return ret_val;
-
 }
-pthread_mutex_t server_lock;
-sem_t server_buf_ready;
-int server_socket;
-int server_fd;
-int server_addrlen;
-struct sockaddr_in server_address;
-int server_connected = 0;
-int server_has_init = 0;
-uint32_t chosen_server_buffer_size = 0;
-void server_init(int port, uint32_t buffer_size)
+
+int streaming_server_running = 0;
+
+void close_server()
 {
-    server_queue = createQueue(buffer_size);
-    chosen_server_buffer_size = buffer_size;
-
-    server_port = port;
-    int opt = 1;
-    server_addrlen = sizeof(server_address);
-
-    // Creating socket file descriptor
-    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0)
-    {
-        perror("socket failed");
-        exit(EXIT_FAILURE);
-    }
-
-    // Forcefully attaching socket to the port
-    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT,
-                                                  &opt, sizeof(opt)))
-    {
-        perror("setsockopt");
-        exit(EXIT_FAILURE);
-    }
-    server_address.sin_family = AF_INET;
-    server_address.sin_addr.s_addr = INADDR_ANY;
-    server_address.sin_port = htons( server_port );
-
-    // Forcefully attaching socket to the port 8080
-    if (bind(server_fd, (struct sockaddr *)&server_address,
-                                 sizeof(server_address))<0)
-    {
-        perror("bind failed");
-        exit(EXIT_FAILURE);
-    }
-    if (listen(server_fd, 3) < 0)
-    {
-        perror("listen");
-        exit(EXIT_FAILURE);
-    }
-    sem_init(&server_buf_ready, 0, 1);
-    if (pthread_mutex_init(&queue_lock, NULL) != 0)
-      {
-          printf("\n mutex init has failed\n");
-      }
-    if (pthread_mutex_init(&server_lock, NULL) != 0)
-      {
-          printf("\n mutex init has failed\n");
-      }
-    server_connected = 0;
-    server_has_init = 1;
+  streaming_server_running = 0;
 }
+
+pthread_t streamer_server_thread_id;
 
 uint8_t *PPS_buffer = NULL;
 uint8_t *SPS_buffer = NULL;
@@ -564,29 +392,54 @@ int insert_PPS_SPS()
 
 }
 
-uint8_t server_buf[CHUNK_SIZE];
-int send_code;
-void server_loop()
+void client_disconnected_callback()
 {
-  //wait for chunk size to be ready
-  sem_wait(&server_buf_ready);
-  if (get_next_chunk(server_buf) == 1)
-  {
-    if(server_connected) send_code = write(server_socket , server_buf , CHUNK_SIZE);
-    if(send_code < 0) server_connected = 0;
+  while(insert_PPS_SPS() != 1) sleep(1);
+  printf("inserting PPS SPS\n");
+}
 
-    if(!server_connected)
+pthread_t server_loop_thread_id;
+uint8_t chunk_buffer[CHUNK_SIZE];
+void *server_loop_thread(void *vargp)
+{
+  network_server_connect();
+  streaming_server_running = 1;
+  while(streaming_server_running)
+  {
+    //wait for chunk size to be ready
+    sem_wait(&server_buf_ready);
+    if (get_next_chunk(chunk_buffer) == 1)
     {
-      printf("waiting on connect\n");
-     server_socket = accept(server_fd, (struct sockaddr *)&server_address,(socklen_t*)&server_addrlen);
-     server_connected = 1;
-     printf("connected\n");
-     while(insert_PPS_SPS() != 1) sleep(1);
-     printf("inserting PPS SPS\n");
-   }
+      network_server_write(chunk_buffer, CHUNK_SIZE);
+    }
+  }
+  terminate_server();
+  return NULL;
+}
+
+uint32_t chosen_server_buffer_size = 0;
+void streamer_init(int port, uint32_t buffer_size)
+{
+  server_queue = createQueue(buffer_size);
+  chosen_server_buffer_size = buffer_size;
+  sem_init(&server_buf_ready, 0, 1);
+
+  if (pthread_mutex_init(&queue_lock, NULL) != 0)
+  {
+    printf("\n mutex init has failed\n");
+  }
+  if (pthread_mutex_init(&server_lock, NULL) != 0)
+  {
+      printf("\n mutex init has failed\n");
   }
 
+  network_server_init(port, client_disconnected_callback);
+  server_has_init = 1;
+
+  printf("Starting server thread\n");
+  pthread_create(&server_loop_thread_id, NULL, server_loop_thread, NULL);
 }
+
 
 const uint8_t magic_pattern[] = {0x00, 0x00, 0x00, 0x01};
 uint8_t pattern_len = 4;

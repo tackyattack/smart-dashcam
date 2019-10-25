@@ -33,17 +33,19 @@ import ctypes
 
 root_path = os.path.dirname(os.path.realpath(__file__))
 stream_lib = ctypes.CDLL(os.path.join(root_path, 'Stream/dashcam_streamer/stream.so'))
+
 record_bytes_stream = stream_lib.record_bytes
 record_bytes_stream.argtypes = [ctypes.c_char_p, ctypes.c_uint32]
 record_bytes_stream.restype = None
 
-server_init = stream_lib.server_init
-server_init.argtypes = [ctypes.c_int, ctypes.c_uint32]
-server_init.restype = None
+streamer_init = stream_lib.streamer_init
+streamer_init.argtypes = [ctypes.c_int, ctypes.c_uint32]
+streamer_init.restype = None
 
-server_loop = stream_lib.server_loop
-server_loop.argtypes = None
-server_loop.restype = None
+
+close_server = stream_lib.close_server
+close_server.argtypes = None
+close_server.restype = None
 
 class StreamEncoder(encoders.PiVideoEncoder):
     def _callback(self, port, buf):
@@ -78,7 +80,6 @@ class Recorder:
         self.record_interval_s = recording_interval_s
         self.recording_thread = None
         self.wrapping_thread = None
-        self.stream_thread = None
         self.current_recording_name = None
         self.wrapping_queue = Queue.Queue()
         self.max_size_mb = max_size_mb
@@ -93,9 +94,9 @@ class Recorder:
             os.makedirs(self.record_path)
 
         if self.do_stream:
+            streamer_init(self.stream_port, self.stream_buffer)
             create_stream_encoder(camera=self.camera, splitter_port=3, format='h264',
                                  resize=(self.stream_width, self.stream_height), quality=self.stream_quality)
-
 
 
     def get_camera(self):
@@ -107,16 +108,14 @@ class Recorder:
         self.recording_thread.start()
         self.wrapping_thread = threading.Thread(target=self.wrapping_thread_func)
         self.wrapping_thread.start()
-        if self.do_stream:
-            self.stream_thread = threading.Thread(target=self.stream_thread_func)
-            self.stream_thread.start()
 
 
     def terminate(self):
         self.terminate_threads = True
         while((self.wrapping_thread is not None) or (self.recording_thread is not None)):
             sleep(0.25)
-        os.kill(os.getpid(), signal.SIGTERM)
+        if(self.do_stream):
+            close_server()
 
     def cleanup(self):
         for file in os.listdir(self.record_path):
@@ -210,7 +209,6 @@ class Recorder:
                 print("removing: " + file_to_delete)
             os.remove(file_to_delete)
 
-
     def wrapping_thread_func(self):
         while(not self.terminate_threads):
             while not self.wrapping_queue.empty():
@@ -236,14 +234,6 @@ class Recorder:
         self.cleanup()
         self.wrapping_thread = None
 
-    def stream_thread_func(self):
-        server_init(self.stream_port, self.stream_buffer)
-        while not self.terminate_threads:
-            # this has thread waiting so it won't thrash CPU
-            server_loop()
-        if(not self.silent):
-            print("stream thread closed")
-        self.stream_thread = None
 
 def start_recording_command_line():
     parser = argparse.ArgumentParser(description='recording and streaming module for camera')
@@ -267,7 +257,7 @@ def start_recording_command_line():
     while(not exit_main):
         try:
             sleep(1)
-        except:
+        except KeyboardInterrupt:
             record_inst.terminate()
             exit_main = True
 

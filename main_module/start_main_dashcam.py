@@ -29,6 +29,7 @@ class MainModule:
         self.dash_gui.add_event_callback('get_cameras', self.get_cameras_callback)
 
         self.recorder.start_recorder()
+        #self.dash_gui.show_lane_warning()
 
         # Tkinter isn't thread safe, so it must be in the main thread
         # therefore, start is blocking and workers should be done here in their own threads
@@ -63,7 +64,7 @@ class MainModule:
         return paths
 
     def get_cameras_callback(self):
-        return [('rtsp://192.168.0.152:8554/', 'camera 1'), ('rtsp://131.151.175.144:8554/', 'camera 2')]
+        return [('tcp://192.168.0.152:8080', 'camera 1'), ('tcp://131.151.175.144:8080', 'camera 2')]
 
 # start up
 main_module = MainModule()

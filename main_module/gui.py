@@ -48,6 +48,9 @@ class video_player_packet:
         self.video_path = video_path
         self.stream = stream
 
+def get_script_path():
+    return os.path.dirname(os.path.abspath(__file__))
+
 
 def get_pid(name):
     try:
@@ -169,32 +172,62 @@ class GUIVideoPlayer(GUIView):
         x = threading.Thread(target=self.start_player)
         x.start()
 
-    def kill_omxplayer(self):
-        pid = get_pid('omxplayer.bin')
+
+    def kill_player(self, process_name):
+        full_name = process_name
+        name_only = process_name.split('.')[0]
+        pid = get_pid(full_name)
         while pid != -1:
-            pid = get_pid('omxplayer.bin')
+            pid = get_pid(full_name)
             if(pid != -1):
-                subprocess.call(['pkill', 'omxplayer'])
+                subprocess.call(['pkill', name_only])
             sleep(0.5)
+
+    def wait_for_process_open(self, process_name):
+        timeout_cnt = 0
+        timeout = 20
+        pid = get_pid(process_name)
+        while (pid == -1) and (timeout_cnt < timeout):
+            pid = get_pid(process_name)
+            sleep(1)
+            timeout_cnt = timeout_cnt + 1
+
+        if timeout_cnt == timeout:
+            return False
+        return True
 
 
     def start_player(self):
-        cmd = 'omxplayer -o hdmi {0}'.format(self.video_path)
-        cmd = cmd.split()
+        omxplayer_location = 'omxplayer.bin'
+        omxplayer = 'omxplayer.bin'
+        dash_stream_location = os.path.join(get_script_path(), 'dashRecording/Stream/dashcam_streamer/dash_stream.bin')
+        dash_stream = 'dash_stream.bin'
+
+        player = None
+        if self.stream:
+            player = dash_stream
+        else:
+            player = omxplayer
+
+        if self.stream:
+            uri = os.path.basename(self.video_path)
+            print(uri)
+            stream_ip = uri.split(':')[0]
+            stream_port = uri.split(':')[1]
+            cmd = '{0} {1} {2}'.format(dash_stream_location, stream_ip, stream_port)
+            cmd = cmd.split()
+        else:
+            cmd = '{0} -o hdmi {1}'.format(omxplayer_location, self.video_path)
+            cmd = cmd.split()
+
         self.process = subprocess.Popen(cmd, stdin=subprocess.PIPE)
         self.running = True
 
         # wait for it to open
-        timeout_cnt = 0
-        timeout = 20
-        pid = get_pid('omxplayer.bin')
-        while (pid == -1) and (timeout_cnt < timeout):
-            pid = get_pid('omxplayer.bin')
-            sleep(1)
-            timeout_cnt = timeout_cnt + 1
+        self.wait_for_process_open(player)
 
         # wait for either exit button or video end
-        while (self.running) and (get_pid('omxplayer.bin') != -1):
+        while (self.running) and (get_pid(player) != -1):
             sleep(0.5)
 
         if self.process.poll() is not None:
@@ -203,7 +236,7 @@ class GUIVideoPlayer(GUIView):
             except OSError:
                 pass
 
-        self.kill_omxplayer()
+        self.kill_player(player)
         put_window_command(WINDOW_COMMAND_POP_VIEW, None)
 
     def exit_callback(self):

@@ -1,8 +1,5 @@
 #!/usr/bin/env python
 
-# for help:
-# ./DashcamRecorder.py -h
-
 import argparse
 from picamera import PiCamera
 from picamera import PiRenderer
@@ -20,17 +17,19 @@ import ctypes
 
 root_path = os.path.dirname(os.path.realpath(__file__))
 stream_lib = ctypes.CDLL(os.path.join(root_path, 'stream.so'))
+
 record_bytes_stream = stream_lib.record_bytes
 record_bytes_stream.argtypes = [ctypes.c_char_p, ctypes.c_uint32]
 record_bytes_stream.restype = None
 
-server_init = stream_lib.server_init
-server_init.argtypes = [ctypes.c_int, ctypes.c_uint32]
-server_init.restype = None
+streamer_init = stream_lib.streamer_init
+streamer_init.argtypes = [ctypes.c_int, ctypes.c_uint32]
+streamer_init.restype = None
 
-server_loop = stream_lib.server_loop
-server_loop.argtypes = None
-server_loop.restype = None
+
+close_server = stream_lib.close_server
+close_server.argtypes = None
+close_server.restype = None
 
 def print_hex_block(block, len):
     a = list(block)
@@ -66,12 +65,12 @@ def create_stream_encoder(camera, splitter_port, format, resize, quality):
 
 create_stream_encoder(camera=camera, splitter_port=3, format='h264', resize=(240, 160), quality=30)
 
-server_init(8080, 100)
+streamer_init(8080, 100)
 try:
     while True:
-        server_loop()
-
+        sleep(1)
 except KeyboardInterrupt:
-    pass
+    close_server()
 run = False
+
 camera.close()
