@@ -22,8 +22,6 @@ registered_callbacks = {
 'get_cameras': None
 }
 
-#sg.ChangeLookAndFeel('Dark')
-#sg.SetOptions(element_padding=(1,1))
 
 FULL_SCREEN_WIDTH = 482
 FULL_SCREEN_HEIGHT = 322
@@ -67,7 +65,7 @@ def get_pid(name):
 
 class GUIView(object):
 
-    def __init__(self, view_stack):
+    def __init__(self):
         blank_layout = [[]]
 
         self.view_window = sg.Window('GUI View', blank_layout, no_titlebar=False, location=(LEFT_OFFSET,TOP_BAR_OFFSET),
@@ -79,11 +77,14 @@ class GUIView(object):
         self.view_frame.pack_propagate(False)
         self.view_frame.pack()
         self.view_window_root.config(cursor="none")
-        view_stack.append(self.view_window)
+        self.visible = False
+
+    def close_view(self):
+        self.view_window.Close()
 
 class GUIListView(GUIView):
-    def __init__(self, view_stack, list_items):
-        super(GUIListView, self).__init__(view_stack)
+    def __init__(self, list_items):
+        super(GUIListView, self).__init__()
 
         bf = ('Helvetica', '15', 'bold')
         width=22
@@ -116,12 +117,12 @@ class GUIListView(GUIView):
         put_window_command(WINDOW_COMMAND_POP_VIEW, None)
 
 class GUICameraListView(GUIListView):
-    def __init__(self, view_stack, list_items):
+    def __init__(self, list_items):
         self.items = []
         self.list_items = list_items
         for path, filename in list_items:
             self.items.append(filename)
-        super(GUICameraListView, self).__init__(view_stack, self.items)
+        super(GUICameraListView, self).__init__(self.items)
 
     def list_press_callback(self, event):
         w = event.widget
@@ -134,12 +135,12 @@ class GUICameraListView(GUIListView):
                            data=video_player_packet(video_path=video_path, stream=True)))
 
 class GUIRecordingsListView(GUIListView):
-    def __init__(self, view_stack, list_items):
+    def __init__(self, list_items):
         self.items = []
         self.list_items = list_items
         for path, filename in list_items:
             self.items.append(filename)
-        super(GUIRecordingsListView, self).__init__(view_stack, self.items)
+        super(GUIRecordingsListView, self).__init__(self.items)
 
     def list_press_callback(self, event):
         w = event.widget
@@ -152,14 +153,14 @@ class GUIRecordingsListView(GUIListView):
                            data=video_player_packet(video_path=video_path, stream=False)))
 
 class GUILaneWarningView(GUIView):
-    def __init__(self, view_stack):
-        super(GUILaneWarningView, self).__init__(view_stack)
+    def __init__(self):
+        super(GUILaneWarningView, self).__init__()
         tk.Label(self.view_frame, text="WARNING", font=('Helvetica', '50', 'bold'), bg='black', fg='red', pady=40).pack()
         tk.Label(self.view_frame, text="LANE DRIFT", font=('Helvetica', '50', 'bold'), bg='black', fg='yellow').pack()
 
 class GUIVideoPlayer(GUIView):
-    def __init__(self, view_stack, video_path, stream):
-        super(GUIVideoPlayer, self).__init__(view_stack)
+    def __init__(self, video_path, stream):
+        super(GUIVideoPlayer, self).__init__()
         print('playing: ' + video_path)
         self.video_path = video_path
         self.stream = stream
@@ -243,8 +244,8 @@ class GUIVideoPlayer(GUIView):
         self.running = False
 
 class GUIMainView(GUIView):
-    def __init__(self, view_stack):
-        super(GUIMainView, self).__init__(view_stack)
+    def __init__(self):
+        super(GUIMainView, self).__init__()
         bf = ('Helvetica', '15', 'bold')
         width=18
         height=5
@@ -269,7 +270,6 @@ class GUIMainView(GUIView):
         registered_callbacks['calibrate']()
 
     def play_recording_callback(self):
-
         put_window_command(WINDOW_COMMAND_PUSH_VIEW, window_push_packet(view_class=GUIRecordingsListView, data=None))
 
     def view_camera_callback(self):
@@ -311,8 +311,7 @@ class DashcamGUI:
             raise Exception('callback not defined')
 
     def setup_GUI(self):
-
-        GUIMainView(self.windows_view_stack)
+        put_window_command(WINDOW_COMMAND_PUSH_VIEW, window_push_packet(view_class=GUIMainView, data=None))
 
     def close_lane_warning(self):
         sleep(5)
@@ -329,39 +328,48 @@ class DashcamGUI:
         self.setup_GUI()
 
         while self.running:
-            # read only top of view stack since that's the only visible one
-            event, values = self.windows_view_stack[-1].Read(timeout=100)
-            # window closed (through exit icon -- so we probably won't need this)
-            if event is None:
-                put_window_command(WINDOW_COMMAND_POP_VIEW, None)
 
             while not window_command_queue.empty():
                 window_command = window_command_queue.get(block=True)
                 if window_command[0] == WINDOW_COMMAND_POP_VIEW:
-                    self.windows_view_stack.pop().Close()
+                    self.windows_view_stack.pop().close_view()
                 if window_command[0] == WINDOW_COMMAND_PUSH_VIEW:
+                    new_view = None
+                    if window_command[1].view_class == GUIMainView:
+                        new_view = self.main_view_view_setup()
                     if window_command[1].view_class == GUIRecordingsListView:
-                        self.view_files_callback()
+                        new_view = self.view_files_view_setup()
                     if window_command[1].view_class == GUICameraListView:
-                        self.view_camera_callback()
+                        new_view = self.view_camera_view_setup()
                     if window_command[1].view_class == GUILaneWarningView:
-                        self.lane_warning_callback()
+                        new_view = self.lane_warning_view_setup()
                     if window_command[1].view_class == GUIVideoPlayer:
-                        self.video_player_callback(window_command[1].data)
+                        new_view = self.video_player_view_setup(window_command[1].data)
+                    self.windows_view_stack.append(new_view)
+
+            if(len(self.windows_view_stack) > 0):
+                # read only top of view stack since that's the only visible one
+                event, values = self.windows_view_stack[-1].view_window.Read(timeout=100)
+                # window closed (through exit icon -- so we probably won't need this)
+                if event is None:
+                    put_window_command(WINDOW_COMMAND_POP_VIEW, None)
 
         print('Exiting dashcam GUI')
         self.running = False
         # pop and close any views left
         while not self.windows_view_stack:
-            self.windows_view_stack.pop().Close()
+            self.windows_view_stack.pop().close_view()
 
-    def view_camera_callback(self):
+    def main_view_view_setup(self):
+        return GUIMainView()
+
+    def view_camera_view_setup(self):
         items = []
         if 'get_cameras' in registered_callbacks:
             items = registered_callbacks['get_cameras']()
-        GUICameraListView(self.windows_view_stack, items)
+        return GUICameraListView(items)
 
-    def view_files_callback(self):
+    def view_files_view_setup(self):
         updated_items = []
         if 'get_recordings_paths' in registered_callbacks:
             paths = registered_callbacks['get_recordings_paths']()
@@ -372,10 +380,10 @@ class DashcamGUI:
             self.recordings_files = [('/', 'no files')]
         else:
             self.recordings_files = updated_items
-        GUIRecordingsListView(self.windows_view_stack, self.recordings_files)
+        return GUIRecordingsListView(self.recordings_files)
 
-    def lane_warning_callback(self):
-        GUILaneWarningView(self.windows_view_stack)
+    def lane_warning_view_setup(self):
+        return GUILaneWarningView()
 
-    def video_player_callback(self, video_player_packet):
-        GUIVideoPlayer(self.windows_view_stack, video_path=video_player_packet.video_path, stream=video_player_packet.stream)
+    def video_player_view_setup(self, video_player_packet):
+        return GUIVideoPlayer(video_path=video_player_packet.video_path, stream=video_player_packet.stream)
