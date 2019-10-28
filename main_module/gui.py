@@ -174,7 +174,7 @@ class GUILaneWarningView(GUIView):
 
     def update(self):
         self.view_frame.pack_forget()
-        sleep(0.25)
+        sleep(0.1)
         self.view_frame.pack()
 
 class GUIVideoPlayer(GUIView):
@@ -194,7 +194,6 @@ class GUIVideoPlayer(GUIView):
 
         x = threading.Thread(target=self.start_player)
         x.start()
-
 
     def kill_player(self, process_name):
         full_name = process_name
@@ -219,7 +218,6 @@ class GUIVideoPlayer(GUIView):
         if timeout_cnt == timeout:
             return False
         return True
-
 
     def start_player(self):
         omxplayer_location = 'omxplayer.bin'
@@ -251,7 +249,7 @@ class GUIVideoPlayer(GUIView):
         self.wait_for_process_open(self.player)
 
         # wait for either exit button or video end, or it to be covered by another view
-        while (self.running) and (get_pid(self.player) != -1) and (not self.covered):
+        while (self.running) and (get_pid(self.player) != -1):
             sleep(0.5)
 
         if self.process.poll() is not None:
@@ -261,26 +259,16 @@ class GUIVideoPlayer(GUIView):
                 pass
 
         self.kill_player(self.player)
-        if not self.covered:
-            put_window_command(WINDOW_COMMAND_POP_VIEW, None)
-        self.ready_to_exit = True
+        put_window_command(WINDOW_COMMAND_POP_VIEW, None)
 
     def exit_callback(self):
         self.running = False
 
     def is_not_visible(self):
         self.covered = True
-        self.running = False
 
     def is_visible(self):
         self.covered = False
-        if self.ready_to_exit:
-           put_window_command(WINDOW_COMMAND_POP_VIEW, None)
-           # if we're streaming, open it back up
-           if(self.stream):
-               put_window_command(WINDOW_COMMAND_PUSH_VIEW,
-                                  window_push_packet(view_class=GUIVideoPlayer,
-                                  data=video_player_packet(video_path=self.video_path, stream=self.stream)))
 
 
 class GUIMainView(GUIView):
