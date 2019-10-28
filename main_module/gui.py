@@ -18,6 +18,7 @@ else:
 registered_callbacks = {
 'calibrate': None,
 'exit_gui': None,
+'gui_has_init': None,
 'get_recordings_paths': None,
 'get_cameras': None
 }
@@ -81,6 +82,19 @@ class GUIView(object):
 
     def close_view(self):
         self.view_window.Close()
+
+    # visible/not visible can be used for behavior that should happen when a view
+    # gets covered/uncovered
+
+    def is_visible(self):
+        self.visible = True
+
+    def is_not_visible(self):
+        self.visible = False
+
+    def update(self):
+        pass
+
 
 class GUIListView(GUIView):
     def __init__(self, list_items):
@@ -158,6 +172,11 @@ class GUILaneWarningView(GUIView):
         tk.Label(self.view_frame, text="WARNING", font=('Helvetica', '50', 'bold'), bg='black', fg='red', pady=40).pack()
         tk.Label(self.view_frame, text="LANE DRIFT", font=('Helvetica', '50', 'bold'), bg='black', fg='yellow').pack()
 
+    def update(self):
+        self.view_frame.pack_forget()
+        sleep(0.25)
+        self.view_frame.pack()
+
 class GUIVideoPlayer(GUIView):
     def __init__(self, video_path, stream):
         super(GUIVideoPlayer, self).__init__()
@@ -166,6 +185,9 @@ class GUIVideoPlayer(GUIView):
         self.stream = stream
         self.process = None
         self.running = False
+        self.player = None
+        self.covered = False
+        self.ready_to_exit = False
         tk.Button(self.view_frame, text='',
                  bg='white', activebackground='white',activeforeground='white', fg='white',
                  width=100, height=100, command=self.exit_callback).pack()
@@ -183,6 +205,7 @@ class GUIVideoPlayer(GUIView):
             if(pid != -1):
                 subprocess.call(['pkill', name_only])
             sleep(0.5)
+        self.player = None
 
     def wait_for_process_open(self, process_name):
         timeout_cnt = 0
@@ -204,11 +227,11 @@ class GUIVideoPlayer(GUIView):
         dash_stream_location = os.path.join(get_script_path(), 'dashRecording/Stream/dashcam_streamer/dash_stream.bin')
         dash_stream = 'dash_stream.bin'
 
-        player = None
+        self.player = None
         if self.stream:
-            player = dash_stream
+            self.player = dash_stream
         else:
-            player = omxplayer
+            self.player = omxplayer
 
         if self.stream:
             uri = os.path.basename(self.video_path)
@@ -225,10 +248,10 @@ class GUIVideoPlayer(GUIView):
         self.running = True
 
         # wait for it to open
-        self.wait_for_process_open(player)
+        self.wait_for_process_open(self.player)
 
-        # wait for either exit button or video end
-        while (self.running) and (get_pid(player) != -1):
+        # wait for either exit button or video end, or it to be covered by another view
+        while (self.running) and (get_pid(self.player) != -1) and (not self.covered):
             sleep(0.5)
 
         if self.process.poll() is not None:
@@ -237,11 +260,28 @@ class GUIVideoPlayer(GUIView):
             except OSError:
                 pass
 
-        self.kill_player(player)
-        put_window_command(WINDOW_COMMAND_POP_VIEW, None)
+        self.kill_player(self.player)
+        if not self.covered:
+            put_window_command(WINDOW_COMMAND_POP_VIEW, None)
+        self.ready_to_exit = True
 
     def exit_callback(self):
         self.running = False
+
+    def is_not_visible(self):
+        self.covered = True
+        self.running = False
+
+    def is_visible(self):
+        self.covered = False
+        if self.ready_to_exit:
+           put_window_command(WINDOW_COMMAND_POP_VIEW, None)
+           # if we're streaming, open it back up
+           if(self.stream):
+               put_window_command(WINDOW_COMMAND_PUSH_VIEW,
+                                  window_push_packet(view_class=GUIVideoPlayer,
+                                  data=video_player_packet(video_path=self.video_path, stream=self.stream)))
+
 
 class GUIMainView(GUIView):
     def __init__(self):
@@ -278,13 +318,17 @@ class GUIMainView(GUIView):
     def settings_callback(self):
         print('settings')
 
+    def is_visible(self):
+        registered_callbacks['gui_has_init']()
+
 
 
 class DashcamGUI:
 
-    def __init__(self, exit_callback):
+    def __init__(self, init_callback, exit_callback):
 
         self.add_event_callback('exit_gui', exit_callback)
+        self.add_event_callback('gui_has_init', init_callback)
         self.windows_view_stack = []
         self.recordings_files = [('/', 'no files')]
 
@@ -292,6 +336,7 @@ class DashcamGUI:
         self.running = True
         self.pg_mixer = pygame.mixer
         self.pg_mixer.init()
+        self.lane_warning_open = False
 
 
     def start(self):
@@ -316,23 +361,28 @@ class DashcamGUI:
     def close_lane_warning(self):
         sleep(5)
         put_window_command(WINDOW_COMMAND_POP_VIEW, None)
+        self.lane_warning_open = False
 
     def show_lane_warning(self):
-        put_window_command(WINDOW_COMMAND_PUSH_VIEW, window_push_packet(view_class=GUILaneWarningView, data=None))
-        self.pg_mixer.music.load('lane_beep.wav')
-        self.pg_mixer.music.play(0)
-        x = threading.Thread(target=self.close_lane_warning)
-        x.start()
+        if not self.lane_warning_open:
+            self.lane_warning_open = True
+            put_window_command(WINDOW_COMMAND_PUSH_VIEW, window_push_packet(view_class=GUILaneWarningView, data=None))
+            self.pg_mixer.music.load('lane_beep.wav')
+            self.pg_mixer.music.play(0)
+            x = threading.Thread(target=self.close_lane_warning)
+            x.start()
 
     def event_thread(self):
         self.setup_GUI()
 
         while self.running:
-
             while not window_command_queue.empty():
                 window_command = window_command_queue.get(block=True)
                 if window_command[0] == WINDOW_COMMAND_POP_VIEW:
                     self.windows_view_stack.pop().close_view()
+                    # if a view just got uncovered, tell it
+                    if(len(self.windows_view_stack) > 0):
+                        self.windows_view_stack[-1].is_visible()
                 if window_command[0] == WINDOW_COMMAND_PUSH_VIEW:
                     new_view = None
                     if window_command[1].view_class == GUIMainView:
@@ -345,7 +395,11 @@ class DashcamGUI:
                         new_view = self.lane_warning_view_setup()
                     if window_command[1].view_class == GUIVideoPlayer:
                         new_view = self.video_player_view_setup(window_command[1].data)
+                    # if there's a view that's about to get covered, tell it
+                    if(len(self.windows_view_stack) > 1):
+                        self.windows_view_stack[-1].is_not_visible()
                     self.windows_view_stack.append(new_view)
+                    new_view.is_visible()
 
             if(len(self.windows_view_stack) > 0):
                 # read only top of view stack since that's the only visible one
@@ -353,6 +407,8 @@ class DashcamGUI:
                 # window closed (through exit icon -- so we probably won't need this)
                 if event is None:
                     put_window_command(WINDOW_COMMAND_POP_VIEW, None)
+
+                self.windows_view_stack[-1].update()
 
         print('Exiting dashcam GUI')
         self.running = False
