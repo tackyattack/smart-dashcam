@@ -68,6 +68,34 @@ def create_stream_encoder(camera, splitter_port, format, resize, quality):
             del encoder
         raise
 
+
+def getKey(item):
+    return item[0]
+
+def get_number_file(file):
+    # dashcam_video_0.ext
+    num_str = file.split('.')[-2].split('_')[-1]
+    num = int(num_str)
+    return num
+
+def get_sorted_video_paths(path):
+    file_paths = []
+    for file in os.listdir(path):
+        if file.endswith('.mp4') or file.endswith('.h264'):
+            extracted_num = get_number_file(file)
+            # store as tuples
+            file_paths.append((extracted_num, os.path.join(path, file)))
+
+    if len(file_paths) == 0:
+        empty_paths = []
+        return empty_paths
+
+    file_paths = sorted(file_paths, key=getKey)
+    paths_only = []
+    for path in file_paths:
+        paths_only.append(path[1])
+    return paths_only
+
 class Recorder:
     def __init__(self, record_path, recording_interval_s, max_size_mb, stream, port=8080, stream_width=240,
                  stream_height=160, stream_quality=30, stream_buffer=10000):
@@ -122,9 +150,6 @@ class Recorder:
             if file.endswith('.h264'):
                 os.remove(os.path.join(self.record_path, file))
 
-    def getKey(self, item):
-        return item[0]
-
     # size in bytes
     def get_size(self, start_path = '.'):
         total_size = 0
@@ -136,37 +161,13 @@ class Recorder:
                     total_size += os.path.getsize(fp)
         return total_size
 
-    def get_number_file(self, file):
-        # dashcam_video_0.ext
-        num_str = file.split('.')[-2].split('_')[-1]
-        num = int(num_str)
-        return num
-
-    def get_sorted_video_paths(self):
-        file_paths = []
-        for file in os.listdir(self.record_path):
-            if file.endswith('.mp4') or file.endswith('.h264'):
-                extracted_num = self.get_number_file(file)
-                # store as tuples
-                file_paths.append((extracted_num, os.path.join(self.record_path, file)))
-
-        if len(file_paths) == 0:
-            empty_paths = []
-            return empty_paths
-
-        file_paths = sorted(file_paths, key=self.getKey)
-        paths_only = []
-        for path in file_paths:
-            paths_only.append(path[1])
-        return paths_only
-
     def get_video_num(self):
-        file_names = self.get_sorted_video_paths()
+        file_names = get_sorted_video_paths(self.record_path)
         if len(file_names) == 0:
             return 0
 
         most_recent_file = os.path.basename(file_names[-1])
-        extracted_num = self.get_number_file(most_recent_file)
+        extracted_num = get_number_file(most_recent_file)
 
         return extracted_num + 1
 
@@ -188,7 +189,6 @@ class Recorder:
                 print("DONE RECORDING " + record_name_path)
             self.wrapping_queue.put(record_name_path)
 
-
         if is_recording:
             self.camera.stop_recording()
         self.camera.close()
@@ -200,7 +200,7 @@ class Recorder:
         size_mb = self.get_size(self.record_path)/1000000
         if(size_mb > self.max_size_mb):
             file_paths = []
-            file_paths = self.get_sorted_video_paths()
+            file_paths = get_sorted_video_paths(self.record_path)
             if len(file_paths) == 0:
                 return
             # delete oldest

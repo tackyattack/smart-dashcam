@@ -117,7 +117,7 @@ class LaneTracker():
     def stop(self):
         self.shutdown_lane_tracking = True
 
-    def get_lane_stats(self):
+    def get_lane_status(self):
         return self.lane_departure
 
     def LR_peak_finder(self, lane_data, middle_point, edge_buffer):
