@@ -1,3 +1,12 @@
+# objs dir
+**/objs/**
+
+# Executables
+**exe**
+
+# ignore all vscode stuff
+**.vscode**
+
 ################## C/C++ ##################
 # Prerequisites
 *.d
@@ -15,7 +24,7 @@
 *.pch
 
 # Compiled Dynamic libraries
-*.so
+# *.so
 *.dylib
 *.dll
 
@@ -57,7 +66,7 @@ __pycache__/
 *$py.class
 
 # C extensions
-*.so
+# *.so
 
 # Distribution / packaging
 .Python
@@ -178,3 +187,9 @@ dmypy.json
 
 #Mac folder tracking junk
 .DS_Store
+*.h264
+*.mp4
+*.png
+*.jpg
+*.jpeg
+*.bmp
