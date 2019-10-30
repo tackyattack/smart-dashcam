@@ -42,6 +42,10 @@ class window_push_packet:
         self.view_class = view_class
         self.data = data
 
+class window_pop_packet:
+    def __init__(self, view_instance):
+        self.view_instance = view_instance
+
 class video_player_packet:
     def __init__(self, video_path, stream):
         self.video_path = video_path
@@ -174,7 +178,6 @@ class GUILaneWarningView(GUIView):
 
     def update(self):
         self.view_frame.pack_forget()
-        sleep(0.1)
         self.view_frame.pack()
 
 class GUIVideoPlayer(GUIView):
@@ -259,7 +262,9 @@ class GUIVideoPlayer(GUIView):
                 pass
 
         self.kill_player(self.player)
-        put_window_command(WINDOW_COMMAND_POP_VIEW, None)
+        # since this is not done by the user, it is best to pop this specific view
+        # since it might not be visible and could pop the lane warning, for example
+        put_window_command(WINDOW_COMMAND_POP_VIEW, window_pop_packet(view_instance=self))
 
     def exit_callback(self):
         self.running = False
@@ -367,10 +372,25 @@ class DashcamGUI:
             while not window_command_queue.empty():
                 window_command = window_command_queue.get(block=True)
                 if window_command[0] == WINDOW_COMMAND_POP_VIEW:
-                    self.windows_view_stack.pop().close_view()
-                    # if a view just got uncovered, tell it
-                    if(len(self.windows_view_stack) > 0):
-                        self.windows_view_stack[-1].is_visible()
+                    pop_index = None
+                    view_stack_sz = len(self.windows_view_stack)
+                    # if it wants to pop a speific view instance, find it
+                    if window_command[1] is not None:
+                        for i in range(view_stack_sz):
+                            if window_command[1].view_instance is self.windows_view_stack[i]:
+                                pop_index = i
+                    else:
+                        pop_index = view_stack_sz - 1
+
+                    if pop_index is not None:
+                        self.windows_view_stack[pop_index].close_view()
+                        del self.windows_view_stack[pop_index]
+                        # if a top view just got uncovered, tell it
+                        if (len(self.windows_view_stack) > 0) and (pop_index == view_stack_sz-1):
+                            self.windows_view_stack[-1].is_visible()
+                    else:
+                        print("error: pop index not found")
+
                 if window_command[0] == WINDOW_COMMAND_PUSH_VIEW:
                     new_view = None
                     if window_command[1].view_class == GUIMainView:

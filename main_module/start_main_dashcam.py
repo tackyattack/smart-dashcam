@@ -138,8 +138,9 @@ class MainModule:
             raise
 
     def application_thread(self):
-        #lane_process = LaneDetectionProcess(self.lane_alert)
         gui_ready = False
+        #sleep(5)
+        #self.dash_gui.show_lane_warning()
 
         # wait for GUI to be ready
         while self.running and not self.gui_has_init:
