@@ -23,6 +23,10 @@
    ```sh
    sudo apt install libdbus-1-dev libdbus-glib-1-dev
    ```
+8. Run setup script in smart-dashcam root directory
+   ```sh
+   ./setup.py --aux_unit
+   ```
 
 
  # Raspbian Setup Instructions for RPi 3
@@ -32,10 +36,9 @@ sudo bash -c 'echo "net.ipv6.conf.wlan0.disable_ipv6 = 1" >> /etc/sysctl.conf'
 sysctl -p
 ```
 and use an ip address instead of hostname in the Networking/comm_tcp_interface/clients/comm_tcp_client.c in the SERVER_ADDR #define.
-
-2. ```sh
-   pip install PySimpleGUI27
-   pip install typing
+2. Run setup script in smart-dashcam root directory
+   ```sh
+   ./setup.py --main_unit
    ```
 
 
