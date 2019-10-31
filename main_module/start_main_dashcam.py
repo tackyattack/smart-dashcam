@@ -121,6 +121,7 @@ class MainModule:
         self.dash_gui.add_event_callback('calibrate', self.calibrate_callback)
         self.dash_gui.add_event_callback('get_recordings_paths', self.get_recordings_paths_callback)
         self.dash_gui.add_event_callback('get_cameras', self.get_cameras_callback)
+        self.dash_gui.add_event_callback('retrieval_mode', self.retrieval_mode_callback)
         self.gui_has_init = False
 
         self.app_thread = threading.Thread(target=self.application_thread)
@@ -162,6 +163,8 @@ class MainModule:
         self.lane_process.terminate()
         self.running = False
 
+    def retrieval_mode_callback(self):
+        print('mounting')
 
     def GUI_exit_callback(self):
         self.terminate_modules()

@@ -20,7 +20,8 @@ registered_callbacks = {
 'exit_gui': None,
 'gui_has_init': None,
 'get_recordings_paths': None,
-'get_cameras': None
+'get_cameras': None,
+'retrieval_mode': None
 }
 
 
@@ -276,6 +277,30 @@ class GUIVideoPlayer(GUIView):
         self.covered = False
 
 
+class GUISettingsView(GUIView):
+    def __init__(self):
+        super(GUISettingsView, self).__init__()
+        bf = ('Helvetica', '15', 'bold')
+        width=22
+        height=1
+        tk.Button(self.view_frame, text='Back',
+                 bg='red', activebackground='red',activeforeground='white', fg='white',
+                 font=bf,
+                 width=width, height=height, command=self.exit_callback).pack()
+
+        tk.Button(self.view_frame, text='Recordings Retrieval Mode',
+                 bg='green', activebackground='green',activeforeground='white', fg='white',
+                 font=bf,
+                 width=30, height=2, command=self.retrieval_mode_pressed).pack(pady=(50, 0))
+
+    def retrieval_mode_pressed(self):
+        print('mount pressed')
+        registered_callbacks['retrieval_mode']()
+
+    def exit_callback(self):
+        put_window_command(WINDOW_COMMAND_POP_VIEW, None)
+
+
 class GUIMainView(GUIView):
     def __init__(self):
         super(GUIMainView, self).__init__()
@@ -309,7 +334,7 @@ class GUIMainView(GUIView):
         put_window_command(WINDOW_COMMAND_PUSH_VIEW, window_push_packet(view_class=GUICameraListView, data=None))
 
     def settings_callback(self):
-        print('settings')
+        put_window_command(WINDOW_COMMAND_PUSH_VIEW, window_push_packet(view_class=GUISettingsView, data=None))
 
     def is_visible(self):
         registered_callbacks['gui_has_init']()
@@ -403,6 +428,9 @@ class DashcamGUI:
                         new_view = self.lane_warning_view_setup()
                     if window_command[1].view_class == GUIVideoPlayer:
                         new_view = self.video_player_view_setup(window_command[1].data)
+                    if window_command[1].view_class == GUISettingsView:
+                        new_view = self.settings_view_setup()
+
                     # if there's a view that's about to get covered, tell it
                     if(len(self.windows_view_stack) > 1):
                         self.windows_view_stack[-1].is_not_visible()
@@ -448,6 +476,9 @@ class DashcamGUI:
 
     def lane_warning_view_setup(self):
         return GUILaneWarningView()
+
+    def settings_view_setup(self):
+        return GUISettingsView()
 
     def video_player_view_setup(self, video_player_packet):
         return GUIVideoPlayer(video_path=video_player_packet.video_path, stream=video_player_packet.stream)
