@@ -8,6 +8,7 @@ import sys
 from multiprocessing import Process
 from multiprocessing import Queue as ProcessQueue
 import Queue
+import RPi.GPIO as GPIO
 
 script_path = os.path.dirname(os.path.abspath(__file__))
 record_path = os.path.join(script_path, 'recordings')
@@ -25,8 +26,8 @@ max_recording_folder_size_mb = 100
 # how many of the most recent files to display
 max_files_to_display = 50
 
-
-#dash_gui.show_lane_warning()
+# turn signal pin for lane detection
+TURN_SIGNAL_PIN = 37
 
 class ProcessMessage:
     def __init__(self, cmd, data):
@@ -39,6 +40,11 @@ class LaneDetectionProcess:
     LANE_CALIBRATE = 3
 
     def __init__(self, lane_departure_callback):
+
+        GPIO.setwarnings(False) # Ignore warning for now
+        GPIO.setmode(GPIO.BOARD) # Use physical pin numbering
+        GPIO.setup(TURN_SIGNAL_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN) # Set pin 10 to be an input pin
+                                                                         # and set initial value to be pulled low (off)
 
         self.lane_departure_callback = lane_departure_callback
         self.running = False
@@ -152,8 +158,10 @@ class MainModule:
             sleep(1)
 
     def lane_alert(self):
-        #self.dash_gui.show_lane_warning()
-        pass
+        # only show lane warning if turn signal is off
+        if GPIO.input(TURN_SIGNAL_PIN) == GPIO.LOW:
+            self.dash_gui.show_lane_warning()
+            pass
 
     def gui_init(self):
         self.gui_has_init = True
