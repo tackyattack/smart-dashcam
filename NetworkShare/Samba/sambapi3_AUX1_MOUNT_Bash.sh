@@ -7,8 +7,6 @@ then
     echo "Failed to Mount, directory already exists!"
 else
     sudo mkdir -p /Recordings/$dir
-    
-sudo mount -t cifs //$IP/sambashare /Recordings/$dir
-
-echo "Mounted $dir Drive"
+    sudo mount -t cifs //$IP/sambashare /Recordings/$dir -o guest
+    echo "Mounted $dir Drive"
 fi
