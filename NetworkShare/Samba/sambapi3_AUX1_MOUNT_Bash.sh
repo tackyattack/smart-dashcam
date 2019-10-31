@@ -1,5 +1,14 @@
 # Mount Shared piZero Drive
-sudo mkdir Aux1_Recordings
-sudo mount -t cifs //192.168.200.2/sambashare ~/Aux1_Recordings
+IP="$1"
+dir="$2"
 
-echo "Mounted Aux1_Recordings Drive"
+if [ -d "/Recordings/$dir" ]
+then
+    echo "Failed to Mount, directory already exists!"
+else
+    sudo mkdir -p /Recordings/$dir
+    
+sudo mount -t cifs //$IP/sambashare /Recordings/$dir
+
+echo "Mounted $dir Drive"
+fi
