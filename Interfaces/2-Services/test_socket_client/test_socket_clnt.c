@@ -1,7 +1,4 @@
-/* This file is compiled and run as the DBUS server system service for the dashcam project.
-    The DBUS server handles all debus connections for the project including TCP/IP access, GPS sensor access,
-    and accelerometer access. For information on the different interfaces, see the Networking/DBUS/pub_dbus_srv.h
-    file in the server_introspection_xml static variable. Use the pub_dbus_*_clnt.h files for access dbus interfaces */
+/* This file is compiled and run as a test program for the socket libraries. This test program operates as a test for the client side of a socket connection */
 
 
 /*-------------------------------------
@@ -162,18 +159,22 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
+    sleep(2);
 
-
-    printf("\n-----Killing client: Expect disconnect callback-----\n\t-----and a message saying lost connection to server-----\n");
     /* Kill client */
     if( true == socket_client_is_executing())
     {
+        printf("\n-----Killing client: Expect disconnect callback-----\n\t-----and a message saying lost connection to server-----\n");
         socket_client_quit();
         sleep(2);
         if( false == socket_client_is_executing())
         {
             printf("Client Thread killed.\n");
         }
+    }
+    else
+    {
+        printf("\n-----socket client: unexpectedly disconnected/exited execute loop-----\n");
     }
 
     return 0;

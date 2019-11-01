@@ -41,7 +41,7 @@ LIB_DIR=$(COMMON_LIB_DIR)
 OBJS=objs/
 
 # Compiler Flags
-CFLAGS=$(GLOBAL_CFLAGS)
+CFLAGS=$(GLOBAL_CFLAGS) -pthread
 
 # Compilers
 CC=gcc

@@ -73,7 +73,7 @@ int socket_server_init( char* port, socket_lib_srv_rx_msg rx_callback, socket_li
  * 
  * Blocking Function
  *
- * Thread Safe for messages smaller than MAX_MSG_SZ
+ * Thread Safe
  */
 int socket_server_send_data_all( const char* data, const unsigned int data_sz );
 
@@ -87,7 +87,7 @@ int socket_server_send_data_all( const char* data, const unsigned int data_sz );
  *
  * Blocking Function
  *
- * Thread Safe for messages smaller than MAX_MSG_SZ
+ * Thread Safe
  */
 int socket_server_send_data( const char* uuid, const char* data, unsigned int data_sz );
 

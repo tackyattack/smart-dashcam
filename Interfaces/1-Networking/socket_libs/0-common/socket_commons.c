@@ -5,8 +5,10 @@
 #include "pub_socket_commons.h"
 #include "prv_socket_commons.h"
 
-
-
+/*-------------------------------------
+|           STATIC VARIABLES           |
+--------------------------------------*/
+pthread_mutex_t mutex_sendData = PTHREAD_MUTEX_INITIALIZER;
 
 /*-------------------------------------
 |         FUNCTION DEFINITIONS         |
@@ -511,6 +513,11 @@ int socket_send_data ( const int socket_fd, const char * data, const uint16_t da
     bytes_left_to_send = total_bytes_to_send;
 
 
+    /*-------------------------------------------------
+    |  FORCE THREADS TO ENTER THIS LOOP SYNCHRONOUSLY  |
+    --------------------------------------------------*/
+    pthread_mutex_lock(&mutex_sendData);
+
     /*----------------------------------
     |             SEND DATA             |
     ------------------------------------*/
@@ -589,6 +596,9 @@ int socket_send_data ( const int socket_fd, const char * data, const uint16_t da
         bytes_left_to_send -= bytes_sent;
         
     } /* For loop */
+
+    pthread_mutex_unlock(&mutex_sendData);
+
 
     /* Info print */
     putchar('\n');

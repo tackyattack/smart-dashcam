@@ -70,8 +70,9 @@ int process_recv_msg(const int socket_fd);
  * 
  * Note, data may be NULL and data_sz == 0 to send only the command
  * 
- * Note that calls to this are thread safe as long as the size of data is 
- *  less than MAX_MSG_SZ.
+ * Note that calls to this are thread safe.
+ * 
+ * Blocking Function
  * 
  * @Returns number of bytes sent or RETURN_FAILED or 0 if there's an error.
  */

@@ -12,7 +12,6 @@ static dbus_srv_id srv_id;     /* dbus server instance id */
 static pthread_mutex_t mutex_tcp_recv_msg = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t mutex_connect = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t mutex_disconnect = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t mutex_dbus_method_send_tcp_msg_callback = PTHREAD_MUTEX_INITIALIZER;
 
 
 /*-------------------------------------
@@ -114,23 +113,17 @@ bool dbus_method_send_tcp_msg_callback(const char* tcp_clnt_uuid, const char* da
 
     if( tcp_clnt_uuid == NULL || strlen(tcp_clnt_uuid) == 0 )
     {
-        pthread_mutex_lock(&mutex_dbus_method_send_tcp_msg_callback);
         if( 0 >= socket_server_send_data_all(data, data_sz) )
         {
-            pthread_mutex_unlock(&mutex_dbus_method_send_tcp_msg_callback);
             return false;
         }
-        pthread_mutex_unlock(&mutex_dbus_method_send_tcp_msg_callback);
     }
     else
     {
-        pthread_mutex_lock(&mutex_dbus_method_send_tcp_msg_callback);
         if( 0 >= socket_server_send_data(tcp_clnt_uuid, data, data_sz) )
         {
-            pthread_mutex_unlock(&mutex_dbus_method_send_tcp_msg_callback);
             return false;
         }
-        pthread_mutex_unlock(&mutex_dbus_method_send_tcp_msg_callback);
     }
 
     return true;

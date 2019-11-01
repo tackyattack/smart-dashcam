@@ -81,8 +81,7 @@ void socket_client_execute();
  * 
  * Note that data_sz should include the termination character if applicable.
  * 
- * Note that calls to this are thread safe as long as the size of data is 
- *  less than MAX_MSG_SZ.
+ * Note that calls to this are thread safe.
  * 
  * @Returns number of bytes sent or RETURN_FAILED or 0 if there's an error.
  */
