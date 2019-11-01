@@ -21,13 +21,17 @@
    ```sh
    sudo apt install python2.7 git build-essentials libdbus-1-dev libdbus-glib-1-dev uuid-dev 
    ```
-7. Setup TCP Interface service and Wi-Fi 
+7. Run setup script in smart-dashcam root directory on master branch
+   ```sh
+   ./setup.py --aux_unit
+   ```
+8. Setup TCP Interface service and Wi-Fi 
    1. Checkout branch dev/interfaces from repository and go into the *Interfaces* folder
    2. Setup, build, and setup pi for DBUS and socket libraries, and Wi-Fi with the following command:
       ```sh
       make setup build pi0_setup 
       ```
-8. Reboot system
+9. Reboot system
 
 
 # Raspbian Setup Instructions for RPi 3
@@ -36,6 +40,10 @@
    sudo apt install python2.7 git build-essentials libdbus-1-dev libdbus-glib-1-dev uuid-dev
    pip install PySimpleGUI27
    pip install typing
+   ```
+1. Run setup script in smart-dashcam root directory on master branch
+   ```sh
+   ./setup.py --main_unit
    ```
 1. Setup TCP Interface service and Wi-Fi 
    1. Disable IPv6 on the hosted Wi-Fi network interface with the following command:
@@ -48,7 +56,7 @@
       ```sh
       make setup build pi3_setup 
       ```
-2. Reboot system
+1. Reboot system
 
 
 # Alpine Linux Setup Instructions for RPi Zero W
@@ -57,6 +65,6 @@
     echo "net.ipv6.conf.wlan0.disable_ipv6 = 1" >> /etc/sysctl.conf
     sysctl -p
     ```
-    You may need to run the setup-interfaces script and reboot. Warning, you must run the script in its     entirety.
+    Warning, you must run the script in its entirety.
     Need to test to see if disabling ipv6 is necessary anymore. If so, should disable it on all interfaces.
-1. Need to install glib, git, cmake, and gcc for compiling code
+2. Install packages: glib, git, cmake, and gcc for compiling code and others that haven't been added.
