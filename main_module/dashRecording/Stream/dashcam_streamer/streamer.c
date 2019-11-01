@@ -402,7 +402,7 @@ pthread_t server_loop_thread_id;
 uint8_t chunk_buffer[CHUNK_SIZE];
 void *server_loop_thread(void *vargp)
 {
-  network_server_connect();
+  //network_server_connect();
   streaming_server_running = 1;
   while(streaming_server_running)
   {
