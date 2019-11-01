@@ -20,6 +20,13 @@ def run_cmd_in_path(cmd, path):
 if not args.main_unit and not args.aux_unit:
     raise Exception('You need to select type of unit to setup. Use -h for help.')
 
+
+# both zero and pi3 use the VideoCore dependencies
+print('\n\n ***** building VideoCore dependencies *****\n\n')
+build_path = '/opt/vc/src/hello_pi'
+cmd = 'sudo ./rebuild.sh'
+run_cmd_in_path(cmd, build_path)
+
 if args.main_unit:
     print('\n\n ***** building lane detection module *****\n\n')
     # build lane detection OGL library
@@ -29,13 +36,7 @@ if args.main_unit:
 
 # both zero and pi3 use the streaming module
 print('\n\n ***** building streaming module *****\n\n')
-build_path = os.path.join(root_path, 'main_unit/dashRecording/Stream')
-cmd = 'sudo ./rebuild.sh'
-run_cmd_in_path(cmd, build_path)
-
-# both zero and pi3 use the VideoCore dependencies
-print('\n\n ***** building VideoCore dependencies *****\n\n')
-build_path = '/opt/vc/src/hello_pi'
+build_path = os.path.join(root_path, 'main_module/dashRecording/Stream')
 cmd = 'sudo ./rebuild.sh'
 run_cmd_in_path(cmd, build_path)
 
