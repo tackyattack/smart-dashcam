@@ -48,7 +48,7 @@ int hostname_to_ip(const char * hostname , char* ip)
     {
         //Return the first one;
         strcpy(ip , inet_ntoa(*addr_list[i]) );
-        printf("Found IP address \"%s\" for hostname \"%s\"\n",ip,hostname);
+        printf("socket_commons: Found IP address \"%s\" for hostname \"%s\"\n",ip,hostname);
 
         /* Return successfully */
         return 0;
@@ -70,7 +70,7 @@ void socket_print_addrinfo(const struct addrinfo *addr)
     ------------------------------------*/
     if (getnameinfo(addr->ai_addr, addr->ai_addrlen, hbuf, sizeof(hbuf), sbuf, sizeof(sbuf), NI_NUMERICHOST | NI_NUMERICSERV) == 0)
     {
-        printf("host=%s, serv=%s\n", hbuf, sbuf);
+        printf("socket_commons: host=%s, serv=%s\n", hbuf, sbuf);
     }
 
 } /* socket_print_addrinfo() */
@@ -100,7 +100,7 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
     ------------------------------------*/
     if ((flags = fcntl(sock, F_GETFL, NULL)) < 0)
     {
-        fprintf(stderr, "Error fcntl(..., F_GETFL) (%s)\n", strerror(errno));
+        fprintf(stderr, "ERROR: socket_commons: fcntl(..., F_GETFL) (%s)\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
 
@@ -108,7 +108,7 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
 
     if (fcntl(sock, F_SETFL, flags) < 0)
     {
-        fprintf(stderr, "Error fcntl(..., F_SETFL) (%s)\n", strerror(errno));
+        fprintf(stderr, "ERROR: socket_commons: fcntl(..., F_SETFL) (%s)\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
 
@@ -139,7 +139,7 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
                 res = select(sock + 1, NULL, &myset, NULL, &tv);
                 if (res < 0 && errno != EINTR)
                 {
-                    fprintf(stderr, "Error connecting %d - %s\n", errno, strerror(errno));
+                    fprintf(stderr, "ERROR: socket_commons: failed connecting %d - %s\n", errno, strerror(errno));
                     exit(EXIT_FAILURE);
                 }
                 else if (res > 0)
@@ -148,14 +148,14 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
                     lon = sizeof(int);
                     if (getsockopt(sock, SOL_SOCKET, SO_ERROR, (void *)(&valopt), &lon) < 0)
                     {
-                        fprintf(stderr, "Error in getsockopt() %d - %s\n", errno, strerror(errno));
+                        fprintf(stderr, "ERROR: socket_commons: failed in getsockopt() %d - %s\n", errno, strerror(errno));
                         exit(EXIT_FAILURE);
                     }
 
                     // Check the value returned...
                     if (valopt)
                     {
-                        fprintf(stderr, "Error in delayed connection() %d - %s\n", valopt, strerror(valopt));
+                        fprintf(stderr, "ERROR: socket_commons: failed in delayed connection() %d - %s\n", valopt, strerror(valopt));
                         // exit(EXIT_FAILURE);
                         returnval = RETURN_FAILED;
                         break;
@@ -164,7 +164,7 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
                 }
                 else
                 {
-                    fprintf(stderr, "Timed out while attempting to connect to server!\n");
+                    fprintf(stderr, "ERROR: socket_commons: Timed out while attempting to connect to server!\n");
                     returnval = RETURN_FAILED;
                     break;
                     // exit(EXIT_FAILURE);
@@ -173,7 +173,7 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
         }
         else
         {
-            fprintf(stderr, "Error connecting %d - %s\n", errno, strerror(errno));
+            fprintf(stderr, "ERROR: socket_commons: failed connecting %d - %s\n", errno, strerror(errno));
             exit(EXIT_FAILURE);
         }
     }
@@ -184,7 +184,7 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
     ------------------------------------*/
     if ((flags = fcntl(sock, F_GETFL, NULL)) < 0)
     {
-        fprintf(stderr, "Error fcntl(..., F_GETFL) (%s)\n", strerror(errno));
+        fprintf(stderr, "ERROR: socket_commons: failed fcntl(..., F_GETFL) (%s)\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
 
@@ -192,7 +192,7 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
     
     if (fcntl(sock, F_SETFL, flags) < 0)
     {
-        fprintf(stderr, "Error fcntl(..., F_SETFL) (%s)\n", strerror(errno));
+        fprintf(stderr, "ERROR: socket_commons: failed fcntl(..., F_SETFL) (%s)\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
 
@@ -223,7 +223,7 @@ int server_bind(struct addrinfo *address_info_set)
         /* set server socket to allow multiple connections */  
         if( setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, (void *)&opt, sizeof(opt)) < 0 )   
         {   
-            perror("server_bind(): setsockopt error");   
+            perror("ERROR: socket_commons: server_bind(): setsockopt error");   
             exit(EXIT_FAILURE);   
         }   
 
@@ -241,7 +241,7 @@ int server_bind(struct addrinfo *address_info_set)
     ------------------------------------*/
     if (i == NULL)
     {
-        fprintf(stderr, "Could not bind\n");
+        fprintf(stderr, "ERROR: socket_commons: Could not bind\n");
         return RETURN_FAILED;
     }
 
@@ -281,7 +281,7 @@ int client_connect(struct addrinfo *address_info_set)
     ------------------------------------*/
     if (i == NULL)
     {
-        fprintf(stderr, "Could not open socket\n");
+        fprintf(stderr, "ERROR: socket_commons: Could not open socket\n");
         return RETURN_FAILED;
     }
 
@@ -340,7 +340,7 @@ int socket_create_socket( char* port, enum SOCKET_TYPES socket_type,  const char
     if ( err != 0 )
     {
         fprintf(stderr, "%s: %s\n", addr, gai_strerror(err));
-        perror("ERROR: host/client address not valid");
+        perror("WARNING: socket_commons: host/client address not valid");
         return RETURN_FAILED;
     }
 
@@ -402,8 +402,7 @@ remove_msg_header(char *buffer, int buffer_sz, int *contained_msg_sz)
     }
     else /* Not valid */
     {
-        /* Info print */
-        printf("Received invalid message!\n");
+        printf("WARNING: socket_commons: Received invalid message!\n"); /* Info print */
         *contained_msg_sz = -1;
         return RETURN_FAILED;
     }
@@ -433,7 +432,6 @@ remove_msg_header(char *buffer, int buffer_sz, int *contained_msg_sz)
 enum SOCKET_RECEIVE_DATA_FLAGS \
 socket_receive_data( const int socket_fd, char* buffer, const size_t buffer_sz, int *received_bytes )
 {
-    //TODO see if data received is broken into MAX_MSG_SZ chucks or is received in its entirety
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
@@ -451,7 +449,7 @@ socket_receive_data( const int socket_fd, char* buffer, const size_t buffer_sz, 
     {
         /* Read error. */
         fprintf (stderr, "errno = %d ", errno);
-        perror("read");
+        perror("ERROR: socket_commons: failed to recv data");
         return RECV_DISCONNECT;
     }
     else if (bytes_read == 0)
@@ -466,7 +464,7 @@ socket_receive_data( const int socket_fd, char* buffer, const size_t buffer_sz, 
     }
 
     /* Info print */
-    printf ("Received %zd bytes of raw data: ", bytes_read);
+    printf ("ERROR: socket_commons: Received %zd bytes of raw data: ", bytes_read);
     putchar('0');
     putchar('x');
     for (ssize_t i = 0; i < bytes_read; i++) {
@@ -578,12 +576,12 @@ int socket_send_data ( const int socket_fd, const char * data, const uint16_t da
         /* Verify bytes were sent */
         if ( bytes_sent != bytes_to_send )
         {
-            perror("ERROR: Failed to send data.");
+            perror("ERROR: socket_commons: Failed to send data.");
             return RETURN_FAILED;
         }
 
         /* Info print */
-        printf ("Sent %d bytes of data: ", bytes_sent);
+        printf ("socket_commons: Sent %d bytes of data: ", bytes_sent);
         putchar('0');
         putchar('x');
         for (int i = 0; i < bytes_to_send; i++) {
@@ -595,21 +593,22 @@ int socket_send_data ( const int socket_fd, const char * data, const uint16_t da
         all_sent_bytes += bytes_sent;
         bytes_left_to_send -= bytes_sent;
         
-    } /* For loop */
+    } /* For loop ... send data ... each loop == one 'packet' of size MAX_MSG_SZ */
 
+    /*-------------------------------------
+    |  ALLOW NEW CALL TO ENTER SENDING FOR LOOP  |
+    --------------------------------------*/
     pthread_mutex_unlock(&mutex_sendData);
 
-
-    /* Info print */
-    putchar('\n');
+    putchar('\n'); /* Info print */
 
     /*----------------------------------
     |        VERIFY DATA WAS SENT       |
     ------------------------------------*/
     if ( all_sent_bytes != total_bytes_to_send )
     {
-        printf("ERROR: sent %u of %u bytes\n", all_sent_bytes, total_bytes_to_send);
-        perror("ERROR");
+        printf("ERROR: socket_commons: sent %u of %u bytes\n", all_sent_bytes, total_bytes_to_send);
+        perror("ERROR: socket_commons");
         return RETURN_FAILED;
     }
 

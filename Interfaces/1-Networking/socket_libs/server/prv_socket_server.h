@@ -7,7 +7,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-
 #include <errno.h>
 
 #include <unistd.h>
@@ -27,7 +26,6 @@
 /*-------------------------------------
 |           PRIVATE STRUCTS            |
 --------------------------------------*/
-
 struct client_info
 {
     int fd;
@@ -42,6 +40,7 @@ struct client_info
 /*-------------------------------------
 |    PRIVATE FUNCTION DECLARATIONS     |
 --------------------------------------*/
+
 
 /**
  * Handle signal interupt by safely shutting down server (ctrl + c)
@@ -88,10 +87,9 @@ struct client_info* find_client_by_uuid(const char* uuid);
  * 
  * Note that data_sz should include the termination character if applicable.
  * 
- * Note, data may be NULL and data_sz == 0 to send only the command
+ * Note, data may be NULL and data_sz == 0 to send only the/a command
  * 
- * Note that calls to this are thread safe as long as the size of data is 
- *  less than MAX_MSG_SZ.
+ * Note that calls to this are thread safe.
  * 
  * @Returns number of bytes sent or RETURN_FAILED or 0 if there's an error.
  */
@@ -104,10 +102,9 @@ int send_data ( const char* uuid, const uint8_t command, const char * data, uint
  * 
  * Note that data_sz should include the termination character if applicable.
  * 
- * Note, data may be NULL and data_sz == 0 to send only the command
+ * Note, data may be NULL and data_sz == 0 to send only the/a command
  * 
- * Note that calls to this are thread safe as long as the size of data is 
- *  less than MAX_MSG_SZ.
+ * Note that calls to this are thread safe.
  * 
  * @Returns number of bytes sent or RETURN_FAILED or 0 if there's an error.
  */
@@ -122,7 +119,7 @@ int send_data_all ( const uint8_t command, const char * data, uint data_sz );
  * 
  * Blocking Function
  */
-int handle_conn_request();
+int handle_conn_request( void );
 
 /**
  * Given a client's fd, processes any received messages from 
@@ -133,7 +130,7 @@ int handle_conn_request();
  * 
  * Blocking Function
  */
-int process_recv_msg(int client_fd);
+int process_recv_msg( int client_fd );
 
 /**
  * Given a socket fd set, checks if messages have been received 

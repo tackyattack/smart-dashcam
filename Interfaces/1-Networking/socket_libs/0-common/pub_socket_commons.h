@@ -66,29 +66,29 @@ enum SOCKET_OWNER
 /* Define shortnames for Address families. Additional types in socket.h */
 enum CONN_TYPES
 {
-    CONN_TYPE_IPV4          = AF_INET,             /* Use explicitly IPV4 */
-    CONN_TYPE_IPV6          = AF_INET6,            /* Use explicitly IPV6 */
-    CONN_TYPE_IPV_ANY       = AF_UNSPEC,           /* Use either IPV4 or IPV6, but neither explicitly */
-    CONN_TYPE_LOCAL         = PF_LOCAL,            /* Local loopback connection only. Used for things like inter-process communication */
-    DEFAULT_CONN_TYPE       = CONN_TYPE_IPV_ANY    /* Default connection type (address family) to use */
+    CONN_TYPE_IPV4          = AF_INET,          /* Use explicitly IPV4 */
+    CONN_TYPE_IPV6          = AF_INET6,         /* Use explicitly IPV6 */
+    CONN_TYPE_IPV_ANY       = AF_UNSPEC,        /* Use either IPV4 or IPV6, but neither explicitly */
+    CONN_TYPE_LOCAL         = PF_LOCAL,         /* Local loopback connection only. Used for things like inter-process communication */
+    DEFAULT_CONN_TYPE       = CONN_TYPE_IPV_ANY /* Default connection type (address family) to use */
 };
 
 /* Define shortnames for Protocol families. Additional families found in socket.h */
 enum SOCKET_TYPES
 {
-    SOCKET_TYPE_TCP         = SOCK_STREAM,       /* TCP */
-    SOCKET_TYPE_UDP         = SOCK_DGRAM,        /* UDP. Note code isn't setup to support this */
-    DEFAULT_SOCKET_TYPE     = SOCKET_TYPE_TCP    /* Default connection type (address family) to use */
+    SOCKET_TYPE_TCP         = SOCK_STREAM,      /* TCP */
+    SOCKET_TYPE_UDP         = SOCK_DGRAM,       /* UDP. Note code isn't setup to support this */
+    DEFAULT_SOCKET_TYPE     = SOCKET_TYPE_TCP   /* Default connection type (address family) to use */
 };
 
 /* Flags used/returned by socket_receive_data() function */
 enum SOCKET_RECEIVE_DATA_FLAGS
 {
-    RECV_DISCONNECT = -2,               /* Indicates a disconnect/connection loss */
-    RECV_ERROR      = RETURN_FAILED,    /* Indicates an error with message headers */
-    RECV_NO_FLAGS   = RETURN_SUCCESS,   /* Indicates no flags/no information */
-    RECV_SEQUENCE_CONTINUE,             /* Indicates a message received is part of a sequence of messages and more are expected */
-    RECV_SEQUENCE_END                   /* Indicates a message received is part of a sequence of messages and no more are expected */
+    RECV_DISCONNECT         = -2,               /* Indicates a disconnect/connection loss */
+    RECV_ERROR              = RETURN_FAILED,    /* Indicates an error with message headers */
+    RECV_NO_FLAGS           = RETURN_SUCCESS,   /* Indicates no flags/no information */
+    RECV_SEQUENCE_CONTINUE,                     /* Indicates a message received is part of a sequence of messages and more are expected */
+    RECV_SEQUENCE_END                           /* Indicates a message received is part of a sequence of messages and no more are expected */
 };
 
 /*-------------------------------------
@@ -112,7 +112,7 @@ void socket_print_addrinfo( const struct addrinfo *addr );
  * 
  * @Returns the socket or RETURN_FAILED if failed.
  */
-int socket_create_socket (char* port, enum SOCKET_TYPES socket_type,  const char *addr, enum SOCKET_OWNER type_serv_client );
+int socket_create_socket (char* port, enum SOCKET_TYPES socket_type, const char *addr, enum SOCKET_OWNER type_serv_client );
 
 /**
  * Given a socket file descriptor and buffer, receives data from socket up to
@@ -136,8 +136,7 @@ socket_receive_data( const int socket_fd, char* buffer, const size_t buffer_sz, 
  * 
  * Note that data_sz should include the termination character if applicable.
  * 
- * Note that calls to this are thread safe as long as the size of data is 
- *  less than MAX_MSG_SZ.
+ * Note that calls to this are thread safe.
  * 
  * @Returns number of bytes sent or RETURN_FAILED or 0 if there's an error.
  */
