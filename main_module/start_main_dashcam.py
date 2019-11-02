@@ -129,7 +129,7 @@ class LaneDetectionProcess:
 class MainModule:
 
     def __init__(self):
-
+        self.finder = Discover.DeviceFinder()
 
         self.dash_gui = gui.DashcamGUI(init_callback=self.gui_init, exit_callback=self.GUI_exit_callback)
         self.dash_gui.add_event_callback('calibrate', self.calibrate_callback)
@@ -137,8 +137,6 @@ class MainModule:
         self.dash_gui.add_event_callback('get_cameras', self.get_cameras_callback)
         self.dash_gui.add_event_callback('retrieval_mode', self.retrieval_mode_callback)
         self.gui_has_init = False
-
-        self.finder = Discover.DeviceFinder()
 
         self.app_thread = threading.Thread(target=self.application_thread)
         self.running = True

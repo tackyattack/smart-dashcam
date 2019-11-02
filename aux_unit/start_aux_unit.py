@@ -18,6 +18,9 @@ DEBUG_PROGRAM = False
 RECORD_WIDTH = 1296
 RECORD_HEIGHT = 730
 
+STREAM_WIDTH = 240
+STREAM_HEIGHT = 160
+
 # record interval in seconds
 record_interval = 10
 # maximum size of recording folder in MB
@@ -30,11 +33,13 @@ stream_port = 8080
 class AuxModule:
 
     def __init__(self):
+        self.finder = Discover.DeviceFinder(stream_port)
+
         self.recorder = DashcamRecorder.Recorder(record_path=record_path, record_width=RECORD_WIDTH,
                                                  record_height=RECORD_HEIGHT, recording_interval_s=record_interval,
-                                                 max_size_mb=max_recording_folder_size_mb, stream=True, port=stream_port)
+                                                 max_size_mb=max_recording_folder_size_mb, stream=True, port=stream_port,
+                                                 stream_width=STREAM_WIDTH, stream_height=STREAM_HEIGHT)
         self.recorder.start_recorder()
-        self.finder = Discover.DeviceFinder(stream_port)
 
     def terminate(self):
         self.recorder.terminate()

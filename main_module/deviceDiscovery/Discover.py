@@ -2,6 +2,8 @@
 import ctypes
 from time import sleep
 import socket
+import os
+import signal
 
 EXIT_SUCCESS = 0
 EXIT_FAILURE= 1
@@ -73,20 +75,29 @@ class AuxDevice:
 class DiscoverMixin(object):
     def __init__(self):
         self.running = True
+        self.dbus_connected = False
         self.id = tcp_dbus_client_create()
 
         val = -1
         server_version = ctypes.POINTER(ctypes.c_char_p)()
-        while((val != EXIT_SUCCESS) and self.running):
+        timeout = 5
+        while((val != EXIT_SUCCESS) and self.running and (timeout>0)):
             val = tcp_dbus_client_init(self.id, server_version)
             if val == EXIT_FAILURE:
                 raise Exception('Failed to initialize client!')
             sleep(1)
+            timeout = timeout - 1
+
+
+        if timeout == 0:
+            self.terminate()
+            return
 
         # IMPORTANT: callback must be assigned to variable so that it doesn't get
         #            garbage collected and cause segfault
         self.rx_callback = self.getRxCallbackFunc()
         tcp_dbus_client_Subscribe2Recv(self.id, DBUS_TCP_RECV_SIGNAL, self.rx_callback)
+        self.dbus_connected = True
 
     # Note: you must use closure to work with ctypes
     def getRxCallbackFunc(self):
@@ -101,9 +112,10 @@ class DiscoverMixin(object):
 
     def terminate(self):
         self.running = False
-        tcp_dbus_client_UnsubscribeRecv(self.id, DBUS_TCP_RECV_SIGNAL)
-        tcp_dbus_client_disconnect(self.id);
-        tcp_dbus_client_delete(self.id);
+        if self.dbus_connected:
+            tcp_dbus_client_UnsubscribeRecv(self.id, DBUS_TCP_RECV_SIGNAL)
+            tcp_dbus_client_disconnect(self.id);
+            tcp_dbus_client_delete(self.id)
 
 class DeviceFinder(DiscoverMixin):
     def __init__(self, stream_port=None):
