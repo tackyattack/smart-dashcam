@@ -121,6 +121,7 @@ uint32_t network_server_write(uint8_t *buf, uint32_t size)
   memcpy(send_packet+1, buf, size);
   while(!data_sent)
   {
+    printf("waiting on v request\n");
     sem_wait(&viewer_command);
     pthread_mutex_lock(&server_mutex);
     if(start_command)
@@ -132,7 +133,8 @@ uint32_t network_server_write(uint8_t *buf, uint32_t size)
     }
     else if(video_packet_command)
     {
-      tcp_dbus_send_msg(server_id, NULL, send_packet, size+1);
+      int ret = tcp_dbus_send_msg(server_id, NULL, send_packet, size+1);
+      if(ret == 0) printf("failed to send\n");
       video_packet_command = 0;
       data_sent = 1;
     }
@@ -212,7 +214,11 @@ uint32_t network_client_recv(uint8_t *buf, uint32_t sz)
   printf("enter client recv\n");
   char frame_request_msg[1];
   frame_request_msg[0] = 'v';
-  tcp_dbus_send_msg(client_id, NULL, frame_request_msg, 1);
+  int ret = tcp_dbus_send_msg(client_id, NULL, frame_request_msg, 1);
+  if(ret == 0)
+  {
+    printf("failed to send\n");
+  }
   printf("waiting for more\n");
   sem_wait(&new_frame);
   //if(client_recv_packet_sz < 1) return -1;
