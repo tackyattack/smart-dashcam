@@ -34,6 +34,9 @@ class AuxModule:
 
     def __init__(self):
         self.finder = Discover.DeviceFinder(stream_port)
+        if not self.finder.connect(timeout=5):
+            print('Failed to start device discovery')
+
 
         self.recorder = DashcamRecorder.Recorder(record_path=record_path, record_width=RECORD_WIDTH,
                                                  record_height=RECORD_HEIGHT, recording_interval_s=record_interval,

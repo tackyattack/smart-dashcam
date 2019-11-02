@@ -47,12 +47,6 @@ class LaneDetectionProcess:
     LANE_CALIBRATE = 3
 
     def __init__(self, lane_departure_callback):
-
-        GPIO.setwarnings(False) # Ignore warning for now
-        GPIO.setmode(GPIO.BOARD) # Use physical pin numbering
-        GPIO.setup(TURN_SIGNAL_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN) # Set pin 10 to be an input pin
-                                                                         # and set initial value to be pulled low (off)
-
         self.lane_departure_callback = lane_departure_callback
         self.running = False
         self.out_queue = ProcessQueue()
@@ -129,7 +123,14 @@ class LaneDetectionProcess:
 class MainModule:
 
     def __init__(self):
+
+        GPIO.setwarnings(False) # Ignore warning for now
+        GPIO.setmode(GPIO.BOARD) # Use physical pin numbering
+        GPIO.setup(TURN_SIGNAL_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+
         self.finder = Discover.DeviceFinder()
+        if not self.finder.connect(timeout=5):
+            print('Failed to start device discovery')
 
         self.dash_gui = gui.DashcamGUI(init_callback=self.gui_init, exit_callback=self.GUI_exit_callback)
         self.dash_gui.add_event_callback('calibrate', self.calibrate_callback)
