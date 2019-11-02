@@ -45,7 +45,7 @@ static std::vector<char*> _connected_clients;
 
 static char msg_from_client__give_data = 0xFE;
 static char msg_to_client__request_data = 0xFF;
-static char msg__say_hi[] = "HI";
+static char msg_hi[] = "HI";
 
 
 
@@ -114,7 +114,7 @@ void tcp_clnt_connect_callback(const char* tcp_clnt_uuid, const char* data, unsi
     mutex_specific_clnt.unlock();
 
     /* Say hi to all clients by sending message to all clients. Ignore return value/if failed */
-    tcp_dbus_send_msg( id, NULL, msg__say_hi, strlen(msg__say_hi) );
+    tcp_dbus_send_msg( id, NULL, msg_hi, strlen(msg_hi) );
 
   	printf("\n****************END---client_connect---END****************\n\n");
 }
@@ -128,8 +128,8 @@ void tcp_clnt_disconnect_callback(const char* tcp_clnt_uuid, const char* data, u
     printf("Client disconnected -> UUID: %s\n", tcp_clnt_uuid);
 
     assert(tcp_clnt_uuid != NULL);
-    assert(data != NULL);
-    assert(data_sz != 0);
+    assert(data == NULL);
+    assert(data_sz == 0);
 
     /* remove client UUID from our list if exists */
     mutex_connected_clnt.lock();
@@ -239,7 +239,7 @@ void process_recv_data(msg_struct *msg)
         }
     }
     
-    if( strcmp(msg->data, msg__say_hi) == 0 )
+    if( strcmp(msg->data, msg_hi) == 0 )
     {
         printf("Client %s says HI!\n",msg->UUID.c_str() );
     }

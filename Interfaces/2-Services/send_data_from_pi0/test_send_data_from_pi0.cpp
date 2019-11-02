@@ -93,9 +93,9 @@ void tcp_disconnected_from_srv_cb(const char* tcp_clnt_uuid, const char* data, u
 
     printf("Disconnected from server\n");
 
-    assert(tcp_clnt_uuid != NULL);
-    assert(data != NULL);
-    assert(data_sz != 0);
+    assert(tcp_clnt_uuid == NULL);
+    assert(data == NULL);
+    assert(data_sz == 0);
 
     /* Update our connection status with server */
     mutex_connected_status.lock();
@@ -111,9 +111,10 @@ void tcp_disconnected_from_srv_cb(const char* tcp_clnt_uuid, const char* data, u
 void tcp_rx_data_callback(const char* tcp_clnt_uuid, const char* data, unsigned int data_sz)
 {
     printf("\n****************rx_data: callback activated.****************\n\n");
-    assert(tcp_clnt_uuid != NULL);
-    assert(data == NULL);
-    assert(data_sz == 0);
+
+    assert( strcmp(tcp_clnt_uuid, (char*)"SERVER" ) == 0 );
+    assert(data != NULL);
+    assert(data_sz != 0);
 
     /*-------------------------------------
     |        SET CONNECTION STATUS         |
