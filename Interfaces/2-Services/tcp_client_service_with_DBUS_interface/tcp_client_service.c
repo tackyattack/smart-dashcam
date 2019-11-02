@@ -92,7 +92,7 @@ bool dbus_method_send_tcp_msg_callback(const char* tcp_clnt_uuid, const char* da
     {
         printf("Client ID should be null or == \\0. Current it is %s \n",tcp_clnt_uuid);
     }
-    
+
     if( socket_client_is_executing() == false )
     {
         return false;
@@ -107,7 +107,7 @@ bool dbus_method_send_tcp_msg_callback(const char* tcp_clnt_uuid, const char* da
     pthread_mutex_unlock(&mutex_dbus_method_send_tcp_msg_callback);
 
     return true;
-    
+
   	printf("\n****************END---dbus_method_send_tcp_msg_callback---END****************\n\n");
 } /* dbus_method_send_tcp_msg_callback() */
 

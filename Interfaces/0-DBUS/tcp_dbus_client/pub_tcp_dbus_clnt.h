@@ -41,12 +41,15 @@ typedef uint8_t dbus_clnt_id;
  * When a socket message is received, the dbus server emits signal DBUS_TCP_RECV_SIGNAL. We catch 
  * that signal and call this callback with the socket message sender's uuid, data array, and the
  * size of the data array. tcp_clnt_uuid is a null terminated string, data contains the data received
- * from the tcp client, and data_sz is the size of data.
+ * from the tcp client, and data_sz is the size of data. For socket clients, tcp_clnt_uuid == "SERVER"
+ * because all received messages will always be from the socket server.
  * 
  * When a tcp server client connects or disconects, the dbus server emits signal DBUS_TCP_CONNECT_SIGNAL,
  * or DBUS_TCP_DISCONNECT_SIGNAL. We catch these signals after having subscribed to them and when one
  * is caught, this callback is called with the uuid (tcp_clnt_uuid) of the client that
- * connected/disconnected. tcp_clnt_uuid is a null terminated string, data == NULL, and data_sz == 0.
+ * connected/disconnected. tcp_clnt_uuid is a null terminated string, data == NULL, and data_sz == 0 for
+ * all signals received via this callback. data and data_sz are not used for these 2 signals but were left
+ * in this callback for simplicity.
  */
  typedef void (*tcp_rx_signal_callback)(const char* tcp_clnt_uuid, const char* data, unsigned int data_sz);
 

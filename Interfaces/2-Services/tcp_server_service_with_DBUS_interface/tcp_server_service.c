@@ -84,10 +84,10 @@ void tcp_client_disconnect(const char* uuid)
 
     // printf("Client disconnected -> UUID: %s\n", uuid);
     pthread_mutex_lock(&mutex_disconnect);
-    if ( 0 != tcp_dbus_srv_emit_connect_signal(srv_id, uuid) )
+    if ( 0 != tcp_dbus_srv_emit_disconnect_signal(srv_id, uuid) )
     {
         pthread_mutex_unlock(&mutex_disconnect);
-        printf("ERROR: raising signal tcp_dbus_srv_emit_connect_signal() FAILED!\n");
+        printf("ERROR: raising signal tcp_dbus_srv_emit_disconnect_signal() FAILED!\n");
         exit(EXIT_FAILURE);
     }
     pthread_mutex_unlock(&mutex_disconnect);
