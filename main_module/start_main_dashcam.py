@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import gui
 from dashRecording import DashcamRecorder
+from deviceDiscovery import Discover
 from time import sleep
 import os
 import threading
@@ -16,6 +17,12 @@ sys.path.append(os.path.join(script_path, '../Lane_Detection/src/pilanes'))
 import LaneVision
 
 # TODO: turn off streaming of localhost once you're done debugging since it's not needed
+
+# https://picamera.readthedocs.io/en/release-1.12/fov.html
+# very important to get height/width right to not kill CPU/GPU for resizing
+# pay attention to camera V1 or V2
+RECORD_WIDTH = 1640
+RECORD_HEIGHT = 922
 
 DEBUG_PROGRAM = False
 
@@ -60,7 +67,8 @@ class LaneDetectionProcess:
     def LaneProcess(self):
         # Note: recorder and lane modules must live in the same process since the camera
         #       is shared between the two
-        self.recorder = DashcamRecorder.Recorder(record_path=record_path, recording_interval_s=record_interval,
+        self.recorder = DashcamRecorder.Recorder(record_path=record_path, record_width=RECORD_WIDTH,
+                                                 record_height=RECORD_HEIGHT, recording_interval_s=record_interval,
                                                  max_size_mb=max_recording_folder_size_mb, stream=True)
         self.camera = self.recorder.get_camera()
         self.recorder.start_recorder()
@@ -130,6 +138,8 @@ class MainModule:
         self.dash_gui.add_event_callback('retrieval_mode', self.retrieval_mode_callback)
         self.gui_has_init = False
 
+        self.finder = Discover.DeviceFinder()
+
         self.app_thread = threading.Thread(target=self.application_thread)
         self.running = True
 
@@ -169,6 +179,7 @@ class MainModule:
     def terminate_modules(self):
         # terminate any modules here
         self.lane_process.terminate()
+        self.finder.terminate()
         self.running = False
 
     def retrieval_mode_callback(self):
@@ -197,7 +208,9 @@ class MainModule:
         return paths
 
     def get_cameras_callback(self):
-        return [('tcp://192.168.0.152:8080', 'camera 1'), ('tcp://131.151.175.144:8080', 'camera 2')]
+        cameras = self.finder.get_aux_devices(1)
+        print(cameras)
+        return cameras
 
 # start up
 main_module = MainModule()
