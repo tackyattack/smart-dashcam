@@ -72,11 +72,12 @@ class AuxDevice:
 
 class DiscoverMixin(object):
     def __init__(self):
+        self.running = True
         self.id = tcp_dbus_client_create()
 
         val = -1
         server_version = ctypes.POINTER(ctypes.c_char_p)()
-        while(val != EXIT_SUCCESS):
+        while((val != EXIT_SUCCESS) and self.running):
             val = tcp_dbus_client_init(self.id, server_version)
             if val == EXIT_FAILURE:
                 raise Exception('Failed to initialize client!')
@@ -99,6 +100,7 @@ class DiscoverMixin(object):
         print(tcp_clnt_uuid)
 
     def terminate(self):
+        self.running = False
         tcp_dbus_client_UnsubscribeRecv(self.id, DBUS_TCP_RECV_SIGNAL)
         tcp_dbus_client_disconnect(self.id);
         tcp_dbus_client_delete(self.id);
@@ -119,7 +121,8 @@ class DeviceFinder(DiscoverMixin):
 
     def tcp_rx_callback(self, tcp_clnt_uuid, data, data_sz):
         if 'discover' in data:
-            hostname_reply, sz = create_cstring('me:' + self.get_hostname())
+            hostname_port_packet = 'me:' + self.get_hostname() + ':' + str(self.stream_port)
+            hostname_reply, sz = create_cstring(hostname_port_packet)
             tcp_dbus_send_msg(self.id, null_ptr, hostname_reply, sz)
         if 'me:' in data:
             hostname = data[3:]
@@ -134,19 +137,21 @@ class DeviceFinder(DiscoverMixin):
         self.request_hostnames()
         device_list = []
         sleep(time_to_wait)
-        for hostname in self.hostnames:
+        for hostname_port in self.hostnames:
+            # 'tcp://192.168.0.152:8080'
+            hostname = ''.join(hostname_port.split(':')[:-1])
+            port = hostname_port.split(':')[-1]
             host_ip = socket.gethostbyname(hostname)
-            device = 'tcp://' + host_ip
-            if self.stream_port is not None:
-                device = device + ':' + str(self.stream_port)
-            device_list.append(device)
+            device = 'tcp://' + host_ip + ':' + port
+            device_list.append((device, hostname))
         return device_list
 
-
-finder = DeviceFinder(8080)
-try:
-    while True:
-        print(finder.get_aux_devices(1))
-        sleep(1)
-except KeyboardInterrupt:
-    finder.terminate()
+# test it
+if __name__ == "__main__":
+    finder = DeviceFinder(8080)
+    try:
+        while True:
+            print(finder.get_aux_devices(1))
+            sleep(1)
+    except KeyboardInterrupt:
+        finder.terminate()

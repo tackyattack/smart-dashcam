@@ -97,10 +97,10 @@ def get_sorted_video_paths(path):
     return paths_only
 
 class Recorder:
-    def __init__(self, record_path, recording_interval_s, max_size_mb, stream, port=8080, stream_width=240,
+    def __init__(self, record_path, record_width, record_height, recording_interval_s, max_size_mb, stream, port=8080, stream_width=240,
                  stream_height=160, stream_quality=30, stream_buffer=10000):
         self.camera = PiCamera()
-        self.camera.resolution = (1640, 922)
+        self.camera.resolution = (record_width, record_height)
         self.framerate = 20
         self.camera.framerate = self.framerate
         self.record_path = record_path
@@ -211,7 +211,7 @@ class Recorder:
 
     def wrapping_thread_func(self):
         while(not self.terminate_threads):
-            while not self.wrapping_queue.empty():
+            while not self.wrapping_queue.empty() and not self.terminate_threads:
                 # check if file is ready
                 file_to_wrap_path = self.wrapping_queue.get()
                 if(not self.silent):
@@ -224,10 +224,11 @@ class Recorder:
                 cmd = cmd_str.split()
                 subprocess.call(cmd, stdout=open(os.devnull, 'wb'), stderr=open(os.devnull, 'wb'))
                 os.remove(file_to_wrap_path)
+                self.check_reduce()
 
 
             self.check_reduce()
-            sleep(1.0) # give the CPU some time to do other stuff
+            sleep(0.1) # give the CPU some time to do other stuff
 
         if(not self.silent):
             print("wrapping thread closed")
@@ -240,6 +241,8 @@ def start_recording_command_line():
     parser.add_argument("-t", default=10, type=int, help='sets the recording interval between clips')
     parser.add_argument("-m", default=100, type=int, help='sets the max MB size of the record folder')
     parser.add_argument("-o", default='', help='sets the location for recordings folder')
+    parser.add_argument("-rw", default=640, type=int, help='sets the record width')
+    parser.add_argument("-rh", default=480, type=int, help='sets the record height')
     parser.add_argument("-sw", default=240, type=int, help='sets the stream width')
     parser.add_argument("-sh", default=160, type=int, help='sets the stream height')
     parser.add_argument("-sq", default=30, type=int, help='sets the stream quality (1:highest 40:lowest)')
@@ -249,7 +252,8 @@ def start_recording_command_line():
     args = parser.parse_args()
 
     record_path = os.path.join(args.o, 'recordings')
-    record_inst = Recorder(record_path=record_path, recording_interval_s=args.t,
+    record_inst = Recorder(record_path=record_path, record_width=args.rw, record_height=args.rh,
+                           recording_interval_s=args.t,
                            max_size_mb=args.m, stream=args.stream, port=args.p, stream_width=args.sw,
                            stream_height=args.sh, stream_quality=args.sq, stream_buffer=args.sb)
     record_inst.start_recorder()
