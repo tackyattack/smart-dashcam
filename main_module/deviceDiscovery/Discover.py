@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import ctypes
 from time import sleep
+import socket
 
 EXIT_SUCCESS = 0
 EXIT_FAILURE= 1
@@ -15,6 +16,8 @@ tcp_dbus_clnt_lib = ctypes.CDLL('libdashcam_tcp_dbus_clnt.so')
 
 # typedef void (*tcp_rx_signal_callback)(const char* tcp_clnt_uuid, const char* data, unsigned int data_sz);
 tcp_rx_signal_callback_type = ctypes.CFUNCTYPE(None, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_uint)
+
+null_ptr = ctypes.POINTER(ctypes.c_char)()
 
 # dbus_clnt_id tcp_dbus_client_create();
 tcp_dbus_client_create = tcp_dbus_clnt_lib.tcp_dbus_client_create
@@ -52,6 +55,15 @@ tcp_dbus_client_delete = tcp_dbus_clnt_lib.tcp_dbus_client_delete
 tcp_dbus_client_delete.argtypes = [ctypes.c_int]
 tcp_dbus_client_delete.restype = None
 
+def create_cstring(py_str):
+    str_list = list(py_str)
+    str_sz = len(str_list) + 1
+    cstr = (ctypes.c_char*str_sz)()
+    for i in range(str_sz-1):
+        cstr[i] = str_list[i]
+    cstr[str_sz-1] = '\0'
+    sz = ctypes.c_uint(str_sz)
+    return cstr, sz
 
 class AuxDevice:
     def __init__(self, hostname, ip):
@@ -92,33 +104,49 @@ class DiscoverMixin(object):
         tcp_dbus_client_delete(self.id);
 
 class DeviceFinder(DiscoverMixin):
-    def __init__(self):
+    def __init__(self, stream_port=None):
         super(DeviceFinder, self).__init__()
+        self.hostnames = set([])
+        self.stream_port = stream_port
 
-    def test_send(self):
-        while True:
-            null_ptr = ctypes.POINTER(ctypes.c_char)()
-            data = (ctypes.c_char*100)()
-            sz = ctypes.c_uint(100)
-            print(sz)
-            print(tcp_dbus_send_msg(self.id, null_ptr, data, sz))
-            sleep(1)
+    def get_hostname(self):
+        host_name = None
+        try:
+            host_name = socket.gethostname()
+        except:
+            print("unable to get hostname")
+        return host_name
 
+    def tcp_rx_callback(self, tcp_clnt_uuid, data, data_sz):
+        if 'discover' in data:
+            hostname_reply, sz = create_cstring('me:' + self.get_hostname())
+            tcp_dbus_send_msg(self.id, null_ptr, hostname_reply, sz)
+        if 'me:' in data:
+            hostname = data[3:]
+            self.hostnames.add(hostname)
 
     def request_hostnames(self):
-        pass
+        self.hostnames = set([])
+        discover_request, sz = create_cstring('discover')
+        tcp_dbus_send_msg(self.id, null_ptr, discover_request, sz)
 
-    def get_aux_devices(self):
-        pass
+    def get_aux_devices(self, time_to_wait):
+        self.request_hostnames()
+        device_list = []
+        sleep(time_to_wait)
+        for hostname in self.hostnames:
+            host_ip = socket.gethostbyname(hostname)
+            device = 'tcp://' + host_ip
+            if self.stream_port is not None:
+                device = device + ':' + str(self.stream_port)
+            device_list.append(device)
+        return device_list
 
 
-class AuxDeviceDiscoveryManager:
-
-    def __init__(self):
-        pass
-
-finder = DeviceFinder()
+finder = DeviceFinder(8080)
 try:
-    finder.test_send()
+    while True:
+        print(finder.get_aux_devices(1))
+        sleep(1)
 except KeyboardInterrupt:
     finder.terminate()
