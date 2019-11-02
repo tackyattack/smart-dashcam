@@ -1,5 +1,5 @@
-#ifndef COMMAND_CONTROL_H
-#define COMMAND_CONTROL_H
+#ifndef TEST_SEND_DATA_FROM_PI0_H
+#define TEST_SEND_DATA_FROM_PI0_H
 
 /*-------------------------------------
 |               INCLUDES               |
@@ -10,7 +10,7 @@
 #include <unistd.h> /* for sleep */
 #include <stdio.h>
 
-/* includes needed for server */
+/* includes needed to connect to tcp */
 #include <dashcam_dbus/pub_tcp_dbus_clnt.h>
 #include <dashcam_dbus/pub_dbus.h>
 
@@ -21,4 +21,4 @@
 
 
 
-#endif /* COMMAND_CONTROL_H */
+#endif /* TEST_SEND_DATA_FROM_PI0_H */

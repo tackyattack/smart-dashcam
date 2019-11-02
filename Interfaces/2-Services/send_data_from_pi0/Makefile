@@ -66,7 +66,7 @@ test_send_data: clean-all
     chmod 770 $(EXE)
 
 run: $(EXE)
-    @echo "\n -----------------Executing Command Control-----------------\n\n"
+    @echo "\n -----------------Executing Test Send Data to Pi 3 from Pi 0-----------------\n\n"
     ./$(EXE)
 
 # make setup will go through the setup process needed to compile/run code

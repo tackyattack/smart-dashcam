@@ -6,7 +6,7 @@
 |           PRIVATE INCLUDES           |
 --------------------------------------*/
 
-#include "test_recv_data.h"
+#include "test_send_data_from_pi0.h"
 #include <iostream>
 #include <fstream>
 #include <mutex>
@@ -20,10 +20,19 @@
 
 using namespace std;
 
+/*-------------------------------------
+|               DEFINES                |
+--------------------------------------*/
+#define DATA_SZ              (1000)
+#define STATUS_CONNECTED     (true)
+#define STATUS_NOT_CONNECTED (false)
+
+/*-------------------------------------
+|            MESSAGE STRUCT            |
+--------------------------------------*/
 /* struct is used for message processing and queueing of received messages */
 struct msg_struct
 {
-    std::string UUID;
     char* data;
     uint data_sz;
 };
@@ -32,21 +41,17 @@ struct msg_struct
 |           STATIC VARIABLES           |
 --------------------------------------*/
 static dbus_clnt_id id;
-static std::ofstream testFile;
+static char* data = NULL;
 
 static std::mutex mutex_queue;
 static std::queue<msg_struct*> data_queue;
 
-static std::mutex mutex_specific_clnt;
-static char* _specific_UUID = NULL;
+static std::mutex mutex_connected_status;
+static bool _connected_status = STATUS_NOT_CONNECTED;
 
-static std::mutex mutex_connected_clnt;
-static std::vector<char*> _connected_clients;
-
-static char msg_from_client__give_data = 0xFE;
-static char msg_to_client__request_data = 0xFF;
-static char msg__say_hi[] = "HI";
-
+static char msg_to_server__give_data      = 0xFE;
+static char msg_from_server__request_data = 0xFF;
+static char msg_hi[] = "HI";
 
 
 /*-------------------------------------
@@ -74,7 +79,7 @@ static char msg__say_hi[] = "HI";
  * is caught, this callback is called with the uuid (tcp_clnt_uuid) of the client that
  * connected/disconnected. tcp_clnt_uuid is a null terminated string, data == NULL, and data_sz == 0 for
  * all signals received via this callback. data and data_sz are not used for these 2 signals but were left
- * in this callback for simplicity. The connect callback is not used by tcp clients, only the disconnect.
+ * in this callback for simplicity.
  */
 //  typedef void (*tcp_rx_signal_callback)(const char* tcp_clnt_uuid, const char* data, unsigned int data_sz);
 
@@ -82,76 +87,22 @@ static char msg__say_hi[] = "HI";
  * the data in data needs to be saved, a copy of the data must be made.
  * Refer to this guide on mixing C and C++ callbacks due to ldashcam_tcp_dbus_clnt
  *  being written in C: https://isocpp.org/wiki/faq/mixing-c-and-cpp */
-void tcp_clnt_connect_callback(const char* tcp_clnt_uuid, const char* data, unsigned int data_sz)
+void tcp_disconnected_from_srv_cb(const char* tcp_clnt_uuid, const char* data, unsigned int data_sz)
 {
-    printf("\n****************client_connect: callback activated.****************\n\n");
-    printf("Client connected -> UUID: %s\n", tcp_clnt_uuid);
+    printf("\n****************disconnected_from_srv: callback activated.****************\n\n");
 
-    assert(tcp_clnt_uuid != NULL);
-    assert(data == NULL);
-    assert(data_sz == 0);
-
-    char* uuid;
-
-    /* copy uuid */
-    uuid = (char*)malloc( strlen(tcp_clnt_uuid) );
-    memcpy(uuid, tcp_clnt_uuid, strlen(tcp_clnt_uuid));
-
-    /* Add client UUID to our list of connected clients */
-    mutex_connected_clnt.lock();
-    _connected_clients.push_back( uuid );
-    mutex_connected_clnt.unlock();
-
-    /* Set this client as our specific client to request data from if no specific client has been selected */
-    mutex_specific_clnt.lock();
-    if ( _specific_UUID == NULL ) 
-    {
-        _specific_UUID = _connected_clients[0];
-
-        /* Ask specific client for data by sending request for data message to that specific client. Ignore return value/if failed */
-        tcp_dbus_send_msg( id, _specific_UUID, &msg_to_client__request_data, 1 );
-    }
-    mutex_specific_clnt.unlock();
-
-    /* Say hi to all clients by sending message to all clients. Ignore return value/if failed */
-    tcp_dbus_send_msg( id, NULL, msg__say_hi, strlen(msg__say_hi) );
-
-  	printf("\n****************END---client_connect---END****************\n\n");
-}
-/** Note that data is freed after this callback is called. As such, if 
- * the data in data needs to be saved, a copy of the data must be made.
- * Refer to this guide on mixing C and C++ callbacks due to ldashcam_tcp_dbus_clnt
- *  being written in C: https://isocpp.org/wiki/faq/mixing-c-and-cpp */
-void tcp_clnt_disconnect_callback(const char* tcp_clnt_uuid, const char* data, unsigned int data_sz)
-{
-    printf("\n****************client_disconnect: callback activated.****************\n\n");
-    printf("Client disconnected -> UUID: %s\n", tcp_clnt_uuid);
+    printf("Disconnected from server\n");
 
     assert(tcp_clnt_uuid != NULL);
     assert(data != NULL);
     assert(data_sz != 0);
 
-    /* remove client UUID from our list if exists */
-    mutex_connected_clnt.lock();
-    auto i = _connected_clients.cbegin();
-    for ( ; ( i != _connected_clients.cend() && strcmp(*i, tcp_clnt_uuid) != 0); ++i);
+    /* Update our connection status with server */
+    mutex_connected_status.lock();
+    _connected_status = STATUS_NOT_CONNECTED;
+    mutex_connected_status.unlock();
 
-    if (i != _connected_clients.cend())
-    {
-        free(*i);
-        _connected_clients.erase(i);
-    }
-    mutex_connected_clnt.unlock();
-
-    /* If our specific client to request data from is no longer connected, set it null */
-    mutex_specific_clnt.lock();
-    if ( strcmp(_specific_UUID, tcp_clnt_uuid) == 0 ) 
-    {
-        _specific_UUID = NULL;
-    }
-    mutex_specific_clnt.unlock();
-
-  	printf("\n****************END---client_disconnect---END****************\n\n");
+  	printf("\n****************END---disconnected_from_srv---END****************\n\n");
 }
 /** Note that data is freed after this callback is called. As such, if 
  * the data in data needs to be saved, a copy of the data must be made.
@@ -159,26 +110,41 @@ void tcp_clnt_disconnect_callback(const char* tcp_clnt_uuid, const char* data, u
  *  being written in C: https://isocpp.org/wiki/faq/mixing-c-and-cpp */
 void tcp_rx_data_callback(const char* tcp_clnt_uuid, const char* data, unsigned int data_sz)
 {
-    printf("\n****************tcp_rx_data_callback: callback activated.****************\n\n");
-
-    printf("Message from the following UUID: %s\n", tcp_clnt_uuid);
-    printf("Received %d data bytes as follows:\n\"",data_sz);
-    for (size_t i = 0; i < data_sz; i++)
-    {
-        printf("%c",data[i]);
-    }
-    printf("\"\n");
-
+    printf("\n****************rx_data: callback activated.****************\n\n");
     assert(tcp_clnt_uuid != NULL);
-    assert(data != NULL);
-    assert(data_sz != 0);
+    assert(data == NULL);
+    assert(data_sz == 0);
 
+    /*-------------------------------------
+    |        SET CONNECTION STATUS         |
+    --------------------------------------*/
+    /* Update our connection status with server and say HI if previously weren't connected */
+    mutex_connected_status.lock();
+    if ( _connected_status == STATUS_NOT_CONNECTED )
+    {
+        printf("Connected to server\n");
+        printf("Send %s to server...", msg_hi);
+        /* Say hi to the server */
+        if( false == tcp_dbus_send_msg(id, NULL, msg_hi, strlen(msg_hi)) )
+        {
+            printf("FAILED\n");
+            _connected_status = STATUS_NOT_CONNECTED;
+        }
+        else
+        {
+            printf("SUCCEEDED\n");
+            _connected_status = STATUS_NOT_CONNECTED;
+        }
+    }
+    mutex_connected_status.unlock();
+
+    /*-------------------------------------
+    |   SAVE MSG TO QUEUE FOR PROCESSING   |
+    --------------------------------------*/
     msg_struct *msg;
     msg = new msg_struct;
 
-    msg->UUID = std::string(tcp_clnt_uuid);
     msg->data_sz = data_sz;
-
 
     /* copy data received to msg struct char* */
     msg->data = (char*)malloc(data_sz);
@@ -189,7 +155,7 @@ void tcp_rx_data_callback(const char* tcp_clnt_uuid, const char* data, unsigned 
     data_queue.push(msg);
     mutex_queue.unlock();
 
-  	printf("\n****************END---tcp_rx_data_callback---END****************\n\n");
+  	printf("\n****************END---rx_data---END****************\n\n");
 } /* tcp_rx_data_callback() */
 
 void process_recv_data(msg_struct *msg)
@@ -203,48 +169,18 @@ void process_recv_data(msg_struct *msg)
         return;
     }
 
-    /*-------------------------------------
-    |              VARIABLES               |
-    --------------------------------------*/
-    struct timeval tv;
-    bool is_data_recv = false;
-
-    mutex_specific_clnt.lock();
-    if( _specific_UUID != NULL && strcmp( _specific_UUID, msg->UUID.c_str() ) == 0 )
+    if( msg->data[0] == msg_from_server__request_data ) /* check to see if first byte (the command byte) signifies this is the data requested */
     {
-        is_data_recv = true;
-    }
-    mutex_specific_clnt.unlock();
-
-    if( is_data_recv == true )
-    {
-        printf("Client %s is the specific UUID...",msg->UUID.c_str() );
-        if( msg->data[0] == msg_from_client__give_data ) /* check to see if first byte (the command byte) signifies this is the data requested */
-        {
-            printf("Client gives data!\n" );
-
-            gettimeofday(&tv,0);
-            /* Write the data and millisecond timestamp to file */
-            testFile << (unsigned long)((unsigned long)tv.tv_usec/1000 + (unsigned long) tv.tv_sec*1000) << "   ";
-            testFile.write(msg->data,msg->data_sz);
-            testFile << std::endl << std::endl;
-
-            printf("Request more data from client %s!\n", msg->UUID.c_str() );
-            /* Send command to client to send more data. Ignore return value/if failed */
-            tcp_dbus_send_msg(id, msg->UUID.c_str(), &msg_to_client__request_data ,1);
-        }
-        else
-        {
-            printf("No data!\n" );
-        }
+        /* Write the data and millisecond timestamp to file. Ignore if failed to send */
+        tcp_dbus_send_msg(id, NULL, data ,DATA_SZ);
     }
     
-    if( strcmp(msg->data, msg__say_hi) == 0 )
+    if( strcmp(msg->data, msg_hi) )
     {
-        printf("Client %s says HI!\n",msg->UUID.c_str() );
+        printf("Server says HI!\n" );
     }
   	printf("\n****************END---process_recv_data---END****************\n\n");
-}
+} /* process_recv_data() */
 
 /*-------------------------------------
 |                 MAIN                 |
@@ -255,10 +191,10 @@ void  INThandler(int sig)
 {
     signal(sig, SIG_IGN);
     printf("\nCtrl-C detected. Exiting....\n");
+
     /*-------------------------------------
     |               SHUTDOWN               |
     -------------------------------------*/
-    testFile.close();
     tcp_dbus_client_disconnect(id);
     tcp_dbus_client_delete(id);
     exit(EXIT_SUCCESS);
@@ -285,7 +221,14 @@ int main(void)
     /*-------------------------------------
     |           INITIALIZATIONS            |
     --------------------------------------*/
-    testFile.open("recv_data_file.txt");
+
+    data = (char*)malloc(DATA_SZ);
+    data[0] = msg_to_server__give_data;
+    for (size_t i = 1; i < DATA_SZ; i++)
+    {
+        data[i] = 'a';
+    }
+    data[DATA_SZ-1] = '\0';
 
     id = tcp_dbus_client_create();
 
@@ -318,15 +261,8 @@ int main(void)
         exit(EXIT_FAILURE);
     }
 
-    printf("Subscribe to DBUS_TCP_CONNECT_SIGNAL signal\n");/* Subscribing to CONNECT_SIGNAL will make our connect_callback activate when a tcp client/aux device connects */
-    if ( EXIT_FAILURE == tcp_dbus_client_Subscribe2Recv(id,(char*)DBUS_TCP_CONNECT_SIGNAL,&tcp_clnt_connect_callback) )
-    {
-        printf("Failed to subscribe to DBUS_TCP_CONNECT_SIGNAL signal!\nExiting.....\n");
-        exit(EXIT_FAILURE);
-    }
-
     printf("Subscribe to DBUS_TCP_DISCONNECT_SIGNAL signal\n");/* Subscribing to DISCONNECT_SIGNAL will make our connect_callback activate when a tcp client/aux device disconnects */
-    if ( EXIT_FAILURE == tcp_dbus_client_Subscribe2Recv(id,(char*)DBUS_TCP_DISCONNECT_SIGNAL,&tcp_clnt_disconnect_callback) )
+    if ( EXIT_FAILURE == tcp_dbus_client_Subscribe2Recv(id,(char*)DBUS_TCP_DISCONNECT_SIGNAL,&tcp_disconnected_from_srv_cb) )
     {
         printf("Failed to subscribe to DBUS_TCP_DISCONNECT_SIGNAL signal!\nExiting.....\n");
         exit(EXIT_FAILURE);
@@ -336,6 +272,9 @@ int main(void)
     /*-------------------------------------
     |      INFINITE LOOP/MAIN PROGRAM      |
     --------------------------------------*/
+
+    /* Say hi to server. Ignore return value/if failed */
+    tcp_dbus_send_msg( id, NULL, msg_hi, strlen(msg_hi) );
 
     while(1)
     {
@@ -366,8 +305,6 @@ int main(void)
 
         process_recv_data(msg);
 
-        /* cleanup */
-        free(msg->data);
         delete msg;
     }
 
@@ -377,7 +314,6 @@ int main(void)
     --------------------------------------*/
     printf("Unsubscribe from signals\n");
     tcp_dbus_client_UnsubscribeRecv(id,(char*)DBUS_TCP_RECV_SIGNAL);
-    tcp_dbus_client_UnsubscribeRecv(id,(char*)DBUS_TCP_CONNECT_SIGNAL);
     tcp_dbus_client_UnsubscribeRecv(id,(char*)DBUS_TCP_DISCONNECT_SIGNAL);
 
     tcp_dbus_client_disconnect(id);

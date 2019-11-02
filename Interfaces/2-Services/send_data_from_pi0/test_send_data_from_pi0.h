@@ -1,5 +1,5 @@
-#ifndef TEST_RECV_DATA_ON_PI3_H
-#define TEST_RECV_DATA_ON_PI3_H
+#ifndef COMMAND_CONTROL_H
+#define COMMAND_CONTROL_H
 
 /*-------------------------------------
 |               INCLUDES               |
@@ -10,7 +10,7 @@
 #include <unistd.h> /* for sleep */
 #include <stdio.h>
 
-/* includes needed to connect to tcp */
+/* includes needed for server */
 #include <dashcam_dbus/pub_tcp_dbus_clnt.h>
 #include <dashcam_dbus/pub_dbus.h>
 
@@ -21,4 +21,4 @@
 
 
 
-#endif /* TEST_RECV_DATA_ON_PI3_H */
+#endif /* COMMAND_CONTROL_H */
