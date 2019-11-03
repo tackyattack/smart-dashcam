@@ -88,10 +88,11 @@ class LaneTracker():
 
         self.log_count = 0
 
-        self.new_buf = None
+        self.new_buf_event = threading.Event()
         self.mmal_buf_header = None
         self.mmal_buffer_lock = threading.Lock()
         self.mmal_consume_lock = threading.Lock()
+        self.buffer_ready_to_be_consumed_sem = threading.Semaphore(value=0)
 
         self.data_array = (ctypes.c_char*(1024*25))()
         self.line_data = []
@@ -208,16 +209,13 @@ class LaneTracker():
             #print("I'm holding the buffer producer now")
 
             # wait for new buffer to be produced
-            done = False
-            while(not done):
-                self.mmal_buffer_lock.acquire()
-                if(self.new_buf==True):
-                    done = True
-                self.mmal_buffer_lock.release()
-            #print(self.new_buf)
+            self.new_buf_event.wait()
+
             # load it in
             #print("buffer loading into image")
+            self.mmal_buffer_lock.acquire()
             load_egl_image_from_buffer(self.mmal_buf_header)
+            self.mmal_buffer_lock.release()
             #sleep(3)
             self.mmal_consume_lock.release()
             #print("detecting lanes")
@@ -231,13 +229,14 @@ class LaneTracker():
 
         self.mmal_buffer_lock.acquire()
         self.mmal_buf_header = buf._buf
-        self.new_buf = True
+        self.new_buf_event.set()
+        #self.buffer_ready_to_be_consumed_sem.release()
         self.mmal_buffer_lock.release()
 
         self.mmal_consume_lock.acquire()
         self.mmal_consume_lock.release()
 
-        self.new_buf = False
+        self.new_buf_event.clear()
 
         return False # expect more buffers
 

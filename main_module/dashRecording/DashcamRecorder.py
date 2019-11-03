@@ -104,7 +104,7 @@ class Recorder:
         self.framerate = 20
         self.camera.framerate = self.framerate
         self.record_path = record_path
-        self.terminate_threads = False
+        self.terminate_event = threading.Event()
         self.record_interval_s = recording_interval_s
         self.recording_thread = None
         self.wrapping_thread = None
@@ -131,7 +131,7 @@ class Recorder:
         return self.camera
 
     def start_recorder(self):
-        self.terminate_threads = False
+        self.terminate_event.clear()
         self.recording_thread = threading.Thread(target=self.recording_thread_func)
         self.recording_thread.start()
         self.wrapping_thread = threading.Thread(target=self.wrapping_thread_func)
@@ -139,7 +139,7 @@ class Recorder:
 
 
     def terminate(self):
-        self.terminate_threads = True
+        self.terminate_event.set()
         while((self.wrapping_thread is not None) or (self.recording_thread is not None)):
             sleep(0.25)
         if(self.do_stream):
@@ -173,16 +173,13 @@ class Recorder:
 
     def recording_thread_func(self):
         is_recording = False
-        while(not self.terminate_threads):
+        while not self.terminate_event.is_set():
             record_name_path = os.path.join(self.record_path,
                                        'dashcam_video_{0}.h264'.format(self.get_video_num()))
             self.current_recording_name = record_name_path
             is_recording = True
             self.camera.start_recording(record_name_path)
-            sleep_cnt = 0
-            while((not self.terminate_threads) and (sleep_cnt < self.record_interval_s)):
-                sleep(1.0)
-                sleep_cnt = sleep_cnt + 1
+            self.terminate_event.wait(self.record_interval_s)
             self.camera.stop_recording()
             is_recording = False
             if(not self.silent):
@@ -210,8 +207,8 @@ class Recorder:
             os.remove(file_to_delete)
 
     def wrapping_thread_func(self):
-        while(not self.terminate_threads):
-            while not self.wrapping_queue.empty() and not self.terminate_threads:
+        while not self.terminate_event.is_set():
+            while not self.wrapping_queue.empty() and not self.terminate_event.is_set():
                 # check if file is ready
                 file_to_wrap_path = self.wrapping_queue.get()
                 if(not self.silent):
@@ -228,7 +225,7 @@ class Recorder:
 
 
             self.check_reduce()
-            sleep(0.1) # give the CPU some time to do other stuff
+            self.terminate_event.wait(0.1) # give the CPU some time to do other stuff
 
         if(not self.silent):
             print("wrapping thread closed")
