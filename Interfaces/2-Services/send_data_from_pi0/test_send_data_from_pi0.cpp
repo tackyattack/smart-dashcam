@@ -178,6 +178,8 @@ void process_recv_data(msg_struct *msg)
     else if( strcmp(msg->data, msg_hi) )
     {
         printf("Server says HI!\n" );
+        /* Say hi to server. Ignore return value/if failed */
+        tcp_dbus_send_msg( id, NULL, msg_hi, strlen(msg_hi)+1 );
     }
     else
     {
