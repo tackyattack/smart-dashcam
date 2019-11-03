@@ -94,8 +94,8 @@ void tcp_clnt_connect_callback(const char* tcp_clnt_uuid, const char* data, unsi
     char* uuid;
 
     /* copy uuid */
-    uuid = (char*)malloc( strlen(tcp_clnt_uuid) );
-    memcpy(uuid, tcp_clnt_uuid, strlen(tcp_clnt_uuid));
+    uuid = (char*)malloc( strlen(tcp_clnt_uuid)+1 );
+    memcpy(uuid, tcp_clnt_uuid, strlen(tcp_clnt_uuid)+1);
 
     /* Add client UUID to our list of connected clients */
     mutex_connected_clnt.lock();
@@ -109,6 +109,7 @@ void tcp_clnt_connect_callback(const char* tcp_clnt_uuid, const char* data, unsi
         _specific_UUID = _connected_clients[0];
 
         /* Ask specific client for data by sending request for data message to that specific client. Ignore return value/if failed */
+        printf("Ask specific %s client for data\n",(char*)_specific_UUID);
         tcp_dbus_send_msg( id, _specific_UUID, &msg_to_client__request_data, 1 );
     }
     mutex_specific_clnt.unlock();
@@ -125,11 +126,13 @@ void tcp_clnt_connect_callback(const char* tcp_clnt_uuid, const char* data, unsi
 void tcp_clnt_disconnect_callback(const char* tcp_clnt_uuid, const char* data, unsigned int data_sz)
 {
     printf("\n****************client_disconnect: callback activated.****************\n\n");
-    printf("Client disconnected -> UUID: %s\n", tcp_clnt_uuid);
 
     assert(tcp_clnt_uuid != NULL);
     assert(data == NULL);
     assert(data_sz == 0);
+
+    printf("Client disconnected -> UUID: %s\n", tcp_clnt_uuid);
+
 
     /* remove client UUID from our list if exists */
     mutex_connected_clnt.lock();
@@ -145,7 +148,7 @@ void tcp_clnt_disconnect_callback(const char* tcp_clnt_uuid, const char* data, u
 
     /* If our specific client to request data from is no longer connected, set it null */
     mutex_specific_clnt.lock();
-    if ( strcmp(_specific_UUID, tcp_clnt_uuid) == 0 ) 
+    if ( _specific_UUID != NULL && strcmp(_specific_UUID, tcp_clnt_uuid) == 0 ) 
     {
         _specific_UUID = NULL;
     }
@@ -216,32 +219,37 @@ void process_recv_data(msg_struct *msg)
     }
     mutex_specific_clnt.unlock();
 
-    if( is_data_recv == true )
+    if( is_data_recv == true && msg->data[0] == msg_from_client__give_data ) /* check to see if first byte (the command byte) signifies this is the data requested */
     {
         printf("Client %s is the specific UUID...",msg->UUID.c_str() );
-        if( msg->data[0] == msg_from_client__give_data ) /* check to see if first byte (the command byte) signifies this is the data requested */
+        printf("Client gives data!\n" );
+
+        gettimeofday(&tv,0);
+        /* Write the data and millisecond timestamp to file */
+        testFile << (unsigned long)((unsigned long)tv.tv_usec/1000 + (unsigned long) tv.tv_sec*1000) << "   ";
+        testFile.write(msg->data,msg->data_sz);
+        testFile << std::endl << std::endl;
+
+        printf("Request more data from client %s!\n", msg->UUID.c_str() );
+        /* Send command to client to send more data. Ignore return value/if failed */
+        tcp_dbus_send_msg(id, msg->UUID.c_str(), &msg_to_client__request_data ,1);
+    }
+    
+    else if( strcmp(msg->data, msg_hi) == 0 )
+    {
+        printf("Client %s says HI!\n",msg->UUID.c_str() );
+        
+        /* Check if msg hi is from specific client indicating it is ready to send data */
+        if ( is_data_recv ) 
         {
-            printf("Client gives data!\n" );
-
-            gettimeofday(&tv,0);
-            /* Write the data and millisecond timestamp to file */
-            testFile << (unsigned long)((unsigned long)tv.tv_usec/1000 + (unsigned long) tv.tv_sec*1000) << "   ";
-            testFile.write(msg->data,msg->data_sz);
-            testFile << std::endl << std::endl;
-
-            printf("Request more data from client %s!\n", msg->UUID.c_str() );
+            printf("Request data from client %s!\n", msg->UUID.c_str() );
             /* Send command to client to send more data. Ignore return value/if failed */
             tcp_dbus_send_msg(id, msg->UUID.c_str(), &msg_to_client__request_data ,1);
         }
-        else
-        {
-            printf("No data!\n" );
-        }
     }
-    
-    if( strcmp(msg->data, msg_hi) == 0 )
+    else
     {
-        printf("Client %s says HI!\n",msg->UUID.c_str() );
+        printf("Msg from client %s:\n%s\n",msg->UUID.c_str(),msg->data);
     }
   	printf("\n****************END---process_recv_data---END****************\n\n");
 }
@@ -340,8 +348,20 @@ int main(void)
     while(1)
     {
 
+#if 0 /* for testing */
+        sleep(1);
+        /* Say hi to the server */
+        if( false == tcp_dbus_send_msg(id, NULL, msg_hi, strlen(msg_hi)) )
+        {
+            printf("FAILED to send HI\n");
+        }
+        static uint8_t count = 0;
+        tcp_dbus_send_msg(id, NULL, (char*)std::to_string(count).c_str(), std::to_string(count).length()+1);
+        count++;
+#else
         /* sleep 1ms */
-        usleep(1000);
+        usleep(1000);    
+#endif
 
         /* Get msg from queue to process if queue isn't empty */
         /* If nothing to process, go to next loop iteration */

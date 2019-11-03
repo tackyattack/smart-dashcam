@@ -111,7 +111,7 @@ void tcp_disconnected_from_srv_cb(const char* tcp_clnt_uuid, const char* data, u
 void tcp_rx_data_callback(const char* tcp_clnt_uuid, const char* data, unsigned int data_sz)
 {
     printf("\n****************rx_data: callback activated.****************\n\n");
-
+    printf("uuid is %s\n",tcp_clnt_uuid);
     assert( strcmp(tcp_clnt_uuid, (char*)"SERVER" ) == 0 );
     assert(data != NULL);
     assert(data_sz != 0);
@@ -175,10 +175,13 @@ void process_recv_data(msg_struct *msg)
         /* Write the data and millisecond timestamp to file. Ignore if failed to send */
         tcp_dbus_send_msg(id, NULL, data ,DATA_SZ);
     }
-    
-    if( strcmp(msg->data, msg_hi) )
+    else if( strcmp(msg->data, msg_hi) )
     {
         printf("Server says HI!\n" );
+    }
+    else
+    {
+        printf("Msg from SERVER:\n%s\n",msg->data);
     }
   	printf("\n****************END---process_recv_data---END****************\n\n");
 } /* process_recv_data() */
@@ -275,7 +278,7 @@ int main(void)
     --------------------------------------*/
 
     /* Say hi to server. Ignore return value/if failed */
-    tcp_dbus_send_msg( id, NULL, msg_hi, strlen(msg_hi) );
+    tcp_dbus_send_msg( id, NULL, msg_hi, strlen(msg_hi)+1 );
 
     while(1)
     {
