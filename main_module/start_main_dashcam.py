@@ -208,6 +208,7 @@ class MainModule:
 
     def get_cameras_callback(self):
         cameras = self.finder.get_aux_devices(1)
+        cameras.append(('tcp://127.0.0.1:8080', 'Front'))
         print(cameras)
         return cameras
 
