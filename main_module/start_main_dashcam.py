@@ -126,7 +126,7 @@ class MainModule:
 
         GPIO.setwarnings(False) # Ignore warning for now
         GPIO.setmode(GPIO.BOARD) # Use physical pin numbering
-        GPIO.setup(TURN_SIGNAL_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+        GPIO.setup(TURN_SIGNAL_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
         self.finder = Discover.DeviceFinder()
         if not self.finder.connect(timeout=5):
@@ -168,9 +168,9 @@ class MainModule:
 
     def lane_alert(self):
         # only show lane warning if turn signal is off
-        if GPIO.input(TURN_SIGNAL_PIN) == GPIO.LOW:
+        # active low so high means the user's turn signal isn't on
+        if GPIO.input(TURN_SIGNAL_PIN) == GPIO.HIGH:
             self.dash_gui.show_lane_warning()
-            pass
 
     def gui_init(self):
         self.gui_has_init = True
