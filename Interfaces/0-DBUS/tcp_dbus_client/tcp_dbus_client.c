@@ -83,7 +83,7 @@ int tcp_dbus_send_msg(dbus_clnt_id clnt_id, const char* tcp_clnt_uuid, char* dat
     --------------------------------------*/
 
     /* g_printf("tcp_dbus_send_msg(): %s\n\n",g_variant_get_type_string(gvar)); */
-    gvar = g_dbus_proxy_call_sync(dbus_config[clnt_id]->proxy, DBUS_TCP_SEND_MSG, gvar, G_DBUS_CALL_FLAGS_NONE, -1, NULL, &error);
+    gvar = g_dbus_proxy_call_sync(dbus_config[clnt_id]->proxy, DBUS_TCP_SEND_MSG, gvar, G_DBUS_CALL_FLAGS_NONE, 1000, NULL, &error);
 
 
     /*-------------------------------------
