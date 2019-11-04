@@ -125,9 +125,6 @@ uint32_t network_server_write(uint8_t *buf, uint32_t size)
   {
     network_server_connect();
     client_disconnected_callback_p();
-    pthread_mutex_lock(&server_write_mutex);
-    bytes_written = write(server_socket , buf , size);
-    pthread_mutex_unlock(&server_write_mutex);
   }
   return (uint32_t)bytes_written;
 }
