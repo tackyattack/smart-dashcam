@@ -31,6 +31,10 @@ int client_socket;
 int server_running = 0;
 int client_running = 0;
 
+char *client_server_ip = NULL;
+int client_server_port = 0;
+
+
 void terminate_server()
 {
   pthread_mutex_lock(&server_mutex);
@@ -42,8 +46,9 @@ void terminate_server()
 void terminate_client()
 {
   pthread_mutex_lock(&client_mutex);
-  close(client_running);
+  close(client_socket);
   client_running = 0;
+  if(client_server_ip != NULL) free(client_server_ip);
   pthread_mutex_unlock(&client_mutex);
 }
 
@@ -116,8 +121,13 @@ void network_server_connect()
   pthread_mutex_unlock(&server_mutex);
 }
 
+
 uint32_t network_server_write(uint8_t *buf, uint32_t size)
 {
+  // wait until client wants a frame
+  char x[1] = {0};
+  read(server_socket, x, 1);
+
   pthread_mutex_lock(&server_write_mutex);
   int32_t bytes_written = write(server_socket, buf, size);
   pthread_mutex_unlock(&server_write_mutex);
@@ -129,37 +139,64 @@ uint32_t network_server_write(uint8_t *buf, uint32_t size)
   return (uint32_t)bytes_written;
 }
 
-uint8_t network_client_init(char *ip, int port)
+struct sockaddr_in serv_addr;
+
+uint8_t network_client_connect()
 {
+  int should_exit = 0;
+  if(client_server_ip == NULL) return NETWORK_INIT_ERROR;
+
   client_socket = 0;
-  struct sockaddr_in serv_addr;
+
   if ((client_socket = socket(AF_INET, SOCK_STREAM, 0)) < 0)
   {
       printf("\n Socket creation error \n");
   }
   serv_addr.sin_family = AF_INET;
-  serv_addr.sin_port = htons(port);
+  serv_addr.sin_port = htons(client_server_port);
 
   // Convert IPv4 and IPv6 addresses from text to binary form
-  if(inet_pton(AF_INET, ip, &serv_addr.sin_addr)<=0)
+  if(inet_pton(AF_INET, client_server_ip, &serv_addr.sin_addr)<=0)
   {
       printf("\nInvalid address/ Address not supported \n");
       return NETWORK_INIT_ERROR;
   }
 
-  if (connect(client_socket, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
+  while(!should_exit)
   {
-      printf("\nConnection Failed \n");
-      return NETWORK_INIT_ERROR;
+    pthread_mutex_lock(&client_mutex);
+    if(!client_running) should_exit = 1;
+    if(connect(client_socket, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) == 0) should_exit=1;
+    pthread_mutex_unlock(&client_mutex);
+    sleep(1);
   }
 
   return NETWORK_INIT_OK;
 }
 
+uint8_t network_client_init(char *ip, int port)
+{
+  client_server_port = port;
+  if(client_server_ip != NULL) free(client_server_ip);
+  client_server_ip = malloc((uint16_t)(strlen(ip)+1));
+  strcpy(client_server_ip, ip);
+  return network_client_connect();
+}
+
 uint32_t network_client_recv(uint8_t *buf, uint32_t sz)
 {
+  // tell server we want a frame
+  char x[1] = {'v'};
+  write(client_socket, x, 1);
+
   pthread_mutex_lock(&client_read_mutex);
-  uint32_t valread = read(client_socket, buf, PACKET_SIZE);
+  int32_t valread = read(client_socket, buf, PACKET_SIZE);
   pthread_mutex_unlock(&client_read_mutex);
+  if(valread < 0)
+  {
+    close(client_socket);
+    network_client_connect();
+    valread = 0;
+  }
   return valread;
 }
