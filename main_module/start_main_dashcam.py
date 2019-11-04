@@ -69,7 +69,7 @@ class LaneDetectionProcess:
         self.camera = self.recorder.get_camera()
         self.recorder.start_recorder()
         self.lane_tracker = LaneVision.LaneTracker(camera=self.camera, bottom_y_boundry=0, top_y_boundry=250,
-                                              transform_angle=45.0, camera_pixel_altitude=250*0.5, debug_view=True,
+                                              transform_angle=45.0, camera_pixel_altitude=250*0.5, debug_view=False,
                                               debug_view_stage=1, log=DEBUG_PROGRAM,
                                               screen_width=480, screen_height=320)
 
