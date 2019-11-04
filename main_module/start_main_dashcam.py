@@ -8,6 +8,7 @@ import threading
 import sys
 from multiprocessing import Process
 from multiprocessing import Queue as ProcessQueue
+from multiprocessing import Event as ProcessEvent
 import Queue
 import RPi.GPIO as GPIO
 
@@ -51,12 +52,13 @@ class LaneDetectionProcess:
         self.running = False
         self.out_queue = ProcessQueue()
         self.in_queue = ProcessQueue()
-        p = Process(target=self.LaneProcess)
-        t = threading.Thread(target=self.update_thread)
+        self.terminate_event = ProcessEvent()
+        self.lane_process = Process(target=self.LaneProcess)
+        self.update_thread = threading.Thread(target=self.update_thread)
         self.running = True
 
-        p.start()
-        t.start()
+        self.lane_process.start()
+        self.update_thread.start()
 
     def LaneProcess(self):
         # Note: recorder and lane modules must live in the same process since the camera
@@ -71,9 +73,8 @@ class LaneDetectionProcess:
                                               debug_view_stage=1, log=DEBUG_PROGRAM,
                                               screen_width=480, screen_height=320)
 
-        terminate_process = False
         new_lane_alert = False
-        while not terminate_process:
+        while not self.terminate_event.is_set():
             msg = None
             try:
                 msg = self.in_queue.get(block=False)
@@ -81,8 +82,6 @@ class LaneDetectionProcess:
                 pass
 
             if msg is not None:
-                if msg.cmd == self.TERMINATE_LANE_TRACKING:
-                    terminate_process = True
                 if msg.cmd == self.LANE_CALIBRATE:
                     self.lane_tracker.calibrate()
 
@@ -91,17 +90,20 @@ class LaneDetectionProcess:
                 self.out_queue.put(ProcessMessage(self.LANE_DEPARTURE_ALERT, None))
             else:
                 new_lane_alert = False
+
             try:
-                sleep(0.1)
+                self.terminate_event.wait(0.1)
             except KeyboardInterrupt:
-                terminate_process = True
+                pass
 
         self.recorder.terminate()
         self.lane_tracker.stop()
 
     def terminate(self):
-        self.in_queue.put(ProcessMessage(self.TERMINATE_LANE_TRACKING, None))
+        self.terminate_event.set()
         self.running = False
+        self.lane_process.join()
+        self.update_thread.join()
 
     def calibrate(self):
         self.in_queue.put(ProcessMessage(self.LANE_CALIBRATE, None))

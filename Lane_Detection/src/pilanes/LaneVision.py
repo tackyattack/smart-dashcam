@@ -64,6 +64,7 @@ class LaneTracker():
         self.screen_height = screen_height
         self.stage_to_show = debug_view_stage
         self.shutdown_lane_tracking = False
+        self.shutdown_lane_tracking_event = threading.Event()
         self.process_variance = 4**2
         self.estimated_measurement_variance = 50**2
         self.bottom_y_boundry = bottom_y_boundry
@@ -89,10 +90,10 @@ class LaneTracker():
         self.log_count = 0
 
         self.new_buf_event = threading.Event()
+        self.new_buf_event.clear()
         self.mmal_buf_header = None
         self.mmal_buffer_lock = threading.Lock()
         self.mmal_consume_lock = threading.Lock()
-        self.buffer_ready_to_be_consumed_sem = threading.Semaphore(value=0)
 
         self.data_array = (ctypes.c_char*(1024*25))()
         self.line_data = []
@@ -117,6 +118,7 @@ class LaneTracker():
     # and you will have to reboot
     def stop(self):
         self.shutdown_lane_tracking = True
+        self.shutdown_lane_tracking_event.set()
 
     def get_lane_status(self):
         return self.lane_departure
@@ -203,8 +205,9 @@ class LaneTracker():
 
     def lane_tracking_thread(self):
         ogl_cv_init_lane_tracker(self.SHADER_PATH, self.screen_width, self.screen_height) # note: must be in same thread to keep EGL context correct
-        while(not self.shutdown_lane_tracking):
+        while(not self.shutdown_lane_tracking_event.is_set()):
             #print("acquiring buffer")
+            #self.buf_not_consuming_event.clear()
             self.mmal_consume_lock.acquire()
             #print("I'm holding the buffer producer now")
 
@@ -217,6 +220,7 @@ class LaneTracker():
             load_egl_image_from_buffer(self.mmal_buf_header)
             self.mmal_buffer_lock.release()
             #sleep(3)
+            #self.buf_not_consuming_event.set()
             self.mmal_consume_lock.release()
             #print("detecting lanes")
             # now take as much time as needed to process the image (won't block producer)
@@ -225,18 +229,17 @@ class LaneTracker():
         shutdown_lane_tracker()
 
     def video_callback(self, port, buf):
-        #print("new buffer")
+        # print("new buffer")
 
         self.mmal_buffer_lock.acquire()
         self.mmal_buf_header = buf._buf
         self.new_buf_event.set()
-        #self.buffer_ready_to_be_consumed_sem.release()
         self.mmal_buffer_lock.release()
 
+        # wait for consuming to complete
         self.mmal_consume_lock.acquire()
-        self.mmal_consume_lock.release()
-
         self.new_buf_event.clear()
+        self.mmal_consume_lock.release()
 
         return False # expect more buffers
 

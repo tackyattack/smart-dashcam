@@ -140,8 +140,8 @@ class Recorder:
 
     def terminate(self):
         self.terminate_event.set()
-        while((self.wrapping_thread is not None) or (self.recording_thread is not None)):
-            sleep(0.25)
+        self.recording_thread.join()
+        self.wrapping_thread.join()
         if(self.do_stream):
             close_server()
 
@@ -191,7 +191,6 @@ class Recorder:
         self.camera.close()
         if(not self.silent):
             print("recording thread closed")
-        self.recording_thread = None
 
     def check_reduce(self):
         size_mb = self.get_size(self.record_path)/1000000
@@ -230,7 +229,6 @@ class Recorder:
         if(not self.silent):
             print("wrapping thread closed")
         self.cleanup()
-        self.wrapping_thread = None
 
 
 def start_recording_command_line():
