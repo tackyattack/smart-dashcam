@@ -19,17 +19,17 @@
    * Add the line `PermitRootLogin yes`
 6. Install dependencies (add any needed software packages to the list below): copy and paste the command(s) below:
    ```sh
-   sudo apt install python2.7 git build-essentials libdbus-1-dev libdbus-glib-1-dev uuid-dev 
+   sudo apt install python2.7 git build-essentials libdbus-1-dev libdbus-glib-1-dev uuid-dev
    ```
 7. Run setup script in smart-dashcam root directory on master branch
    ```sh
    ./setup.py --aux_unit
    ```
-8. Setup TCP Interface service and Wi-Fi 
+8. Setup TCP Interface service and Wi-Fi
    1. Checkout branch dev/interfaces from repository and go into the *Interfaces* folder
    2. Setup, build, and setup pi for DBUS and socket libraries, and Wi-Fi with the following command:
       ```sh
-      make setup build pi0_setup 
+      make setup build pi0_setup
       ```
 9. Reboot system
 
@@ -38,14 +38,12 @@
 1. Install dependencies (add any needed software packages to the list below): copy and paste the commands below:
    ```sh
    sudo apt install python2.7 git build-essentials libdbus-1-dev libdbus-glib-1-dev uuid-dev
-   pip install PySimpleGUI27
-   pip install typing
    ```
 1. Run setup script in smart-dashcam root directory on master branch
    ```sh
    ./setup.py --main_unit
    ```
-1. Setup TCP Interface service and Wi-Fi 
+1. Setup TCP Interface service and Wi-Fi
    1. Disable IPv6 on the hosted Wi-Fi network interface with the following command:
       ```sh
       sudo bash -c 'echo "net.ipv6.conf.wlan0.disable_ipv6 = 1" >> /etc/sysctl.conf'
@@ -54,8 +52,20 @@
    1. Checkout branch dev/interfaces from repository
    1. Setup, build, and setup pi for DBUS and socket libraries, and Wi-Fi with the following command from within the Interfaces directory on the dev/interfaces branch:
       ```sh
-      make setup build pi3_setup 
+      make setup build pi3_setup
       ```
+1. In /boot/config.txt, increase GPU memory
+   ```
+   gpu_mem=256
+   ```
+1. Setup LCD by following Adafruit's [tutorial](https://learn.adafruit.com/adafruit-pitft-28-inch-resistive-touchscreen-display-raspberry-pi/easy-install-2) and script.
+   1. Ensure that you choose HDMI mirror in the script to allow for OpenGL display.
+   1. In /boot/config.txt, ensure that the dtoverlay is set properly. Your display may have a different
+   driver so the display type may be different. Look at the [goodtft scripts](https://github.com/goodtft/LCD-show) for
+   examples. Note: speed should be as high as possible without distorting colors. Mine was 24MHz.
+   ```
+   dtoverlay=tft35a:rotate=90,speed=24000000,fps=60
+   ```
 1. Reboot system
 
 
