@@ -205,27 +205,22 @@ class LaneTracker():
 
     def lane_tracking_thread(self):
         ogl_cv_init_lane_tracker(self.SHADER_PATH, self.screen_width, self.screen_height) # note: must be in same thread to keep EGL context correct
-        while(not self.shutdown_lane_tracking_event.is_set()):
-            #print("acquiring buffer")
-            #self.buf_not_consuming_event.clear()
+        while not self.shutdown_lane_tracking_event.is_set():
             self.mmal_consume_lock.acquire()
-            #print("I'm holding the buffer producer now")
 
             # wait for new buffer to be produced
             self.new_buf_event.wait()
 
             # load it in
-            #print("buffer loading into image")
             self.mmal_buffer_lock.acquire()
             load_egl_image_from_buffer(self.mmal_buf_header)
             self.mmal_buffer_lock.release()
-            #sleep(3)
-            #self.buf_not_consuming_event.set()
+
             self.mmal_consume_lock.release()
-            #print("detecting lanes")
+
             # now take as much time as needed to process the image (won't block producer)
             self.detect_lanes()
-            #sleep(5)
+
         shutdown_lane_tracker()
 
     def video_callback(self, port, buf):
