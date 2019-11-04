@@ -11,11 +11,18 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
+#include <queue.h>
+ #include <time.h>
 
 pthread_mutex_t server_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t server_write_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t client_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t client_read_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+#define VIDEO_PACKET 'v'
+#define PING_REQUEST 'a'
+#define PING_RESPONSE 'b'
+#define PING_TIME_S 2.0
 
 //static server_disconnected_callback_t server_disconnected_callback_p = NULL;
 static client_disconnected_callback_t client_disconnected_callback_p = NULL;
@@ -51,14 +58,10 @@ void terminate_client()
   if(client_server_ip != NULL) free(client_server_ip);
   pthread_mutex_unlock(&client_mutex);
 }
-
-// void block_until_ready(int fd)
-// {
-//   poll(server_fd, server_socket, 1000);
-// }
-
+struct Queue *server_send_queue;
 void network_server_init(int port, client_disconnected_callback_t client_disconnected_callback)
 {
+  server_send_queue = createQueue(PACKET_SIZE*2);
   client_disconnected_callback_p = client_disconnected_callback;
   server_port = port;
   int opt = 1;
@@ -121,21 +124,78 @@ void network_server_connect()
   pthread_mutex_unlock(&server_mutex);
 }
 
+int32_t network_server_send_all(const char *buf, uint32_t len)
+{
+    uint32_t total_bytes = 0;
+    uint32_t bytes = 0;
+
+    while (len > 0)
+    {
+        bytes = send(server_socket, buf + total_bytes, len, 0);
+        if (bytes == -1)
+            return -1;
+        total_bytes += bytes;
+        len -= bytes;
+    }
+    return total_bytes;
+}
+
+
+int32_t record_server_bytes(char code, uint8_t *buf, uint32_t size)
+{
+  char packet_buf[PACKET_SIZE];
+  int32_t bytes_sent = 0;
+  char x[1] = {0};
+  for(uint32_t i = 0; i < size; i++)
+  {
+    if(server_send_queue->size > (PACKET_SIZE-1))
+    {
+      packet_buf[0] = code;
+      for(uint32_t ii = 0; ii < PACKET_SIZE-1; ii++)packet_buf[ii+1]=dequeue(server_send_queue);
+      bytes_sent = network_server_send_all(packet_buf, PACKET_SIZE);
+      if(bytes_sent < 0)
+      {
+        reset_queue(server_send_queue);
+        return -1;
+      }
+      if(code == PING_REQUEST)
+      {
+        printf("pinging\n");
+        read(server_socket, x, 1);
+      }
+    }
+    enqueue(server_send_queue, buf[i]);
+  }
+  return size;
+}
+
 
 uint32_t network_server_write(uint8_t *buf, uint32_t size)
 {
-  // wait until client wants a frame
-  char x[1] = {0};
-  read(server_socket, x, 1);
+  char code = VIDEO_PACKET; // just normal video packet
 
-  pthread_mutex_lock(&server_write_mutex);
-  int32_t bytes_written = write(server_socket, buf, size);
-  pthread_mutex_unlock(&server_write_mutex);
+  static time_t start;
+  static int first_time = 1;
+  if(first_time)
+  {
+    start = time(NULL);
+    first_time = 0;
+  }
+  if(time(NULL) - start > PING_TIME_S)
+  {
+    code = PING_REQUEST;
+    start=time(NULL);
+  }
+
+  int32_t bytes_written = record_server_bytes(code, buf, size);
+
   if(bytes_written < 0)
   {
     network_server_connect();
     client_disconnected_callback_p();
+    bytes_written = 0;
   }
+
   return (uint32_t)bytes_written;
 }
 
@@ -183,20 +243,49 @@ uint8_t network_client_init(char *ip, int port)
   return network_client_connect();
 }
 
+void client_read_packet(char *packet)
+{
+  uint32_t bytes_recvd = 0;
+  while(bytes_recvd < PACKET_SIZE)
+  {
+    pthread_mutex_lock(&client_read_mutex);
+    int32_t valread = read(client_socket, packet+bytes_recvd, PACKET_SIZE-bytes_recvd);
+    pthread_mutex_unlock(&client_read_mutex);
+    if(valread <= 0)
+    {
+      close(client_socket);
+      network_client_connect();
+      valread = 0;
+    }
+    bytes_recvd += valread;
+  }
+
+  if(packet[0] == PING_REQUEST)
+  {
+    char x[1] = {PING_RESPONSE};
+    write(client_socket, x, 1);
+  }
+}
+
 uint32_t network_client_recv(uint8_t *buf, uint32_t sz)
 {
-  // tell server we want a frame
-  char x[1] = {'v'};
-  write(client_socket, x, 1);
 
-  pthread_mutex_lock(&client_read_mutex);
-  int32_t valread = read(client_socket, buf, PACKET_SIZE);
-  pthread_mutex_unlock(&client_read_mutex);
-  if(valread < 0)
+  uint32_t num_packets = sz/PACKET_SIZE;
+  if(num_packets < 1)
   {
-    close(client_socket);
-    network_client_connect();
-    valread = 0;
+    printf("error: chunk size must be bigger than at least one packet");
+    exit(EXIT_FAILURE);
   }
-  return valread;
+
+  char packet_buf[PACKET_SIZE];
+
+  for(uint32_t i = 0; i < num_packets; i++)
+  {
+    client_read_packet(packet_buf);
+    memcpy(&buf[i*(PACKET_SIZE-1)], packet_buf+1, PACKET_SIZE-1);
+  }
+
+  uint32_t bytes_read = num_packets*(PACKET_SIZE-1);
+
+  return bytes_read;
 }
