@@ -20,8 +20,8 @@ pthread_mutex_t client_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t client_read_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 #define VIDEO_PACKET 'v'
-#define PING_REQUEST 'a'
-#define PING_RESPONSE 'b'
+#define PING_REQUEST 'p'
+#define PING_RESPONSE 'r'
 
 // this is how long the server will wait until checking if the client is reading it into
 // the stream playback buffer. This is needed because otherwise the server has no way
