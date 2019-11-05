@@ -129,7 +129,7 @@ void network_server_connect()
   pthread_mutex_unlock(&server_mutex);
 }
 
-int32_t network_server_send_all(const char *buf, uint32_t len)
+int32_t network_server_send_all(uint8_t *buf, uint32_t len)
 {
     uint32_t total_bytes = 0;
     uint32_t bytes = 0;
@@ -148,7 +148,7 @@ int32_t network_server_send_all(const char *buf, uint32_t len)
 
 int32_t record_server_bytes(char code, uint8_t *buf, uint32_t size)
 {
-  char packet_buf[PACKET_SIZE];
+  uint8_t packet_buf[PACKET_SIZE];
   int32_t bytes_sent = 0;
   char x[1] = {0};
   for(uint32_t i = 0; i < size; i++)
