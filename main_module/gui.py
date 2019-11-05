@@ -385,7 +385,8 @@ class DashcamGUI:
         if not self.lane_warning_open:
             self.lane_warning_open = True
             put_window_command(WINDOW_COMMAND_PUSH_VIEW, window_push_packet(view_class=GUILaneWarningView, data=None))
-            self.pg_mixer.music.load('lane_beep.wav')
+            beep_path = os.path.join(get_script_path(), 'lane_beep.wav')
+            self.pg_mixer.music.load(beep_path)
             self.pg_mixer.music.play(0)
             x = threading.Thread(target=self.close_lane_warning)
             x.start()
