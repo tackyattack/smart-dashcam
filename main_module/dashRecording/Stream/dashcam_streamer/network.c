@@ -157,7 +157,9 @@ int32_t record_server_bytes(char code, uint8_t *buf, uint32_t size)
     {
       packet_buf[0] = code;
       for(uint32_t ii = 0; ii < PACKET_SIZE-1; ii++)packet_buf[ii+1]=dequeue(server_send_queue);
+      pthread_mutex_lock(&server_write_mutex);
       bytes_sent = network_server_send_all(packet_buf, PACKET_SIZE);
+      pthread_mutex_unlock(&server_write_mutex);
       if(bytes_sent < 0)
       {
         reset_queue(server_send_queue);
