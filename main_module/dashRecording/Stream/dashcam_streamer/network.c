@@ -22,7 +22,12 @@ pthread_mutex_t client_read_mutex = PTHREAD_MUTEX_INITIALIZER;
 #define VIDEO_PACKET 'v'
 #define PING_REQUEST 'a'
 #define PING_RESPONSE 'b'
-#define PING_TIME_S 2.0
+
+// this is how long the server will wait until checking if the client is reading it into
+// the stream playback buffer. This is needed because otherwise the server has no way
+// of knowing if consumption is happening, which would end up placing it all in the
+// system TCP buffer (making a large video delay).
+#define PING_TIME_S 1.0
 
 //static server_disconnected_callback_t server_disconnected_callback_p = NULL;
 static client_disconnected_callback_t client_disconnected_callback_p = NULL;
@@ -160,7 +165,7 @@ int32_t record_server_bytes(char code, uint8_t *buf, uint32_t size)
       }
       if(code == PING_REQUEST)
       {
-        printf("pinging\n");
+        //printf("pinging\n");
         read(server_socket, x, 1);
       }
     }
@@ -243,45 +248,48 @@ uint8_t network_client_init(char *ip, int port)
   return network_client_connect();
 }
 
-void client_read_packet(char *packet)
+int32_t readall_client(int socket, uint8_t *buffer, uint32_t size)
 {
-  uint32_t bytes_recvd = 0;
-  while(bytes_recvd < PACKET_SIZE)
+  int bytes_read = 0;
+  int result;
+  while (bytes_read < size)
   {
-    pthread_mutex_lock(&client_read_mutex);
-    int32_t valread = read(client_socket, packet+bytes_recvd, PACKET_SIZE-bytes_recvd);
-    pthread_mutex_unlock(&client_read_mutex);
-    if(valread <= 0)
-    {
-      close(client_socket);
-      network_client_connect();
-      valread = 0;
-    }
-    bytes_recvd += valread;
+    result = read(socket, buffer + bytes_read, size - bytes_read);
+    if (result < 1 ) return -1;
+    bytes_read += result;
   }
-
-  if(packet[0] == PING_REQUEST)
-  {
-    char x[1] = {PING_RESPONSE};
-    write(client_socket, x, 1);
-  }
+  return bytes_read;
 }
 
 uint32_t network_client_recv(uint8_t *buf, uint32_t sz)
 {
-
+  int32_t valread = 0;
+  uint8_t packet_buf[PACKET_SIZE];
   uint32_t num_packets = sz/PACKET_SIZE;
+
   if(num_packets < 1)
   {
     printf("error: chunk size must be bigger than at least one packet");
     exit(EXIT_FAILURE);
   }
 
-  char packet_buf[PACKET_SIZE];
-
   for(uint32_t i = 0; i < num_packets; i++)
   {
-    client_read_packet(packet_buf);
+    pthread_mutex_lock(&client_mutex);
+    valread = readall_client(client_socket, packet_buf, PACKET_SIZE);
+    pthread_mutex_unlock(&client_mutex);
+    if(valread < 1)
+    {
+      close(client_socket);
+      network_client_connect();
+      return 0;
+    }
+    if(packet_buf[0] == PING_REQUEST)
+    {
+      char x[1] = {PING_RESPONSE};
+      write(client_socket, x, 1);
+      //printf("ping responding\n");
+    }
     memcpy(&buf[i*(PACKET_SIZE-1)], packet_buf+1, PACKET_SIZE-1);
   }
 
