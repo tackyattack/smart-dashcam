@@ -18,8 +18,8 @@ DEBUG_PROGRAM = False
 RECORD_WIDTH = 1296
 RECORD_HEIGHT = 730
 
-STREAM_WIDTH = 240
-STREAM_HEIGHT = 160
+STREAM_WIDTH = 480
+STREAM_HEIGHT = 320
 
 # record interval in seconds
 record_interval = 10
