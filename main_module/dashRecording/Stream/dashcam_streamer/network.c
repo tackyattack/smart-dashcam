@@ -131,8 +131,8 @@ void network_server_connect()
 
 int32_t network_server_send_all(uint8_t *buf, uint32_t len)
 {
-    uint32_t total_bytes = 0;
-    uint32_t bytes = 0;
+    int32_t total_bytes = 0;
+    int32_t bytes = 0;
 
     while (len > 0)
     {
@@ -145,35 +145,78 @@ int32_t network_server_send_all(uint8_t *buf, uint32_t len)
     return total_bytes;
 }
 
+uint8_t packet_buf[PACKET_SIZE];
+int32_t prepare_buffer(char code, uint8_t *buf, uint32_t size)
+{
+  char x;
+  static uint32_t buf_pos = 0;
+  static char set_code = 0;
+
+  if(set_code == 0) set_code = code;
+  int32_t valsent = 0;
+
+  // add the ID if we're on the first position
+  if(buf_pos == 0)
+  {
+    packet_buf[buf_pos] = set_code;
+    buf_pos++;
+  }
+
+  uint32_t amount_to_move_in = (PACKET_SIZE-1) - (buf_pos) + 1; // distance between top and bottom
+
+  // if there's less to move in than we want, just shuffle in what's available
+  if(size < amount_to_move_in) amount_to_move_in = size;
+
+  memcpy(&packet_buf[buf_pos], buf, amount_to_move_in);
+  buf_pos += amount_to_move_in;
+
+  // check if buffer is all ready to send
+  // this happens when the buffer position has moved beyond the buffer space
+  // (think of it like mod wrap around)
+  if(buf_pos == PACKET_SIZE)
+  {
+    pthread_mutex_lock(&server_write_mutex);
+    valsent = network_server_send_all(packet_buf, PACKET_SIZE);
+    pthread_mutex_unlock(&server_write_mutex);
+
+    // ready for the next code
+    set_code = 0;
+    // wrap back around
+    buf_pos = 0;
+
+    // if network didn't send, get ready for reset and return error
+    if(valsent == -1)
+    {
+      return -1;
+    }
+
+    // if we just sent a ping request, wait here until you get a reply
+    if(set_code == PING_REQUEST)
+    {
+      //printf("pinging\n");
+      read(server_socket, &x, 1);
+    }
+  }
+
+  // tell how many we actually moved in
+  return amount_to_move_in;
+}
 
 int32_t record_server_bytes(char code, uint8_t *buf, uint32_t size)
 {
-  uint8_t packet_buf[PACKET_SIZE];
-  int32_t bytes_sent = 0;
-  char x[1] = {0};
-  for(uint32_t i = 0; i < size; i++)
+  int32_t total_bytes = 0;
+  int32_t bytes = 0;
+
+  // move in all the bytes we have
+  while (size > 0)
   {
-    if(server_send_queue->size > (PACKET_SIZE-1))
-    {
-      packet_buf[0] = code;
-      for(uint32_t ii = 0; ii < PACKET_SIZE-1; ii++)packet_buf[ii+1]=dequeue(server_send_queue);
-      pthread_mutex_lock(&server_write_mutex);
-      bytes_sent = network_server_send_all(packet_buf, PACKET_SIZE);
-      pthread_mutex_unlock(&server_write_mutex);
-      if(bytes_sent < 0)
-      {
-        reset_queue(server_send_queue);
-        return -1;
-      }
-      if(code == PING_REQUEST)
-      {
-        //printf("pinging\n");
-        read(server_socket, x, 1);
-      }
-    }
-    enqueue(server_send_queue, buf[i]);
+    bytes = prepare_buffer(code, buf+total_bytes, size);
+    if(bytes == -1) return -1;
+    total_bytes += bytes;
+    size -= bytes;
   }
-  return size;
+
+  return total_bytes;
 }
 
 
