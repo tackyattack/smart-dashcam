@@ -63,7 +63,7 @@ def create_stream_encoder(camera, splitter_port, format, resize, quality):
             del encoder
         raise
 
-create_stream_encoder(camera=camera, splitter_port=3, format='h264', resize=(1280, 720), quality=30)
+create_stream_encoder(camera=camera, splitter_port=3, format='h264', resize=(240, 160), quality=30)
 
 streamer_init(8080, 100)
 try:
