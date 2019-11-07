@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # Un-Install Proftpd
 sudo apt-get purge proftpd
 

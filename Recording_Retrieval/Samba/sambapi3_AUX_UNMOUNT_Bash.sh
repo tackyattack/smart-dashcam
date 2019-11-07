@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # UNMount Shared piZero Drive
 dir="$1"
 

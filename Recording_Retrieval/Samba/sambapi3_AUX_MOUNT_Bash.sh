@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # Mount Shared piZero Drive
 IP="$1"
 dir="$2"

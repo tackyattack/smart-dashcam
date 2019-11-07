@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 if [ -f "Backups/smb_bkp.conf" ]
 then
     sudo cp -f Backups/smb_bkp.conf /etc/samba/smb.conf

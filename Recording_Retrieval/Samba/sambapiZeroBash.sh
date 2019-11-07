@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # Install Samba
 sudo apt-get update
 sudo apt-get install samba samba-client samba-common

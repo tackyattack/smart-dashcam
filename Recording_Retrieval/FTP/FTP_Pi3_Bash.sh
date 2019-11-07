@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # Install Proftpd
 sudo apt-get update
 sudo apt-get install proftpd
