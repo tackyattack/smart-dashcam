@@ -45,6 +45,10 @@ if args.aux_unit:
     cmd = 'sudo apt install libdbus-1-dev libdbus-glib-1-dev'
     subprocess.check_call(cmd.split())
 
+    print('\n\n ***** Setting up Recording Retrieval *****\n\n')
+    cmd = 'sudo ./Recording_Retrieval/Samba/sambapiZeroBash.sh'
+    subprocess.check_call(cmd.split())
+
 print('\n\n ***** installing vlc, ffmpeg, and pip *****\n\n')
 cmd = 'sudo apt-get install vlc ffmpeg python-pip'
 subprocess.check_call(cmd.split())
@@ -54,4 +58,10 @@ cmd = 'pip install picamera'
 subprocess.check_call(cmd.split())
 if args.main_unit:
     cmd = 'pip install PySimpleGUI27 typing'
+    subprocess.check_call(cmd.split())
+
+# Setup Recording Retrieval
+if args.main_unit:
+    print('\n\n ***** Setting up Recording Retrieval *****\n\n')
+    cmd = 'sudo ./Recording_Retrieval/FTP/FTP_Pi3_Bash.sh'
     subprocess.check_call(cmd.split())
