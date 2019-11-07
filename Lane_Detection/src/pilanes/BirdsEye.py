@@ -58,13 +58,19 @@ class BirdsEyeMath:
         print(origin_x)
         print(origin_y)
 
-        percent_height = 0.10
+        # How much of the final output to compress down into the view window.
+        # The more you compress it, the more sensitive it is to deviations from
+        # the given homography angle/height. I.e, the lanes further out will bounce.
+        # It's not necessary to have the entire transformation compressed down, but it should
+        # be enough to include dotted lane + a partial of the next so that framerate aliasing
+        # doesn't cause fast lanes to become invisible.
+        percent_height = 0.25
         null, top = self.world_to_camera(H, 0, h/2)
         null, bottom = self.world_to_camera(H, 0, -h/2*percent_height)
         scale_y = abs(top-bottom)/h
         # for now, it looks like not scaling is best
         # because parameters don't have to be as precise
-        scale_y = 1
+        #scale_y = 1
         print(scale_y)
 
 
