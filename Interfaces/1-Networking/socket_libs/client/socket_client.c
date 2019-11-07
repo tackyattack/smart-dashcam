@@ -171,14 +171,14 @@ int process_recv_msg(const int socket_fd)
     /*-------------------------------------
     |           INITIALIZATIONS            |
     --------------------------------------*/
-    buffer = malloc(MAX_TX_MSG_SZ); /* We use this instead of MAX_MSG_SZ because we have to account for the message headers that are included even though they aren't returned */
-    bzero(buffer,MAX_TX_MSG_SZ);
+    buffer = malloc(MAX_MSG_SZ); /* We use this instead of MAX_MSG_SZ because we have to account for the message headers that are included even though they aren't returned */
+    bzero(buffer,MAX_MSG_SZ);
     return_val = RETURN_SUCCESS;
 
     /*----------------------------------
     |     RECEIVE DATA FROM SERVER      |
     ------------------------------------*/
-    recv_flag = socket_receive_data(socket_fd,buffer,MAX_TX_MSG_SZ,&n_recv_bytes);
+    recv_flag = socket_receive_data(socket_fd,buffer,MAX_MSG_SZ,&n_recv_bytes);
 
     /*-------------------------------------
     |             VERIFICATION             |
@@ -190,7 +190,7 @@ int process_recv_msg(const int socket_fd)
         return RETURN_DISCONNECT;
     }
 
-    if ( RECV_ERROR == recv_flag )
+    if ( RECV_HEADER_ERROR == recv_flag )
     {
         printf("\nClient received invalid msg header.\n");
         return RETURN_SUCCESS;

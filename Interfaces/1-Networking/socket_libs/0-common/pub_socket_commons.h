@@ -23,34 +23,64 @@
 
 
 /*-------------------------------------
+|         FORWARD DECLARATIONS         |
+--------------------------------------*/
+
+struct MSG_HEADER;
+
+
+/*-------------------------------------
 |            PUBLIC DEFINES            |
 --------------------------------------*/
 
 #define RETURN_FAILED           (-1)       /* Return value of functions that represents that that function failed to perform its task */
 #define RETURN_SUCCESS          (0)        /* Return value of functions that represents that that function succeeded in performing its task */
 
-/* First/Last byte received is msg start/end/cont indicator */
-#define MSG_START               (uint8_t)0x0F                       /* Message separator. Used to detect begining of message */
-#define MSG_START__SEQUENCE     (uint8_t)0x0C                       /* Signifies that this received message is the next packet in a multipacket message to be received */
-#define MSG_END                 (uint8_t)0x0E                       /* Message separator. Used to detect end of message. When used with MSG_START__SEQUENCE, indicates no more multipacket messages to receive. */
-#define MSG_END__MORE           (uint8_t)0x0D                       /* Indicates this is a multipacket message and we expect more messages to be received to form the entire multipacket message. When a MSG_START__SEQUENCE is received and a MSG_END is used, there are no more message in sequence */
-#define MSG_SZ                  (1)                                 /* Number of bytes a MSG is */
-#define MSG_HEADER_SZ           (MSG_SZ + MSG_SZ)                   /* Total size used by the message headers */
+/* First byte in msg_header struct is msg type indicator indicator */
+#define MSG_TYPE_INDEPENDENT    (uint8_t)0x0F                       /* Indicates that the message received/sent is self contained (the data payload is less than MAX_DATA_MSG_SZ) */
+#define MSG_TYPE_SEQUENCE       (uint8_t)0x0E                       /* Signifies that this received message is the the first or next packet in a multipacket message being received */
+#define MSG_TYPE_END_SEQUENCE   (uint8_t)0x0D                       /* Signifies that this received message is the last packet in a multipacket message sequence being received */
+#define MSG_HEADER_SZ           (sizeof(struct MSG_HEADER))         /* Total size used by the message headers */
 
-/* 2nd byte received is a command byte */
+/* 1st byte after msg header is a command byte */
 #define COMMAND_PING            (uint8_t)0x0F                       /* If this is received, we have been pinged and request this msg be echoed back */
 #define COMMAND_UUID            (uint8_t)0x0E                       /* If received, signals msg data is our UUID */
-#define COMMAND_NONE            (uint8_t)0x00                       /* If received, signals msg data is our UUID */
+#define COMMAND_NONE            (uint8_t)0x00                       /* Signifies msg is data message and not a library level command (such as ping) */
 #define COMMAND_SZ              (1)                                 /* Number of bytes a command is */
 
 /* Defaults/Configurations */
 #define DEFAULT_PORT            "5555"                              /* Port number to use if none are given */
 #define MAX_HOSTNAME_SZ         (255)                               /* Max size/length a hostname can be */
-#define MAX_TX_MSG_SZ           (512)                               /* max size of the message that will be sent over socket. NOTE, this should not be used outside of this file */
-#define MAX_MSG_SZ              (MAX_TX_MSG_SZ-MSG_HEADER_SZ)       /* max size of the message payload that can be sent */
+#define MAX_MSG_SZ              (512)                               /* max size of the message that will be sent over socket. NOTE, this should not be used outside of this file */
+#define MAX_DATA_MSG_SZ         (MAX_MSG_SZ-MSG_HEADER_SZ)          /* max size of the message payload that can be sent. Max size of any data message passed to socket_send_data() */
 #define CONNECT_TIMEOUT         (1)                                 /* Set a timeout of 1 second for socket client connect attempt */
 #define UUID_SZ                 (37)                                /* UUID is 4 hyphens + 32 digits. This does include termination character! */
 #define TIME_BETWEEN_PINGS      (1)                                 /* Time (in seconds) between pings from the server. The server sends a ping to all clients every TIME_BETWEEN_PINGS seconds */
+
+
+/*-------------------------------------
+|            PUBLIC STRUCTS            |
+--------------------------------------*/
+
+/** This struct is used for sending/receiving packets over the socket. It contains
+ * information pertaining to the data received, how much to expect, and more.
+ */
+struct MSG_HEADER
+{
+    char     msg_type;      /* Type specified by MSG_ prefix in #defines above */
+    uint16_t msg_num_bytes; /* Number of bytes long this message is. Max value is MAX_MSG_SZ. This dictates the data_sz of data given to send() functions */
+} __attribute__((packed));  /* Attribute tells compiler to not use padding in the struct. This is to prevent any additional bytes being added to the struct because
+                                this struct comprises the msg header to be sent via sockets, and as such, don't want any additional bytes. See https://www.geeksforgeeks.org/how-to-avoid-structure-padding-in-c/ */
+
+/** This struct is returned when receiving messages/calling 
+* struct socket_receive_data() when given as a pointer parameter
+*/
+struct RECV_MSGS
+{
+    char** data_arrys;      /* An array of data messages received. This is because it is possible to receive multiple messages at the same time */
+    uint16_t** data_arry_sz;/* The number of bytes in each data message array */
+    uint n_arrys;           /* Number of arrays of data messages (number of elements in arrys above) */
+};
 
 
 /*-------------------------------------
@@ -85,7 +115,8 @@ enum SOCKET_TYPES
 enum SOCKET_RECEIVE_DATA_FLAGS
 {
     RECV_DISCONNECT         = -2,               /* Indicates a disconnect/connection loss */
-    RECV_ERROR              = RETURN_FAILED,    /* Indicates an error with message headers */
+    RECV_HEADER_ERROR       = RETURN_FAILED,    /* Indicates an error with message headers */
+    RECV_DATA_ERROR         = RETURN_FAILED,    /* Indicates an error with message data */
     RECV_NO_FLAGS           = RETURN_SUCCESS,   /* Indicates no flags/no information */
     RECV_SEQUENCE_CONTINUE,                     /* Indicates a message received is part of a sequence of messages and more are expected */
     RECV_SEQUENCE_END                           /* Indicates a message received is part of a sequence of messages and no more are expected */

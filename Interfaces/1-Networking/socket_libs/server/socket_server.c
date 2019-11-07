@@ -315,7 +315,7 @@ int process_recv_msg(int client_fd)
     /*----------------------------------
     |            INITIALIZE             |
     ------------------------------------*/
-    buffer = malloc(MAX_TX_MSG_SZ);
+    buffer = malloc(MAX_MSG_SZ);
     bzero(buffer,BUFFER_SZ);
 
     client = find_client_by_fd(client_fd);
@@ -324,7 +324,7 @@ int process_recv_msg(int client_fd)
     /*-----------------------------------
     |       RECEIVE SOCKET MESSAGE       |
     ------------------------------------*/
-    recv_flag = socket_receive_data( client_fd, buffer, MAX_TX_MSG_SZ, &n_recv_bytes );
+    recv_flag = socket_receive_data( client_fd, buffer, MAX_MSG_SZ, &n_recv_bytes );
 
     /*-------------------------------------
     |             VERIFICATION             |
@@ -335,7 +335,7 @@ int process_recv_msg(int client_fd)
         close_client_conn(client_fd);
         return RETURN_SUCCESS;
     }
-    else if( recv_flag == RECV_ERROR )
+    else if( recv_flag == RECV_HEADER_ERROR )
     {
         printf("Socket Server: Message header error. Message discarded.\n");
         return RETURN_FAILED; /* Return one to prevent indication of client disconect */
