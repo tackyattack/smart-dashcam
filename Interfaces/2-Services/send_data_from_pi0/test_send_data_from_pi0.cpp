@@ -115,6 +115,13 @@ void tcp_rx_data_callback(const char* tcp_clnt_uuid, const char* data, unsigned 
     assert( strcmp(tcp_clnt_uuid, (char*)"SERVER" ) == 0 );
     assert(data != NULL);
     assert(data_sz != 0);
+    
+    printf("Received %d data bytes as follows:\n\"",data_sz);
+    for (size_t i = 0; i < data_sz; i++)
+    {
+        printf("%c",data[i]);
+    }
+    printf("\"\n");
 
     /*-------------------------------------
     |        SET CONNECTION STATUS         |
@@ -123,19 +130,17 @@ void tcp_rx_data_callback(const char* tcp_clnt_uuid, const char* data, unsigned 
     mutex_connected_status.lock();
     if ( _connected_status == STATUS_NOT_CONNECTED )
     {
-        printf("Connected to server\n");
-        printf("Send %s to server...", msg_hi);
+        //printf("Send %s to server...", msg_hi);
         /* Say hi to the server */
-        if( false == tcp_dbus_send_msg(id, NULL, msg_hi, strlen(msg_hi)) )
-        {
-            printf("FAILED\n");
-            _connected_status = STATUS_NOT_CONNECTED;
-        }
-        else
-        {
-            printf("SUCCEEDED\n");
-            _connected_status = STATUS_NOT_CONNECTED;
-        }
+        //if( false == tcp_dbus_send_msg(id, NULL, msg_hi, strlen(msg_hi)+1) )
+        //{
+        //    printf("FAILED\n");
+        //}
+        //else
+        //{
+        //    printf("SUCCEEDED\n");
+            _connected_status = STATUS_CONNECTED;
+        //}
     }
     mutex_connected_status.unlock();
 
@@ -172,14 +177,35 @@ void process_recv_data(msg_struct *msg)
 
     if( msg->data[0] == msg_from_server__request_data ) /* check to see if first byte (the command byte) signifies this is the data requested */
     {
-        /* Write the data and millisecond timestamp to file. Ignore if failed to send */
-        tcp_dbus_send_msg(id, NULL, data ,DATA_SZ);
+        /* Send data to server as requested.*/
+        while ( false == tcp_dbus_send_msg(id, NULL, data, DATA_SZ) )
+        {
+            mutex_connected_status.lock();
+            if( _connected_status == STATUS_NOT_CONNECTED )
+            {
+                printf("FAILED to send data to server\n");
+                mutex_connected_status.unlock();
+                break;
+            }
+            mutex_connected_status.unlock();
+        }
     }
     else if( strcmp(msg->data, msg_hi) )
     {
         printf("Server says HI!\n" );
         /* Say hi to server. Ignore return value/if failed */
-        tcp_dbus_send_msg( id, NULL, msg_hi, strlen(msg_hi)+1 );
+        //tcp_dbus_send_msg( id, NULL, msg_hi, strlen(msg_hi)+1 );
+        while ( false == tcp_dbus_send_msg(id, NULL, msg_hi, strlen(msg_hi)+1) )
+        {
+            mutex_connected_status.lock();
+            if( _connected_status == STATUS_NOT_CONNECTED )
+            {
+                printf("FAILED to say hi to server\n");
+                mutex_connected_status.unlock();
+                break;
+            }
+            mutex_connected_status.unlock();
+        }
     }
     else
     {

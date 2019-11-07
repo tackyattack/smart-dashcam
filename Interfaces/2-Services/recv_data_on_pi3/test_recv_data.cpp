@@ -115,7 +115,7 @@ void tcp_clnt_connect_callback(const char* tcp_clnt_uuid, const char* data, unsi
     mutex_specific_clnt.unlock();
 
     /* Say hi to all clients by sending message to all clients. Ignore return value/if failed */
-    tcp_dbus_send_msg( id, NULL, msg_hi, strlen(msg_hi) );
+    tcp_dbus_send_msg( id, NULL, msg_hi, strlen(msg_hi)+1 );
 
   	printf("\n****************END---client_connect---END****************\n\n");
 }
@@ -232,9 +232,17 @@ void process_recv_data(msg_struct *msg)
 
         printf("Request more data from client %s!\n", msg->UUID.c_str() );
         /* Send command to client to send more data. Ignore return value/if failed */
-        tcp_dbus_send_msg(id, msg->UUID.c_str(), &msg_to_client__request_data ,1);
+        while ( false == tcp_dbus_send_msg(id, msg->UUID.c_str(), &msg_to_client__request_data ,1) )
+        {
+            mutex_specific_clnt.lock();
+            if( _specific_UUID == NULL )
+            {
+                mutex_specific_clnt.unlock();
+                break;
+            }
+            mutex_specific_clnt.unlock();
+        }
     }
-    
     else if( strcmp(msg->data, msg_hi) == 0 )
     {
         printf("Client %s says HI!\n",msg->UUID.c_str() );
@@ -244,7 +252,16 @@ void process_recv_data(msg_struct *msg)
         {
             printf("Request data from client %s!\n", msg->UUID.c_str() );
             /* Send command to client to send more data. Ignore return value/if failed */
-            tcp_dbus_send_msg(id, msg->UUID.c_str(), &msg_to_client__request_data ,1);
+            while ( false == tcp_dbus_send_msg(id, msg->UUID.c_str(), &msg_to_client__request_data ,1) )
+            {
+                mutex_specific_clnt.lock();
+                if( _specific_UUID == NULL )
+                {
+                    mutex_specific_clnt.unlock();
+                    break;
+                }
+                mutex_specific_clnt.unlock();
+            }
         }
     }
     else
@@ -351,7 +368,7 @@ int main(void)
 #if 0 /* for testing */
         sleep(1);
         /* Say hi to the server */
-        if( false == tcp_dbus_send_msg(id, NULL, msg_hi, strlen(msg_hi)) )
+        if( false == tcp_dbus_send_msg(id, NULL, msg_hi, strlen(msg_hi)+1) )
         {
             printf("FAILED to send HI\n");
         }
