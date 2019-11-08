@@ -6,6 +6,7 @@ from time import sleep
 import os
 import threading
 import sys
+import subprocess
 from multiprocessing import Process
 from multiprocessing import Queue as ProcessQueue
 from multiprocessing import Event as ProcessEvent
@@ -185,6 +186,28 @@ class MainModule:
 
     def retrieval_mode_callback(self):
         print('mounting')
+        cameras = self.finder.get_aux_devices(1)
+        if len(cameras) < 1:
+            print("no aux devices found")
+            return
+
+        for camera in cameras:
+            # ('tcp://127.0.0.1:8080', 'Front')
+            tcp_path = camera[0]
+            camera_name = camera[1]
+            uri = os.path.basename(tcp_path)
+            aux_IP = uri.split(':')[0]
+            cmd = 'Recording_Retrieval/FTP/sambapi3_AUX_MOUNT_Bash.sh {0} {1}'.format(aux_IP, camera_name)
+            cmd = cmd.split()
+            print('Mounting {0}'.format(camera_name))
+            try:
+                subprocess.check_call(cmd)
+            except OSError as error:
+                print('Could not mount')
+                print('****')
+                print(error)
+                print('****')
+
 
     def GUI_exit_callback(self):
         self.terminate_modules()
