@@ -55,7 +55,7 @@ void tcp_recv_msg(const char *data, const unsigned int data_sz)
     if ( 0 != tcp_dbus_srv_emit_msg_recv_signal(srv_id, "SERVER", data, data_sz) )
     {
         pthread_mutex_unlock(&mutex_tcp_recv_msg);
-        printf("ERROR: raising signal tcp_dbus_srv_emit_msg_recv_signal() FAILED!\n");
+        printf("ERROR: emitting signal tcp_dbus_srv_emit_msg_recv_signal() FAILED!\n");
         exit(EXIT_FAILURE);
     }
     pthread_mutex_unlock(&mutex_tcp_recv_msg);
@@ -75,6 +75,13 @@ void tcp_disconnect()
         return;
     }
     pthread_mutex_unlock(&mutex_ignore_disconnect);
+
+    /* Emit DBUS signal signalling we have connected to server */
+    if (0 != tcp_dbus_srv_emit_disconnect_signal(srv_id, "SERVER"))
+    {
+        printf("ERROR: tcp_client_service: emitting signal tcp_dbus_srv_emit_disconnect_signal() FAILED!\n");
+        exit(EXIT_FAILURE);
+    }
     
   	printf("\n****************END---tcp_disconnect---END****************\n\n");
 } /* tcp_disconnect() */
@@ -185,9 +192,17 @@ int main(int argc, char *argv[])
             continue;
         }
 
-        /* Run the client. Returns immediately after spawning server. */
-        socket_client_execute(); /* Shouldn't return unless lost connection */
+        /* Emit DBUS signal signalling we have connected to server */
+        if (0 != tcp_dbus_srv_emit_connect_signal(srv_id, "SERVER"))
+        {
+            printf("ERROR: tcp_client_service: emitting signal tcp_dbus_srv_emit_connect_signal() FAILED!\n");
+            exit(EXIT_FAILURE);
+        }
 
+        /* Run the client. Returns immediately after spawning server. */
+        socket_client_execute();
+
+        /* when client is no longer executing, the connection to the server was lost */
         while(socket_client_is_executing() == true)
         {
             usleep(200000);

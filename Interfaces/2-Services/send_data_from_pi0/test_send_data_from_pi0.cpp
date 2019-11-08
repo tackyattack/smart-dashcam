@@ -83,17 +83,33 @@ static char msg_hi[] = "HI";
  */
 //  typedef void (*tcp_rx_signal_callback)(const char* tcp_clnt_uuid, const char* data, unsigned int data_sz);
 
-/** Note that data is freed after this callback is called. As such, if 
- * the data in data needs to be saved, a copy of the data must be made.
- * Refer to this guide on mixing C and C++ callbacks due to ldashcam_tcp_dbus_clnt
- *  being written in C: https://isocpp.org/wiki/faq/mixing-c-and-cpp */
+/* Data and data_sz are not used! Technically tcp_clnt_uuid isn't used either but should contain the string "SERVER" */
+void tcp_connected_from_srv_cb(const char* tcp_clnt_uuid, const char* data, unsigned int data_sz)
+{
+    printf("\n****************connected_to_srv: callback activated.****************\n\n");
+
+    printf("Connected to server\n");
+
+    assert( strcmp(tcp_clnt_uuid, (char*)"SERVER" ) == 0 );
+    assert(data == NULL);
+    assert(data_sz == 0);
+
+    /* Update our connection status with server */
+    mutex_connected_status.lock();
+    _connected_status = STATUS_CONNECTED;
+    mutex_connected_status.unlock();
+
+  	printf("\n****************END---connected_to_srv---END****************\n\n");
+}
+
+/* Data and data_sz are not used! Technically tcp_clnt_uuid isn't used either but should contain the string "SERVER" */
 void tcp_disconnected_from_srv_cb(const char* tcp_clnt_uuid, const char* data, unsigned int data_sz)
 {
     printf("\n****************disconnected_from_srv: callback activated.****************\n\n");
 
     printf("Disconnected from server\n");
 
-    assert(tcp_clnt_uuid == NULL);
+    assert( strcmp(tcp_clnt_uuid, (char*)"SERVER" ) == 0 );
     assert(data == NULL);
     assert(data_sz == 0);
 
@@ -122,27 +138,6 @@ void tcp_rx_data_callback(const char* tcp_clnt_uuid, const char* data, unsigned 
         printf("%c",data[i]);
     }
     printf("\"\n");
-
-    /*-------------------------------------
-    |        SET CONNECTION STATUS         |
-    --------------------------------------*/
-    /* Update our connection status with server and say HI if previously weren't connected */
-    mutex_connected_status.lock();
-    if ( _connected_status == STATUS_NOT_CONNECTED )
-    {
-        //printf("Send %s to server...", msg_hi);
-        /* Say hi to the server */
-        //if( false == tcp_dbus_send_msg(id, NULL, msg_hi, strlen(msg_hi)+1) )
-        //{
-        //    printf("FAILED\n");
-        //}
-        //else
-        //{
-        //    printf("SUCCEEDED\n");
-            _connected_status = STATUS_CONNECTED;
-        //}
-    }
-    mutex_connected_status.unlock();
 
     /*-------------------------------------
     |   SAVE MSG TO QUEUE FOR PROCESSING   |
@@ -293,6 +288,13 @@ int main(void)
         exit(EXIT_FAILURE);
     }
 
+    printf("Subscribe to DBUS_TCP_CONNECT_SIGNAL signal\n");/* Subscribing to CONNECT_SIGNAL will make our connect_callback activate when a tcp client/aux device disconnects */
+    if ( EXIT_FAILURE == tcp_dbus_client_Subscribe2Recv(id,(char*)DBUS_TCP_CONNECT_SIGNAL,&tcp_connected_from_srv_cb) )
+    {
+        printf("Failed to subscribe to DBUS_TCP_CONNECT_SIGNAL signal!\nExiting.....\n");
+        exit(EXIT_FAILURE);
+    }
+
     printf("Subscribe to DBUS_TCP_DISCONNECT_SIGNAL signal\n");/* Subscribing to DISCONNECT_SIGNAL will make our connect_callback activate when a tcp client/aux device disconnects */
     if ( EXIT_FAILURE == tcp_dbus_client_Subscribe2Recv(id,(char*)DBUS_TCP_DISCONNECT_SIGNAL,&tcp_disconnected_from_srv_cb) )
     {
@@ -307,12 +309,23 @@ int main(void)
 
     /* Say hi to server. Ignore return value/if failed */
     tcp_dbus_send_msg( id, NULL, msg_hi, strlen(msg_hi)+1 );
-
     while(1)
     {
 
+#if 0 /* for testing */
+        sleep(1);
+        /* Say hi to the server */
+        if( false == tcp_dbus_send_msg(id, NULL, msg_hi, strlen(msg_hi)+1) )
+        {
+            printf("FAILED to send HI\n");
+        }
+        static uint8_t count = 0;
+        tcp_dbus_send_msg(id, NULL, (char*)std::to_string(count).c_str(), std::to_string(count).length()+1);
+        count++;
+#else
         /* sleep 1ms */
-        usleep(1000);
+        usleep(1000);    
+#endif
 
         /* Get msg from queue to process if queue isn't empty */
         /* If nothing to process, go to next loop iteration */
