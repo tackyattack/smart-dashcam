@@ -26,14 +26,17 @@
 /*-------------------------------------
 |           PRIVATE STRUCTS            |
 --------------------------------------*/
+/**
+ * Each struct represents a client connected to us (the server).
+ * It contains information identifying the client and a link to the
+ * next client as a linked list structure.
+ */
 struct client_info
 {
-    int fd;
+    int fd;                     /* Client's socket fd */
     char uuid[UUID_SZ];         /* UUID of client */
     struct in_addr address;     /* in_addr struct of server's address */
     struct client_info *next;   /* pointer to next client_info struct in the linked list of structs */
-    char* partialMSG;           /* This will point to arrays of partial messages received that are waiting for the rest of the message to be received */
-    ssize_t partialMSG_sz;      /* Size of array partialMSG */
 };
 
 
@@ -46,14 +49,14 @@ struct client_info
  * Handle signal interupt by safely shutting down server (ctrl + c)
  * and quitting program. DOES NOT RETURN
  */
-void  INThandler(int sig);
+void  INThandler( int sig );
 
 /**
  * Handle signal pipe (pipe error: happens when sending data to 
  * client but client is no longer connected). This function being
  * called signifies client disconnected).
  */
-void  PIPEhandler(int sig);
+void  PIPEhandler( int sig );
 
 /**
  * Given a client's socket fd, searches the static struct client_info *client_infos
@@ -66,7 +69,7 @@ void  PIPEhandler(int sig);
  * 
  * Blocking Function
  */
-struct client_info* find_client_by_fd(const int socket);
+struct client_info* find_client_by_fd( const int socket );
 
 /**
  * Given a client's UUID, searches the static struct client_info *client_infos
@@ -78,7 +81,7 @@ struct client_info* find_client_by_fd(const int socket);
  * 
  * Blocking Function
  */
-struct client_info* find_client_by_uuid(const char* uuid);
+struct client_info* find_client_by_uuid( const char* uuid );
 
 /**
  * Given a char* command, char* data array up to 2^16 in size, and its size,
@@ -93,7 +96,7 @@ struct client_info* find_client_by_uuid(const char* uuid);
  * 
  * @Returns number of bytes sent or RETURN_FAILED or 0 if there's an error.
  */
-int send_data ( const char* uuid, const uint8_t command, const char * data, uint data_sz );
+int send_data( const char* uuid, const uint8_t command, const char * data, uint data_sz );
 
 /**
  * Given a char* command, char* data array up to 2^16 in size, and its size,
@@ -108,7 +111,7 @@ int send_data ( const char* uuid, const uint8_t command, const char * data, uint
  * 
  * @Returns number of bytes sent or RETURN_FAILED or 0 if there's an error.
  */
-int send_data_all ( const uint8_t command, const char * data, uint data_sz );
+int send_data_all( const uint8_t command, const char * data, uint data_sz );
 
 /**
  * Accepts incoming client connection requests.
@@ -122,15 +125,13 @@ int send_data_all ( const uint8_t command, const char * data, uint data_sz );
 int handle_conn_request( void );
 
 /**
- * Given a client's fd, processes any received messages from 
+ * Given a client's fd, receives and processes messages from 
  * client. Calls socket_lib_srv_rx_msg callback if message 
- * received from client.
- * 
- * @Returns number of bytes received or negative number if failed
+ * received from client isn't an internal command.
  * 
  * Blocking Function
  */
-int process_recv_msg( int client_fd );
+void process_recv_msg( int client_fd );
 
 /**
  * Given a socket fd set, checks if messages have been received 
@@ -139,7 +140,7 @@ int process_recv_msg( int client_fd );
  * 
  * Blocking Function
  */
-void service_sockets(const fd_set *read_fd_set);
+void service_sockets( const fd_set *read_fd_set );
 
 /**
  * This thread is spawned by execute_thread() and calls
@@ -147,7 +148,7 @@ void service_sockets(const fd_set *read_fd_set);
  * discnt_callback/connect_callback if client connected/disconnected
  * from the server. Call socket_client_quit() to kill thread.
  */
-void* execute_thread(void* args);
+void* execute_thread( void* args );
 
 /**
  * Given a client's socket fd, closes the connection to that client 
@@ -156,6 +157,6 @@ void* execute_thread(void* args);
  * 
  * Blocking Function
  */
-void close_client_conn(int client_fd);
+void close_client_conn( int client_fd );
 
 #endif /* PRV_SOCKET_SERVER_H */

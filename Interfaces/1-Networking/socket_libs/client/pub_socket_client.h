@@ -15,13 +15,13 @@ extern "C" {
 /*-------------------------------------
 |            PUBLIC DEFINES            |
 --------------------------------------*/
-
-#define SERVER_ADDR                     "192.168.200.1"            /* Address of the server we are conencting to. Note, this can be a IP or hostname */
-// #define SERVER_ADDR                     "raspberrypi"              /* Address of the server we are conencting to. Note, this can be a IP or hostname */
-#define SERVER_PORT                        "5555"                  /* This should match the value in pub_socket_commons.h */
-#define TIME_BETWEEN_CONNECTION_ATTEMPTS (2)                       /* Time in seconds between attempts to connect to server if we fail to connect */
-#define SERVER_PING_TIMEOUT              (2*TIME_BETWEEN_PINGS)    /* Max time allowed before we assume the server has disconnected. If we haven't received a \
-                                                                        message from the server within this amount of time (s), disconnect and assume failure */
+#define MAX_MSG_SZ                          (65536)                 /* max size of the message that can be sent over sockets. This is defined in pub_socket_commons.h */
+#define SERVER_ADDR                         "192.168.200.1"         /* Address of the server we are conencting to. Note, this can be a IP or hostname */
+// #define SERVER_ADDR                     "raspberrypi"            /* Address of the server we are conencting to. Note, this can be a IP or hostname */
+#define SERVER_PORT                         "5555"                  /* This should match the value in pub_socket_commons.h */
+#define TIME_BETWEEN_CONNECTION_ATTEMPTS    (2)                     /* Time in seconds between attempts to connect to server if we fail to connect */
+#define SERVER_PING_TIMEOUT                 (2*TIME_BETWEEN_PINGS)  /* Max time allowed before we assume the server has disconnected. If we haven't received a \
+                                                                       message from the server within this amount of time (s), disconnect and assume failure */
 
 
 /*-------------------------------------
@@ -76,14 +76,14 @@ int socket_client_init(char *server_addr, char *port, socket_lib_clnt_rx_msg rx_
 void socket_client_execute();
 
 /**
- * Given a char* data array up to 2^16 in size and its size,
+ * Given a char* data array up to 2^16 (MAX_MSG_SZ) in size and its size,
  * will send data array over socket.
  * 
  * Note that data_sz should include the termination character if applicable.
  * 
  * Note that calls to this are thread safe.
  * 
- * @Returns number of bytes sent or RETURN_FAILED or 0 if there's an error.
+ * @Returns number of bytes sent or a number >= 0 if there's an error.
  */
 int socket_client_send_data ( const char * data, const uint data_sz );
 

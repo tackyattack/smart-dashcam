@@ -8,8 +8,19 @@
 #include <pthread.h>
 
 /*-------------------------------------
-|            PRIVATE DEFINES           |
+|           PRIVATE STRUCTS            |
 --------------------------------------*/
+
+/** This struct is used for sending/receiving packets over the socket. It contains
+ * information pertaining to the data received, how much to expect, and more.
+ */
+struct MSG_HEADER
+{
+    char     msg_type;      /* Type specified by MSG_ prefix in #defines above. Currently not used */
+    uint16_t msg_num_bytes; /* Number of bytes long this message is. Max value is MAX_MSG_SZ. This dictates the data_sz of data given to send() functions */
+    uint16_t crc16_checksum;/* Checksum for header */
+} __attribute__((packed));  /* Attribute tells compiler to not use padding in the struct. This is to prevent any additional bytes being added to the struct because
+                                this struct comprises the msg header to be sent via sockets, and as such, don't want any additional bytes. See https://www.geeksforgeeks.org/how-to-avoid-structure-padding-in-c/ */
 
 
 /*-------------------------------------
@@ -54,15 +65,11 @@ int server_bind(struct addrinfo *address_info_set);
 int client_connect(struct addrinfo *address_info_set);
 
 /**
- * Removes message headers from the buffer string. Called by socket_receive_data().
+ * Given a data array and its length, generates a 16 bit CRC. Asserts
+ * if given parameters are NULL or 0.
  * 
- * @Returns an appropiate value from the SOCKET_RECEIVE_DATA_FLAGS enum values.
- * 
- * @Sets the given data_msg_sz parameter to the length of the payload 
- * (which is message data without headers) or RETURN_FAILED if data received is 
- * invalid (invalid message headers).
+ * @Returns: 16-bit CRC
  */
-enum SOCKET_RECEIVE_DATA_FLAGS \
-remove_msg_header(char *buffer, int buffer_sz, int *data_msg_sz);
+uint16_t crc16(const unsigned char* data_p, uint16_t length);
 
 #endif /* PRV_SOCK_COMMONS_H */

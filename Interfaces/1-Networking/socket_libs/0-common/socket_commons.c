@@ -46,7 +46,7 @@ int hostname_to_ip(const char * hostname , char* ip)
     ------------------------------------*/
     for(i = 0; addr_list[i] != NULL; i++) 
     {
-        //Return the first one;
+        /* Return the first ip addr found */
         strcpy(ip , inet_ntoa(*addr_list[i]) );
         printf("socket_commons: Found IP address \"%s\" for hostname \"%s\"\n",ip,hostname);
 
@@ -121,7 +121,7 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
     {
         if (errno == EINPROGRESS)
         {
-            // fprintf(stderr, "EINPROGRESS in connect() - selecting\n");
+            /* fprintf(stderr, "EINPROGRESS in connect() - selecting\n"); */
             do
             {
                 /*----------------------------------
@@ -144,7 +144,7 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
                 }
                 else if (res > 0)
                 {
-                    // Socket selected for write
+                    /* Socket selected for write */
                     lon = sizeof(int);
                     if (getsockopt(sock, SOL_SOCKET, SO_ERROR, (void *)(&valopt), &lon) < 0)
                     {
@@ -152,11 +152,10 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
                         exit(EXIT_FAILURE);
                     }
 
-                    // Check the value returned...
+                    /* Check the value returned... */
                     if (valopt)
                     {
                         fprintf(stderr, "ERROR: socket_commons: failed in delayed connection() %d - %s\n", valopt, strerror(valopt));
-                        // exit(EXIT_FAILURE);
                         returnval = RETURN_FAILED;
                         break;
                     }
@@ -167,7 +166,6 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
                     fprintf(stderr, "WARNING: socket_commons: Timed out while attempting to connect to server!\n");
                     returnval = RETURN_FAILED;
                     break;
-                    // exit(EXIT_FAILURE);
                 }
             } while (1);
         }
@@ -366,277 +364,276 @@ int socket_create_socket( char* port, enum SOCKET_TYPES socket_type,  const char
     return socket_fd;
 } /* socket_create_socket() */
 
-enum SOCKET_RECEIVE_DATA_FLAGS \
-remove_msg_header(char *buffer, int buffer_sz, int *data_msg_sz)
+uint16_t crc16(const unsigned char* data_p, uint16_t length)
 {
-    /*----------------------------------
-    |             VARIABLES             |
-    ------------------------------------*/
-    static struct MSG_HEADER header;
-    char *temp;
-    enum SOCKET_RECEIVE_DATA_FLAGS returnval;
-    uint msg_data_sz;
-
-    /*----------------------------------
-    |           VERIFICATION            |
-    ------------------------------------*/
-    if (buffer_sz <= (int)MSG_HEADER_SZ)
-    {
-        return RECV_HEADER_ERROR;
-    }
-    assert(buffer != NULL);
+    /*-------------------------------------
+    |              VARIABLES               |
+    --------------------------------------*/
+    uint16_t x;
+    uint16_t crc = 0xFFFF;
 
     /*-------------------------------------
-    |            GET MSG HEADER            |
+    |            GENERATE CRC16            |
     --------------------------------------*/
-    memcpy(&header, buffer, MSG_HEADER_SZ);
-
-    /*-------------------------------------
-    |          PROCESS MSG HEADER          |
-    --------------------------------------*/
-    msg_data_sz = buffer_sz - MSG_HEADER_SZ;
-
-    if( msg_data_sz == 0 )
+    while ( length-- )
     {
-        printf("WARNING: socket_commons: Received 0 data bytes!\n"); /* Info print */
-        *data_msg_sz = -1;
-        return RECV_HEADER_ERROR;
+        x = crc >> 8 ^ *data_p++;
+        x ^= x>>4;
+        crc = (crc << 8) ^ ((uint16_t)(x << 12)) ^ ((uint16_t)(x <<5)) ^ ((uint16_t)x);
     }
 
-    if ( header.msg_type == MSG_TYPE_INDEPENDENT )
-    {
-        returnval = RECV_NO_FLAGS;
-    }
-    else if( header.msg_type == MSG_TYPE_SEQUENCE )
-    {
-        returnval = RECV_SEQUENCE_CONTINUE;
-    }
-    else if( header.msg_type == MSG_TYPE_END_SEQUENCE )
-    {
-        returnval = RECV_SEQUENCE_END;
-    }
-    else /* Not valid */
-    {
-        printf("WARNING: socket_commons: Received invalid message header type!\n"); /* Info print */
-        *data_msg_sz = -1;
-        return RETURN_FAILED;
-    }
-    //TODO should implement ability to search for/find the msg start/end
+    return crc;
+} /* crc16() */
 
-    /*----------------------------------
-    |        REMOVE MSG HEADERS         |
-    ------------------------------------*/
-    /* Copy data message (data minus header) to a temp string. Then erase buffer and copy message to buffer */
-    temp = malloc(msg_data_sz);
-    memcpy(temp, (const void *)(buffer + MSG_HEADER_SZ), msg_data_sz);
-    bzero(buffer,buffer_sz);
-    memcpy(buffer, temp, msg_data_sz);
-
-    /*----------------------------------
-    |            FREE MEMORY            |
-    ------------------------------------*/
-    free(temp);
-
-    /*-------------------------------------
-    |          SET RECV DATA SIZE          |
-    --------------------------------------*/
-    *data_msg_sz = msg_data_sz;
-
-    return returnval;
-} /* remove_msg_header */
-
-enum SOCKET_RECEIVE_DATA_FLAGS \
-socket_receive_data( const int socket_fd, char* buffer, const size_t buffer_sz, int *received_bytes )
+enum SOCKET_TX_RX_FLAGS \
+socket_receive_data( const int socket_fd, struct socket_msg_struct** msg )
 {
+    /*-------------------------------------
+    |       PARAMETER VERIFICATIONS        |
+    --------------------------------------*/
+    assert( *msg == NULL );
+    assert( socket_fd >= 0 );
+
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
     ssize_t bytes_read;
+    uint16_t header_checksum;
+    uint16_t bytes_left_to_rx;
+    uint16_t offset;
+    struct MSG_HEADER header;
+    struct socket_msg_struct* temp_msg;
 
-    /*----------------------------------
-    |   READ DATA FROM FILE DESCRIPTOR  |
-    ------------------------------------*/
-    //TODO see what happens if buffer is too small for received data
-    bytes_read = read(socket_fd, buffer, buffer_sz);
+    /*-------------------------------------
+    |           INITIALIZATIONS            |
+    --------------------------------------*/
+    temp_msg = NULL;
+    header_checksum = 0;
+    bytes_read = 0;
+    bytes_left_to_rx = 0;
 
-    *received_bytes = (int)bytes_read;
+    /*-------------------------------------
+    |  READ MSG HEADER FROM FILE DESCRIPTOR  |
+    --------------------------------------*/
+    bytes_read = read(socket_fd, (void*)&header, MSG_HEADER_SZ);
 
     /*-------------------------------------
     |            VERIFICATIONS             |
     --------------------------------------*/
-    if (bytes_read < 0)
+    if ( bytes_read < 0 )
     {
         /* Read error. */
         fprintf(stderr, "errno = %d ", errno);
         perror("ERROR: socket_commons: failed to recv data");
-        return RECV_DISCONNECT;
+        return FLAG_DISCONNECT;
     }
-    else if (bytes_read == 0)
+    else if ( bytes_read == 0 )
     {
         /* Received disconect */
-        return RECV_DISCONNECT;
+        return FLAG_DISCONNECT;
     }
-    else if (bytes_read < (ssize_t)MSG_HEADER_SZ )
+    else if ( bytes_read < (ssize_t)MSG_HEADER_SZ ) /* Check that received enough bytes to comprise the msg header */
     {
         /* Soft error: didn't receive minumum number of bytes expected */
-        return RECV_HEADER_ERROR;
+        return FLAG_HEADER_ERROR;
     }
+
+    /*-------------------------------------
+    |        VERIFY HEADER CHECKSUM        |
+    --------------------------------------*/
+    header_checksum = header.crc16_checksum;
+    header.crc16_checksum = 0; /* Set this to zero because header checksum is generated with this set to 0 */
+
+    if( header_checksum != crc16( (const unsigned char*)&header, MSG_HEADER_SZ ) )
+    {
+        return FLAG_HEADER_ERROR;
+    } /* end if msg header checksum is invalid */
+
+    /*-------------------------------------
+    |           SETUP MSG STRUCT           |
+    --------------------------------------*/
+    temp_msg = malloc( sizeof(struct socket_msg_struct) );
+    temp_msg->data = malloc( header.msg_num_bytes );
+    temp_msg->data_sz = header.msg_num_bytes;
+    temp_msg->recv_flag = FLAG_SUCCESS;
+    temp_msg->next = NULL;
+
+    /*-------------------------------------
+    |       PRE-LOOP INITIALIZATIONS       |
+    --------------------------------------*/
+    bytes_read = 0;
+    bytes_left_to_rx = temp_msg->data_sz;
+
+    /*-------------------------------------
+    |   LOOP UNTIL ALL MSG DATA RECEIVED   |
+    --------------------------------------*/
+    while( bytes_left_to_rx != 0 )
+    {
+        /* Update received msg array offset */
+        offset = temp_msg->data_sz - bytes_left_to_rx;
+
+        /*----------------------------------
+        |   READ DATA FROM FILE DESCRIPTOR  |
+        ------------------------------------*/
+        bytes_read = read(socket_fd, (temp_msg->data + offset), bytes_left_to_rx);
+
+        /*-------------------------------------
+        |            VERIFICATIONS             |
+        --------------------------------------*/
+        if ( bytes_read < 0 )
+        {
+            free(temp_msg->data);
+            free(temp_msg);
+            temp_msg = NULL;
+            /* Read error. */
+            fprintf(stderr, "errno = %d ", errno);
+            perror("ERROR: socket_commons: failed to recv data");
+            return FLAG_DISCONNECT;
+        }
+        else if ( bytes_read == 0 )
+        {
+            free(temp_msg->data);
+            free(temp_msg);
+            temp_msg = NULL;
+            /* Received disconect */
+            return FLAG_DISCONNECT;
+        }
+
+        /*-------------------------------------
+        |          UPDATE BYTES TO RX          |
+        --------------------------------------*/
+        bytes_left_to_rx -= bytes_read;
+    } /* Receive msg loop */
+
+    /*-------------------------------------
+    |          SET RETURN POINTER          |
+    --------------------------------------*/
+    *msg = temp_msg;
 
     /* Info print */
-    printf ("socket_commons: Received %zd bytes of raw data: ", bytes_read);
-    putchar('0');
-    putchar('x');
-    for (ssize_t i = 0; i < bytes_read; i++) {
-        printf("%02x ", buffer[i]);
-    }
-    putchar('\n');
-    putchar('\n');
+    printf("socket_commons: Received %ud bytes of data: ", temp_msg->data_sz + (uint16_t)MSG_HEADER_SZ);
+    printf("0x");
+    for (int i = 0; i < (int)MSG_HEADER_SZ; i++)
+    {
+        printf("%02x ", ((char*)&header)[i]);
+    } /* print header */
+    printf("0x");
+    for (int i = 0; i < temp_msg->data_sz; i++)
+    {
+        printf("%02x ", temp_msg->data[i]);
+    } /* Print data */
+    printf("\n\n");
 
-    return remove_msg_header(buffer, bytes_read, received_bytes);
+    return FLAG_SUCCESS;
 
 } /* socket_receive_data() */
 
 int socket_send_data ( const int socket_fd, const char * data, const uint16_t data_sz )
 {
+    /*-------------------------------------
+    |       PARAMETER VERIFICATIONS        |
+    --------------------------------------*/
+    /* Verify there are bytes to send */
+    assert ( data_sz > 0 );
+    assert ( data != NULL );
+    assert( socket_fd >= 0 );
+
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
     static struct MSG_HEADER header;    /* Msg header inserted at the begining of every socket msg to send */
-    static char buffer[MAX_MSG_SZ];     /* Buffer used to send data. Max data size + msg header size */
-    uint16_t total_bytes_to_send;       /* Total number of bytes including msg headers to be sent */
-    uint16_t all_sent_bytes;            /* Total number of bytes sent */
-    uint16_t bytes_left_to_send;        /* Number of bytes left to sent */
-    int bytes_sent;                     /* Number of bytes sent for a loop interation */
-    uint16_t bytes_to_send;             /* Bytes to send for a given loop iteration */
-    uint8_t total_buffers_to_send;      /* Total number of loop interations (multiples of MAX_DATA_MSG_SZ) needed to send data */
-    uint8_t send_flags;                 /* Send Flag for each loop iteration */
+    uint16_t total_bytes_to_send;       /* Bytes to send including msg header */
+    int bytes_sent;                     /* Number of bytes sent */
+    int total_bytes_sent;               /* Number of bytes sent including msg header */
+    uint8_t send_flags;                 /* Send Flags */
 
     /*----------------------------------
     |          INITIALIZATIONS          |
     ------------------------------------*/
     send_flags = 0;
-    all_sent_bytes = 0;
     bytes_sent = 0;
-    total_buffers_to_send = 0;
+    total_bytes_sent = 0;
+    total_bytes_to_send = data_sz + MSG_HEADER_SZ;
 
-    total_buffers_to_send = data_sz/MAX_DATA_MSG_SZ;
+    /* Set message header values */
+    header.msg_type = 0x00;
+    header.msg_num_bytes = data_sz; /* Number of bytes of the data msg of the msg */
+    header.crc16_checksum = 0;      /* Set to 0 for checksum generation */
+    header.crc16_checksum = crc16( (const unsigned char*)&header, MSG_HEADER_SZ );    /* Set header checksum */
 
-    if ( data_sz % MAX_DATA_MSG_SZ != 0 )
-    {
-        total_buffers_to_send+=1;
-    }
-
-    total_bytes_to_send = data_sz + total_buffers_to_send * MSG_HEADER_SZ;
-    bytes_left_to_send = total_bytes_to_send;
+    send_flags = 0; /* No flags */
 
     /*-------------------------------------------------
-    |  FORCE THREADS TO ENTER THIS LOOP SYNCHRONOUSLY  |
+    |       FORCE THREADS TO ENTER SYNCHRONOUSLY       |
     --------------------------------------------------*/
     pthread_mutex_lock(&mutex_sendData);
 
     /*----------------------------------
     |             SEND DATA             |
     ------------------------------------*/
-    for (uint8_t i = 0; i < total_buffers_to_send; i++)
+    /* Send msg header */
+    bytes_sent = send ( socket_fd, (void*)&header, MSG_HEADER_SZ, send_flags );
+
+    /* Verify bytes were sent */
+    if( bytes_sent < 1 )
     {
-        bzero(buffer, MAX_MSG_SZ);
+        pthread_mutex_unlock(&mutex_sendData);
+        perror("ERROR: socket_commons: Failed to send header. Disconnect...");
+        return FLAG_DISCONNECT;
+    }
+    else if ( bytes_sent != MSG_HEADER_SZ )
+    {
+        pthread_mutex_unlock(&mutex_sendData);
+        perror("ERROR: socket_commons: Failed to send data.");
+        return RETURN_FAILED;
+    }
 
-        /* Determine number of bytes to send and the message header
-            values for this iteration */
-        if ( bytes_left_to_send > MAX_MSG_SZ )
-        {
-            bytes_to_send = MAX_MSG_SZ;
-        }
-        else
-        {
-            bytes_to_send = bytes_left_to_send;
-        }
+    /* Tally bytes sent */
+    total_bytes_sent += bytes_sent;
 
-        /* Verify there are bytes to send */
-        assert ( bytes_to_send > 0 );
+    /* Send data */
+    bytes_sent = send ( socket_fd, data, data_sz, send_flags );
 
-        /* Determine message header values */
-        header.msg_num_bytes = bytes_to_send - MSG_HEADER_SZ; /* Number of bytes of the data msg of the msg */
-
-        if( i == total_bytes_to_send - 1 ) /* this is the last iteration of a multipacket message */
-        {
-            header.msg_type = MSG_TYPE_END_SEQUENCE;
-        }
-        else if( total_buffers_to_send > 1 ) /* This is not the last iteration of a multipacket message */
-        {
-            header.msg_type = MSG_TYPE_SEQUENCE;
-        }
-        else /* There is only one iteration of the loop (total_buffers_to_send == 1) */
-        {
-            header.msg_type = MSG_TYPE_INDEPENDENT;
-        }
-
-        /* Copy message header to buffer */
-        memcpy( buffer, &header, MSG_HEADER_SZ );
-
-        /* Get substring to be sent and copy to buffer */
-        memcpy( (buffer + MSG_HEADER_SZ), &data[all_sent_bytes-i*MSG_HEADER_SZ], bytes_to_send-MSG_HEADER_SZ );
-
-        // /* Determine end message header to use */
-        // if(total_buffers_to_send > 1 && i != total_buffers_to_send-1)
-        // {
-        //     buffer[bytes_to_send-sizeof(MSG_END)] = MSG_END__MORE;
-        // }
-        // else
-        // {
-        //     buffer[bytes_to_send-sizeof(MSG_END)] = MSG_END;
-        // }
-
-
-        /* if this is the last message to send in a sequence, set appropiate flag. For send flags, see https://linux.die.net/man/2/send */
-        if ( i == total_buffers_to_send-1 )
-        {
-            send_flags = 0; /* Use MSG_DONE ? */
-        }
-        else /*else this is not the last message to send */
-        {
-            send_flags = send_flags | MSG_MORE; /* Use MSG_BATCH ? */
-        }
-
-        /* Send the message */
-        bytes_sent = send ( socket_fd, buffer, bytes_to_send, send_flags );
-
-        /* Verify bytes were sent */
-        if ( bytes_sent != bytes_to_send )
-        {
-            perror("ERROR: socket_commons: Failed to send all data.");
-            return RETURN_FAILED;
-        }
-
-        /* Info print */
-        printf ("socket_commons: Sent %d bytes of data: ", bytes_sent);
-        putchar('0');
-        putchar('x');
-        for (int i = 0; i < bytes_to_send; i++)
-        {
-            printf("%02x ", buffer[i]);
-        }
-        putchar('\n');
-
-        /* Tally bytes */
-        all_sent_bytes += bytes_sent;
-        bytes_left_to_send -= bytes_sent;
-        
-    } /* For loop ... send data ... each loop == one 'packet' of size MAX_DATA_MSG_SZ or less */
-
-    /*-------------------------------------
-    |  ALLOW NEW CALL TO ENTER SENDING FOR LOOP  |
-    --------------------------------------*/
+    /*------------------------------------------
+    |  ALLOW NEW THREAD TO ENTER SYNCHRONOUSLY  |
+    -------------------------------------------*/
     pthread_mutex_unlock(&mutex_sendData);
 
-    putchar('\n'); /* Info print */
+    /* Verify bytes were sent */
+    if( bytes_sent < 1 )
+    {
+        perror("ERROR: socket_commons: Failed to header. Disconnect...");
+        return FLAG_DISCONNECT;
+    }
+    else if ( bytes_sent != data_sz )
+    {
+        perror("ERROR: socket_commons: Failed to send all data.");
+        return RETURN_FAILED;
+    }
+
+    /* Tally bytes sent */
+    total_bytes_sent += bytes_sent;
+
+    /* Info print */
+    printf("socket_commons: Sent %d bytes of data: ", total_bytes_sent);
+    printf("0x");
+    for (int i = 0; i < (int)MSG_HEADER_SZ; i++)
+    {
+        printf("%02x ", ((char*)&header)[i]);
+    } /* print header */
+    printf("0x");
+    for (int i = 0; i < data_sz; i++)
+    {
+        printf("%02x ", data[i]);
+    } /* Print data */
+    printf("\n\n");
 
     /*----------------------------------
     |        VERIFY DATA WAS SENT       |
     ------------------------------------*/
-    if ( all_sent_bytes != total_bytes_to_send )
+    if ( total_bytes_to_send != total_bytes_sent )
     {
-        printf("ERROR: socket_commons: sent %u of %u bytes\n", all_sent_bytes, total_bytes_to_send);
+        printf("ERROR: socket_commons: sent %u of %u bytes\n", total_bytes_sent, total_bytes_to_send);
         perror("ERROR: socket_commons");
         return RETURN_FAILED;
     }

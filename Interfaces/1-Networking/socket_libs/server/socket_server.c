@@ -198,7 +198,7 @@ int handle_conn_request()
     assert(new_client!=NULL);
     new_client->fd = new_client_fd;
     new_client->address = new_client_info.sin_addr;
-    bzero( new_client->uuid , UUID_SZ); /* Client will send this later */
+    bzero(new_client->uuid , UUID_SZ); /* Client will send this later */
     new_client->next = NULL;
 
     /* Add client to fd set and client infos */
@@ -219,7 +219,7 @@ int handle_conn_request()
     }
 
     /* Info print */
-    fprintf(stderr, "Server: connect from host %s, port %u.\n", inet_ntoa(new_client_info.sin_addr), ntohs(new_client_info.sin_port));
+    fprintf(stderr, "Server: connect from host %s.\n", inet_ntoa(new_client_info.sin_addr));
 
     return new_client_fd;
 } /* handle_conn_request() */
@@ -301,159 +301,108 @@ void close_client_conn(int client_fd)
 
 } /* close_client_conn() */
 
-int process_recv_msg(int client_fd)
+void process_recv_msg(int client_fd)
 {
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
-    int n_recv_bytes;                  /* Number of received bytes */
-    char* buffer;                          /* Buffer for reception of data */
     struct client_info *client;            /* client_infos client for given client_fd */
     int recv_flag;                         /* Used to receive message flags from the socket_receive_data function call */
-    char* temp;                            /* Used for various tasks as needed for specific received commands. */
+    struct socket_msg_struct* msg;         /* Message struct pointer that will contain received message */   
+    struct socket_msg_struct* msg_previous;/* Used to free previous msg struct while looping */
 
     /*----------------------------------
     |            INITIALIZE             |
     ------------------------------------*/
-    buffer = malloc(MAX_MSG_SZ);
-    bzero(buffer,BUFFER_SZ);
-
-    client = find_client_by_fd(client_fd);
-    assert(client != NULL); /* if client wasn't found in our list, assert. There is a discrepancy. */
+    msg            = NULL;
+    msg_previous   = NULL;
+    client         = find_client_by_fd(client_fd);
+    assert(client != NULL);                 /* if client wasn't found in our list, assert. There is a discrepancy. */
 
     /*-----------------------------------
     |       RECEIVE SOCKET MESSAGE       |
     ------------------------------------*/
-    recv_flag = socket_receive_data( client_fd, buffer, MAX_MSG_SZ, &n_recv_bytes );
+    recv_flag = socket_receive_data( client_fd, &msg );
 
     /*-------------------------------------
     |             VERIFICATION             |
     --------------------------------------*/
-    if( recv_flag == RECV_DISCONNECT || n_recv_bytes <= 0 )
+    if( recv_flag == FLAG_DISCONNECT )
     {
         printf("Socket Server: Received client disconnect/socket error. Disconnecting client...\n");
         close_client_conn(client_fd);
-        return RETURN_SUCCESS;
+        return;
     }
-    else if( recv_flag == RECV_HEADER_ERROR )
+    else if( recv_flag == FLAG_HEADER_ERROR )
     {
-        printf("Socket Server: Message header error. Message discarded.\n");
-        return RETURN_FAILED; /* Return one to prevent indication of client disconect */
-    }
-   
-    fprintf(stderr, "SERVER: received %d bytes\n", n_recv_bytes); /* Info prints. Data read. */ 
-    // fprintf(stderr, "Server: received %d bytes with message: \"%s\"\n", n_recv_bytes, buffer);
-
-    // putchar('0');
-    // putchar('x');
-    // for (int i = 0; i < n_recv_bytes; i++)
-    // {
-    //     printf("%02x ", buffer[i]);
-    // }
-    // putchar('\n');
-    // putchar('\n');
-
-    /*-----------------------------------
-    |          HANDLE MSG FLAGS          |
-    ------------------------------------*/
-    if( recv_flag == RECV_SEQUENCE_CONTINUE || recv_flag == RECV_SEQUENCE_END )
-    {
-        temp = malloc(client->partialMSG_sz + n_recv_bytes);
-
-        if (client->partialMSG_sz != 0)
-        {
-            memcpy(temp, client->partialMSG, client->partialMSG_sz);
-        }
-
-        memcpy( (temp + client->partialMSG_sz), buffer, n_recv_bytes );
-
-        if (client->partialMSG_sz != 0)
-        {
-            free(client->partialMSG);
-        }
-
-        client->partialMSG = temp;
-        client->partialMSG_sz += n_recv_bytes;
-
-        if (recv_flag != RECV_SEQUENCE_END)
-        {
-            /* Nothing more to do until finished receiving data */
-            return RETURN_SUCCESS;
-        }
-
-    } /* handle msg flags */
-    else /* Nothing special (no msg flags to handle) */
-    {
-        client->partialMSG    = buffer;
-        client->partialMSG_sz = n_recv_bytes;
+        printf("Socket Client: Received invalid msg header...ignoring\n");
+        return;
     }
 
     /*-----------------------------------
-    |      HANDLE RECEIVED COMMANDS      |
+    |    HANDLE ANY RECEIVED COMMANDS    |
     ------------------------------------*/
-    switch (client->partialMSG[0])
+    while ( msg != NULL )
     {
-    case COMMAND_UUID:
-        if ( client->partialMSG_sz < (ssize_t)(COMMAND_SZ+UUID_SZ) )
+        /* Print data received */
+        /* fprintf(stderr, "SERVER: received %d bytes\n", msg->data_sz);
+        for (int i = 0; i < msg->data_sz; i++)
         {
-            return client->partialMSG_sz;
+            printf("%c", msg->data[i]);
         }
+        printf("\n\n");
+        */
 
-        /*-----------------------------------
-        |     SET CLIENT UUID IF NOT SET     |
-        ------------------------------------*/
-        if(client->uuid[0] == 0x00)
+        /* Handle msg command */
+        switch (msg->data[0])
         {
-            /* New client sent us it's UUID for the first time. */
+        case COMMAND_UUID:
+            if ( msg->data_sz < (ssize_t)(COMMAND_SZ+UUID_SZ) )
+            {
+                printf("Socket Server: Received invalid UUID: %s!\n",client->uuid);
+                break;
+            }
 
-            memcpy(client->uuid,&client->partialMSG[1],UUID_SZ);
-            printf("Socket Server: Setting client UUID for the first time. UUID is %s\n",client->uuid);
+            /*-----------------------------------
+            |     SET CLIENT UUID IF NOT SET     |
+            ------------------------------------*/
+            if(client->uuid[0] == 0x00)
+            {
+                /* New client sent us it's UUID for the first time. */
+                memcpy(client->uuid,&msg->data[1],UUID_SZ);
+                printf("Socket Server: Setting client UUID for the first time. UUID is %s\n",client->uuid);
 
+                /*----------------------------------
+                |           CALL CALLBACK           |
+                ------------------------------------*/
+                if(_conn_callback != NULL)
+                {
+                    (*_conn_callback)( client->uuid );
+                }
+            }
+            break;
+        case COMMAND_NONE:
             /*----------------------------------
             |           CALL CALLBACK           |
             ------------------------------------*/
-            if(_conn_callback != NULL)
+            if(_rx_callback != NULL)
             {
-                (*_conn_callback)( client->uuid );
+                (*_rx_callback)(client->uuid, (msg->data + COMMAND_SZ), msg->data_sz - COMMAND_SZ);
             }
-        }
-        else
-        {
-            memcpy(client->uuid,&client->partialMSG[1],UUID_SZ);
-        }
-        break;
-    case COMMAND_NONE:
-        /*----------------------------------
-        |           CALL CALLBACK           |
-        ------------------------------------*/
-        if(_rx_callback != NULL)
-        {
-            (*_rx_callback)(client->uuid, &(client->partialMSG)[COMMAND_SZ], client->partialMSG_sz-COMMAND_SZ);
-        }
-        break;
-    default:
-        printf("ERROR: socket client received message without valid COMMAND\n");
-        return 0;
-        break;
-    }
-    
-    /*-------------------------------------
-    |     SET NUMBER OF BYTES RECEIVED     |
-    --------------------------------------*/
-    n_recv_bytes = client->partialMSG_sz;
+            break;
+        default:
+            printf("ERROR: socket client received message without valid COMMAND\n");
+            break;
+        } /* end switch case on recv command */
 
-    /*-------------------------------------
-    |               CLEANUP                |
-    --------------------------------------*/
-    if (client->partialMSG_sz != 0)
-    {
-        free(client->partialMSG);
-    }
-    client->partialMSG = NULL;
-    client->partialMSG_sz = 0;
+        /* Loop inits and cleanup */
+        msg_previous = msg;
+        msg = msg->next;
+        free(msg_previous->data);
+        free(msg_previous);
+    } /* While loop ... loop through all messages received */
 
-    return n_recv_bytes;
-} /* process_recv_msg */
+} /* process_recv_msg() */
 
 int socket_server_send_data_all(const char* data, const uint data_sz)
 {

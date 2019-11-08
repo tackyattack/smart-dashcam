@@ -15,10 +15,9 @@ extern "C" {
 /*-------------------------------------
 |            PUBLIC DEFINES            |
 --------------------------------------*/
-
+#define MAX_MSG_SZ               (65536)                    /* max size of the message that can be sent over sockets. This is defined in pub_socket_commons.h */
 #define MAX_PENDING_CONNECTIONS  (5)                        /* 5 is a standard value for the max backlogged connection requests */
 #define SERVER_ADDR              (NULL)                     /* Set this value to a string that is the IP address, hostname or the server you're creating or set to NULL (0) to use this machines address (NULL recommended) */
-#define BUFFER_SZ                (MAX_MSG_SZ)               /* Size of the buffer we use to send/receive data */
 #define SELECT_TIMEOUT_TIME      (TIME_BETWEEN_PINGS*100)   /* How long Select() will block in milliseconds if no message is received in the execute_thread().\
                                                                In other words, this controls the how often the server checks to see if it is time to ping clients.\
                                                                Generally, this can match the value (TIME_BETWEEN_PINGS*1000).*/
@@ -67,10 +66,10 @@ int socket_server_init( char* port, socket_lib_srv_rx_msg rx_callback, socket_li
  * Sends data of size data_sz via the socket connection
  * to all clients.
  * 
- * @Returns total number of bytes sent 
- *          (num_clients*(data_sz + MSG_HEADER_SZ + 1))
- *          or a negative number if failed
- * 
+ * @Returns total number of bytes sent (should be same as data_sz) or
+ *          Else a number <= 0 if failed representing a flag from SOCKET_TX_RX_FLAGS in
+ *          socket_commons excluding the success flag.
+ *
  * Blocking Function
  *
  * Thread Safe
@@ -81,9 +80,9 @@ int socket_server_send_data_all( const char* data, const unsigned int data_sz );
  * Sends data of size data_sz via the socket connection
  * to a specific client specified by the given UUID.
  *
- * @Returns total number of bytes sent 
- *          (data_sz + MSG_HEADER_SZ + 1)
- *          or a negative number if failed
+ * @Returns total number of bytes sent (should be same as data_sz) or
+ *          Else a number <= 0 if failed representing a flag from SOCKET_TX_RX_FLAGS in 
+ *          socket_commons excluding the success flag.
  *
  * Blocking Function
  *
