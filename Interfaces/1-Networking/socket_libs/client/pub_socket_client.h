@@ -83,7 +83,7 @@ void socket_client_execute();
  * 
  * Note that calls to this are thread safe.
  * 
- * @Returns number of bytes sent or a number >= 0 if there's an error.
+ * @Returns number of bytes sent RETURN_FAILED if there's an error.
  */
 int socket_client_send_data ( const char * data, const uint data_sz );
 

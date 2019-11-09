@@ -16,11 +16,11 @@
  */
 struct MSG_HEADER
 {
-    char     msg_type;      /* Type specified by MSG_ prefix in #defines above. Currently not used */
-    uint16_t msg_num_bytes; /* Number of bytes long this message is. Max value is MAX_MSG_SZ. This dictates the data_sz of data given to send() functions */
-    uint16_t crc16_checksum;/* Checksum for header */
-} __attribute__((packed));  /* Attribute tells compiler to not use padding in the struct. This is to prevent any additional bytes being added to the struct because
-                                this struct comprises the msg header to be sent via sockets, and as such, don't want any additional bytes. See https://www.geeksforgeeks.org/how-to-avoid-structure-padding-in-c/ */
+    uint8_t  command;           /* Command associated with data. This is not used by socket_commons, but by upstream user such as socket server/client */
+    uint16_t msg_num_bytes;     /* Number of bytes long this message is. Max value is MAX_MSG_SZ. This dictates the data_sz of data given to send() functions */
+    uint16_t crc16_checksum;    /* Checksum for header */
+} __attribute__((packed));    /* Attribute tells compiler to not use padding in the struct. This is to prevent any additional bytes being added to the struct because
+                                 this struct comprises the msg header to be sent via sockets, and as such, don't want any additional bytes. See https://www.geeksforgeeks.org/how-to-avoid-structure-padding-in-c/ */
 
 
 /*-------------------------------------

@@ -48,7 +48,7 @@ struct MSG_HEADER;
 #define COMMAND_PING            (uint8_t)0x0F                       /* If this is received, we have been pinged and request this msg be echoed back */
 #define COMMAND_UUID            (uint8_t)0x0E                       /* If received, signals msg data is our UUID */
 #define COMMAND_NONE            (uint8_t)0x00                       /* Signifies msg is data message and not a library level command (such as ping) */
-#define COMMAND_SZ              (1)                                 /* Number of bytes a command is */
+#define COMMAND_SZ              (1)                                 /* Number of bytes a command is. Currently == sizeof(uint8_t) */
 
 /* Normally used function return values */
 #define RETURN_FAILED           (-1)       /* Return value of functions that represents that that function failed to perform its task */
@@ -68,9 +68,10 @@ struct MSG_HEADER;
  */
 struct socket_msg_struct
 {
+    uint8_t command;                /* Command associate with message. See COMMAND_ #defines above for valid commands and uses. */
     char* data;                     /* Data array of message */
     uint16_t data_sz;               /* The number of bytes in data message array */
-    uint8_t recv_flag;              /* The receive flag for this data from the SOCKET_TX_RX_FLAGS enum */
+    uint8_t recv_flag;              /* The receive flag for this data from the SOCKET_TX_RX_FLAGS enum. Currently, this isn't really implemented. It is more for when receiving multiple messages at once which currently can't happen. */
     struct socket_msg_struct* next; /* Pointer to next msg if applicable. This is because it is possible to receive multiple messages at the same time */
 };
 
@@ -158,9 +159,16 @@ enum SOCKET_TX_RX_FLAGS \
 socket_receive_data( const int socket_fd, struct socket_msg_struct** msg );
 
 /**
- * Given a char* data array up to 2^16 (MAX_MSG_SZ) in size and a socket_fd,
- * will send data array over socket. This function will block until all data
- * has been sent/entered into the system buffer. It will block as needed.
+ * Given a a socket_fd to send data to, a char* data array up to 2^16 (MAX_MSG_SZ) in size,
+ * the data_sz of the data array, and a command associated with message, will send data
+ * array over socket. 
+ * 
+ * The command byte is send with the message header and is separate from
+ * the data array. The command will be available in the socket_msg_struct when receiving data.
+ * 
+ * This function will block until all data has been sent/entered into the system buffer. It
+ * will block as needed. If the system socket buffer is full, it will block until it is able
+ * to accomidate data_sz.
  * 
  * Note that data_sz should include the termination character if applicable.
  * 
@@ -169,6 +177,6 @@ socket_receive_data( const int socket_fd, struct socket_msg_struct** msg );
  * @Returns number of bytes sent (excluding msg headers) which should be == data_sz, 
  *          or a flag from the SOCKET_TX_RX_FLAGS enum if failed
  */
-int socket_send_data ( const int socket_fd, const char * data, const uint16_t data_sz );
+int socket_send_data ( const int socket_fd, const char * data, const uint16_t data_sz, uint8_t command );
 
 #endif /* PUB_SOCK_COMMONS_H */

@@ -82,6 +82,8 @@ void load_uuid()
 
 int send_uuid()
 {
+    printf("CLIENT: Send UUID to server\n");
+
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
@@ -91,7 +93,7 @@ int send_uuid()
     |             SEND UUID             |
     ------------------------------------*/
     sent_bytes = send_data(COMMAND_UUID, UUID, UUID_STR_LEN);   /* Send UUID with null termination to server to identify ourselves */
-    if(sent_bytes != UUID_STR_LEN+COMMAND_SZ)
+    if(sent_bytes != UUID_STR_LEN)
     {
         printf("\nERROR: failed to send UUID correctly to server. Send %d bytes but expected %d bytes...\n\n", sent_bytes, UUID_STR_LEN);
     }
@@ -137,7 +139,7 @@ int socket_client_init(char* server_addr, char *port, socket_lib_clnt_rx_msg rx_
     /*-------------------------------------
     |         SEND UUID AND VERIFY         |
     --------------------------------------*/
-    if( send_uuid() != UUID_STR_LEN+COMMAND_SZ )
+    if( send_uuid() != UUID_STR_LEN )
     {
         close_and_notify(client_fd);
         return RETURN_FAILED;
@@ -153,7 +155,7 @@ int process_recv_msg(const int socket_fd)
     --------------------------------------*/
     struct socket_msg_struct* msg;           /* Message struct pointer that will contain received message */   
     struct socket_msg_struct* msg_previous;  /* Used to free previous msg struct while looping */
-    enum SOCKET_TX_RX_FLAGS recv_flag;/* Used to check returned flag from socket_receive_data() */
+    enum SOCKET_TX_RX_FLAGS recv_flag;       /* Used to check returned flag from socket_receive_data() */
     int return_val;                          /* Stores this function's return value */
 
     /*-------------------------------------
@@ -188,22 +190,22 @@ int process_recv_msg(const int socket_fd)
     ------------------------------------*/
     while ( msg != NULL )
     {
+        /* Print header received */
+        printf("CLIENT: msg command received: 0x%02x with flag %d\n", msg->command, msg->recv_flag);
         /* Print data received */
-        /* fprintf(stderr, "SERVER: received %d bytes\n", msg->data_sz);
+        fprintf(stderr, "CLIENT: received %d data bytes\n", msg->data_sz);
         for (int i = 0; i < msg->data_sz; i++)
         {
             printf("%c", msg->data[i]);
         }
         printf("\n\n");
-        */
 
         /* Handle msg command */
-        switch (msg->data[0])
+        switch (msg->command)
         {
         case COMMAND_PING:
         case COMMAND_UUID:
-            printf("Socket Client: recv'ed ping\n");
-            send_uuid();
+            return_val = send_uuid();
             break;
         case COMMAND_NONE:
             /*----------------------------------
@@ -213,7 +215,7 @@ int process_recv_msg(const int socket_fd)
             printf("Socket Client: Call recv msg callback\n");
             if(_rx_callback != NULL && msg->data_sz > 0)
             {
-                (*_rx_callback)( (msg->data + COMMAND_SZ), msg->data_sz - COMMAND_SZ );
+                (*_rx_callback)( msg->data, msg->data_sz );
             }
             break;
         default:
@@ -226,7 +228,10 @@ int process_recv_msg(const int socket_fd)
         /* Loop inits and cleanup */
         msg_previous = msg;
         msg = msg->next;
-        free(msg_previous->data);
+        if(msg_previous->data != NULL)
+        {
+            free(msg_previous->data);
+        }
         free(msg_previous);
     } /* While loop ... loop through all messages received */
 
@@ -296,6 +301,7 @@ void* execute_thread(void* args)
         val = process_recv_msg(client_fd);
         if( val == FLAG_DISCONNECT )
         {
+            printf("CLIENT: Got disconnect flag....stopping thread execution\n");
             break;
         }
 
@@ -346,41 +352,32 @@ int socket_client_send_data ( const char * data, uint data_sz )
 
 int send_data ( const uint8_t command, const char * data, uint data_sz )
 {
+    assert( (data == NULL && data_sz == 0) || (data != NULL && data_sz != 0) );
+
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
     int returnval, n;
-    char* temp;
 
     /*----------------------------------
     |            INITIALIZE             |
     ------------------------------------*/
-    returnval = 0;
+    returnval = RETURN_SUCCESS;
 
     /*-------------------------------------
-    |        CREATE MESSAGE TO SEND        |
+    |         SEND COMMAND + DATA          |
     --------------------------------------*/
-    if( data == NULL || data_sz == 0 )
-    {
-        temp = malloc(COMMAND_SZ);
-        memcpy(temp,&command,COMMAND_SZ);
-        data_sz = 0;
-    }
-    else
-    {
-        temp = malloc(data_sz+COMMAND_SZ);
-        memcpy(temp,&command,COMMAND_SZ);
-        memcpy( (temp+COMMAND_SZ), data, data_sz );        
-    }
+    n = socket_send_data(client_fd, data, data_sz, command);
 
-    /*----------------------------------
-    |             SEND MSGS             |
-    ------------------------------------*/
-    n = socket_send_data(client_fd,temp,data_sz+COMMAND_SZ);
-    if( n < 1 )
+    /*-------------------------------------
+    |             VERIFICATION             |
+    --------------------------------------*/
+    if( n < 0 )
     {
+        printf("CLIENT: Failed to send data in send_data()...Closing socket\n");
         /* Disconnect client if failed to send message */
         close_and_notify();
+        returnval = RETURN_FAILED;
     }
     else
     {
@@ -388,10 +385,9 @@ int send_data ( const uint8_t command, const char * data, uint data_sz )
         returnval += n;
     }
 
-    free(temp);
-
     return returnval;
-} /* send_data */
+
+} /* send_data() */
 
 void socket_client_quit()
 {

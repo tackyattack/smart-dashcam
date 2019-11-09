@@ -391,6 +391,7 @@ socket_receive_data( const int socket_fd, struct socket_msg_struct** msg )
     /*-------------------------------------
     |       PARAMETER VERIFICATIONS        |
     --------------------------------------*/
+    assert( msg != NULL );
     assert( *msg == NULL );
     assert( socket_fd >= 0 );
 
@@ -411,11 +412,15 @@ socket_receive_data( const int socket_fd, struct socket_msg_struct** msg )
     header_checksum = 0;
     bytes_read = 0;
     bytes_left_to_rx = 0;
+    offset = 0;
+    header.crc16_checksum = 0;
+    header.command = 0;
+    header.msg_num_bytes = 0;
 
     /*-------------------------------------
     |  READ MSG HEADER FROM FILE DESCRIPTOR  |
     --------------------------------------*/
-    bytes_read = read(socket_fd, (void*)&header, MSG_HEADER_SZ);
+    bytes_read = read(socket_fd, ((void*)&header), MSG_HEADER_SZ);
 
     /*-------------------------------------
     |            VERIFICATIONS             |
@@ -429,11 +434,13 @@ socket_receive_data( const int socket_fd, struct socket_msg_struct** msg )
     }
     else if ( bytes_read == 0 )
     {
+        printf("socket_commons: Received 0 bytes...\n");
         /* Received disconect */
         return FLAG_DISCONNECT;
     }
     else if ( bytes_read < (ssize_t)MSG_HEADER_SZ ) /* Check that received enough bytes to comprise the msg header */
     {
+        printf("socket_commons: Received too few header bytes. Received %d bytes of %u bytes expected...\n", (int32_t)bytes_read, (uint32_t)MSG_HEADER_SZ);
         /* Soft error: didn't receive minumum number of bytes expected */
         return FLAG_HEADER_ERROR;
     }
@@ -446,6 +453,7 @@ socket_receive_data( const int socket_fd, struct socket_msg_struct** msg )
 
     if( header_checksum != crc16( (const unsigned char*)&header, MSG_HEADER_SZ ) )
     {
+        printf("socket_commons: Header checksum invalid!\n");
         return FLAG_HEADER_ERROR;
     } /* end if msg header checksum is invalid */
 
@@ -453,10 +461,19 @@ socket_receive_data( const int socket_fd, struct socket_msg_struct** msg )
     |           SETUP MSG STRUCT           |
     --------------------------------------*/
     temp_msg = malloc( sizeof(struct socket_msg_struct) );
-    temp_msg->data = malloc( header.msg_num_bytes );
-    temp_msg->data_sz = header.msg_num_bytes;
+    temp_msg->command = header.command;
     temp_msg->recv_flag = FLAG_SUCCESS;
     temp_msg->next = NULL;
+    temp_msg->data_sz = header.msg_num_bytes;
+
+    if( header.msg_num_bytes != 0 ) /* Data was received in addition to message header */
+    {
+        temp_msg->data = malloc( header.msg_num_bytes );
+    }
+    else /* Only a command was received and hence only a message header */
+    {
+        temp_msg->data = NULL;
+    }
 
     /*-------------------------------------
     |       PRE-LOOP INITIALIZATIONS       |
@@ -492,6 +509,7 @@ socket_receive_data( const int socket_fd, struct socket_msg_struct** msg )
         }
         else if ( bytes_read == 0 )
         {
+            printf("socket_commons: Received 0 bytes...\n");
             free(temp_msg->data);
             free(temp_msg);
             temp_msg = NULL;
@@ -503,7 +521,8 @@ socket_receive_data( const int socket_fd, struct socket_msg_struct** msg )
         |          UPDATE BYTES TO RX          |
         --------------------------------------*/
         bytes_left_to_rx -= bytes_read;
-    } /* Receive msg loop */
+
+    } /* RX data loop */
 
     /*-------------------------------------
     |          SET RETURN POINTER          |
@@ -511,31 +530,40 @@ socket_receive_data( const int socket_fd, struct socket_msg_struct** msg )
     *msg = temp_msg;
 
     /* Info print */
-    printf("socket_commons: Received %ud bytes of data: ", temp_msg->data_sz + (uint16_t)MSG_HEADER_SZ);
-    printf("0x");
-    for (int i = 0; i < (int)MSG_HEADER_SZ; i++)
+    if(temp_msg == NULL || temp_msg->data_sz != 0)
     {
-        printf("%02x ", ((char*)&header)[i]);
-    } /* print header */
-    printf("0x");
-    for (int i = 0; i < temp_msg->data_sz; i++)
+        printf("socket_commons: Received %u bytes of data: ", (uint16_t)MSG_HEADER_SZ);
+        for (int i = 0; i < (int)MSG_HEADER_SZ; i++)
+        {
+            printf("%02x ", ((char*)&header)[i]);
+        } /* print header */
+    }
+    else
     {
-        printf("%02x ", temp_msg->data[i]);
-    } /* Print data */
-    printf("\n\n");
+        printf("socket_commons: Received %u bytes of data: ", temp_msg->data_sz + (uint16_t)MSG_HEADER_SZ);
+        printf("0x");
+        for (int i = 0; i < (int)MSG_HEADER_SZ; i++)
+        {
+            printf("%02x ", ((char*)&header)[i]);
+        } /* print header */
+        printf("0x");
+        for (int i = 0; i < temp_msg->data_sz; i++)
+        {
+            printf("%02x ", temp_msg->data[i]);
+        } /* Print data */
+        printf("\n\n");
+    }
 
     return FLAG_SUCCESS;
 
 } /* socket_receive_data() */
 
-int socket_send_data ( const int socket_fd, const char * data, const uint16_t data_sz )
+int socket_send_data ( const int socket_fd, const char * data, const uint16_t data_sz, uint8_t command )
 {
     /*-------------------------------------
     |       PARAMETER VERIFICATIONS        |
     --------------------------------------*/
-    /* Verify there are bytes to send */
-    assert ( data_sz > 0 );
-    assert ( data != NULL );
+    /* Verify socket_fd could be valid */
     assert( socket_fd >= 0 );
 
     /*----------------------------------
@@ -545,7 +573,7 @@ int socket_send_data ( const int socket_fd, const char * data, const uint16_t da
     uint16_t total_bytes_to_send;       /* Bytes to send including msg header */
     int bytes_sent;                     /* Number of bytes sent */
     int total_bytes_sent;               /* Number of bytes sent including msg header */
-    uint8_t send_flags;                 /* Send Flags */
+    int send_flags;                     /* Send Flags */
 
     /*----------------------------------
     |          INITIALIZATIONS          |
@@ -556,21 +584,21 @@ int socket_send_data ( const int socket_fd, const char * data, const uint16_t da
     total_bytes_to_send = data_sz + MSG_HEADER_SZ;
 
     /* Set message header values */
-    header.msg_type = 0x00;
-    header.msg_num_bytes = data_sz; /* Number of bytes of the data msg of the msg */
-    header.crc16_checksum = 0;      /* Set to 0 for checksum generation */
+    header.msg_num_bytes = (data == NULL)? 0 : data_sz; /* Number of bytes of the data msg of the msg. If data is NULL, there is no data to send, only a command and hence only a message header */
+    header.command = command;                           /* Command given to us via parameters */
+    header.crc16_checksum = 0;                          /* Set to 0 for checksum generation */
     header.crc16_checksum = crc16( (const unsigned char*)&header, MSG_HEADER_SZ );    /* Set header checksum */
 
-    send_flags = 0; /* No flags */
+    send_flags = 0 | MSG_NOSIGNAL; /* Don't raise sig pipe if failed */
 
     /*-------------------------------------------------
     |       FORCE THREADS TO ENTER SYNCHRONOUSLY       |
     --------------------------------------------------*/
     pthread_mutex_lock(&mutex_sendData);
 
-    /*----------------------------------
-    |             SEND DATA             |
-    ------------------------------------*/
+    /*-------------------------------------
+    |         SEND MESSAGE HEADER          |
+    --------------------------------------*/
     /* Send msg header */
     bytes_sent = send ( socket_fd, (void*)&header, MSG_HEADER_SZ, send_flags );
 
@@ -584,35 +612,47 @@ int socket_send_data ( const int socket_fd, const char * data, const uint16_t da
     else if ( bytes_sent != MSG_HEADER_SZ )
     {
         pthread_mutex_unlock(&mutex_sendData);
-        perror("ERROR: socket_commons: Failed to send data.");
+        perror("ERROR: socket_commons: Failed to send all header bytes.");
         return RETURN_FAILED;
     }
 
     /* Tally bytes sent */
     total_bytes_sent += bytes_sent;
 
-    /* Send data */
-    bytes_sent = send ( socket_fd, data, data_sz, send_flags );
-
-    /*------------------------------------------
-    |  ALLOW NEW THREAD TO ENTER SYNCHRONOUSLY  |
-    -------------------------------------------*/
-    pthread_mutex_unlock(&mutex_sendData);
-
-    /* Verify bytes were sent */
-    if( bytes_sent < 1 )
+    /*-------------------------------------
+    |       SEND DATA IF APPLICABLE        |
+    --------------------------------------*/
+    if( data != NULL && data_sz != 0 ) /* If we are sending a command and data */
     {
-        perror("ERROR: socket_commons: Failed to header. Disconnect...");
-        return FLAG_DISCONNECT;
-    }
-    else if ( bytes_sent != data_sz )
-    {
-        perror("ERROR: socket_commons: Failed to send all data.");
-        return RETURN_FAILED;
-    }
+        send_flags = 0 | MSG_NOSIGNAL; /* Don't raise sig pipe if failed */
 
-    /* Tally bytes sent */
-    total_bytes_sent += bytes_sent;
+        /* Send data */
+        bytes_sent = send ( socket_fd, data, data_sz, send_flags );
+
+        /*------------------------------------------
+        |  ALLOW NEW THREAD TO ENTER SYNCHRONOUSLY  |
+        -------------------------------------------*/
+        pthread_mutex_unlock(&mutex_sendData);
+
+        /* Verify bytes were sent */
+        if( bytes_sent < 1 )
+        {
+            perror("ERROR: socket_commons: Failed to send data. Disconnect...");
+            return FLAG_DISCONNECT;
+        }
+        else if ( bytes_sent != data_sz )
+        {
+            perror("ERROR: socket_commons: Failed to send all data bytes.");
+            return RETURN_FAILED;
+        }
+
+        /* Tally bytes sent */
+        total_bytes_sent += bytes_sent;
+    } /* if data to send */
+    else /* Only send command (and hence only message header). No data array to be sent */
+    {
+        pthread_mutex_unlock(&mutex_sendData);
+    }
 
     /* Info print */
     printf("socket_commons: Sent %d bytes of data: ", total_bytes_sent);

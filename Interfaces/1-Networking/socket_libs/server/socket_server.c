@@ -243,9 +243,10 @@ void close_client_conn(int client_fd)
     /*----------------------------------
     |           CALL CALLBACK           |
     ------------------------------------*/
-    if(_disconn_callback != NULL)
+    client = find_client_by_fd(client_fd);
+    if( _disconn_callback != NULL && client->recv_uuid == true ) /* if recv_uuid == false, then the connect callback wasn't called and therefore the disconnect callback shouldn't be called */
     {
-        (*_disconn_callback)( find_client_by_fd(client_fd)->uuid );
+        (*_disconn_callback)( client->uuid );
     }
 
     /*----------------------------------
@@ -345,19 +346,18 @@ void process_recv_msg(int client_fd)
     while ( msg != NULL )
     {
         /* Print data received */
-        /* fprintf(stderr, "SERVER: received %d bytes\n", msg->data_sz);
+        fprintf(stderr, "SERVER: received %d bytes\n", msg->data_sz);
         for (int i = 0; i < msg->data_sz; i++)
         {
             printf("%c", msg->data[i]);
         }
         printf("\n\n");
-        */
 
         /* Handle msg command */
-        switch (msg->data[0])
+        switch (msg->command)
         {
         case COMMAND_UUID:
-            if ( msg->data_sz < (ssize_t)(COMMAND_SZ+UUID_SZ) )
+            if ( msg->data_sz != (ssize_t)(UUID_SZ) )
             {
                 printf("Socket Server: Received invalid UUID: %s!\n",client->uuid);
                 break;
@@ -366,10 +366,10 @@ void process_recv_msg(int client_fd)
             /*-----------------------------------
             |     SET CLIENT UUID IF NOT SET     |
             ------------------------------------*/
-            if(client->uuid[0] == 0x00)
+            if(client->recv_uuid == false)
             {
                 /* New client sent us it's UUID for the first time. */
-                memcpy(client->uuid,&msg->data[1],UUID_SZ);
+                memcpy(client->uuid,msg->data,UUID_SZ);
                 printf("Socket Server: Setting client UUID for the first time. UUID is %s\n",client->uuid);
 
                 /*----------------------------------
@@ -379,6 +379,9 @@ void process_recv_msg(int client_fd)
                 {
                     (*_conn_callback)( client->uuid );
                 }
+
+                /* set bool indicating we've received this client's uuid */
+                client->recv_uuid = true;
             }
             break;
         case COMMAND_NONE:
@@ -387,7 +390,7 @@ void process_recv_msg(int client_fd)
             ------------------------------------*/
             if(_rx_callback != NULL)
             {
-                (*_rx_callback)(client->uuid, (msg->data + COMMAND_SZ), msg->data_sz - COMMAND_SZ);
+                (*_rx_callback)(client->uuid, msg->data, msg->data_sz);
             }
             break;
         default:
@@ -398,92 +401,70 @@ void process_recv_msg(int client_fd)
         /* Loop inits and cleanup */
         msg_previous = msg;
         msg = msg->next;
-        free(msg_previous->data);
+        if(msg_previous->data != NULL)
+        {
+            free(msg_previous->data);
+        }
         free(msg_previous);
     } /* While loop ... loop through all messages received */
 
 } /* process_recv_msg() */
-
-int socket_server_send_data_all(const char* data, const uint data_sz)
-{
-    return send_data_all(COMMAND_NONE, data, data_sz);
-} /* socket_server_send_data_all() */
 
 int socket_server_send_data( const char* uuid, const char* data, const uint data_sz )
 {
     return send_data(uuid, COMMAND_NONE, data, data_sz);
 } /* socket_server_send_data() */
 
-int send_data_all(const uint8_t command, const char* data, const uint data_sz)
+void socket_server_send_data_all(const char* data, const uint data_sz)
 {
+    send_data_all(COMMAND_NONE, data, data_sz);
+} /* socket_server_send_data_all() */
+
+void send_data_all(const uint8_t command, const char* data, const uint data_sz)
+{
+    assert( (data == NULL && data_sz == 0) || (data != NULL && data_sz != 0) );
+
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
     struct client_info *client;
-    int returnval, n;
-    char* temp;
+    int n;
 
     /*----------------------------------
     |            INITIALIZE             |
     ------------------------------------*/
     client = NULL;
-    returnval = 0;
-
-    /*-------------------------------------
-    |        CREATE MESSAGE TO SEND        |
-    --------------------------------------*/
-    if( data == NULL || data_sz == 0 )
-    {
-        temp = malloc(COMMAND_SZ);
-        memcpy(temp,&command,COMMAND_SZ);
-    }
-    else
-    {
-        temp = malloc(data_sz+COMMAND_SZ);
-        memcpy(temp,&command,COMMAND_SZ);
-        memcpy( (temp+COMMAND_SZ), data, data_sz );        
-    }
 
     /*----------------------------------
     |             SEND MSGS             |
     ------------------------------------*/
     for(client=client_infos; client!=NULL; client=client->next)
     {
-        n = socket_send_data(client->fd,temp,data_sz+COMMAND_SZ);
+        n = socket_send_data(client->fd, data, data_sz, command);
 
-        if( n < 1 ) /* Disconnect client if failed to send message */
+        if( n < 0 ) /* Disconnect client if failed to send message */
         {
             close_client_conn(client->fd);
         }
-        else /* Tally total bytes sent */
-        {
-            returnval += n;
-        }
-
     } /* for each client ... send msg */
 
-    /*-------------------------------------
-    |               CLEANUP                |
-    --------------------------------------*/
-    free(temp);
-
-    return returnval;
 } /* send_all_data() */
 
 int send_data ( const char* uuid, const uint8_t command, const char * data, uint data_sz )
 {
+    assert( (data == NULL && data_sz == 0) || (data != NULL && data_sz != 0) );
+
     /*----------------------------------
     |             VARIABLES             |
     ------------------------------------*/
     struct client_info *client;
     int returnval, n;
-    char* temp;
 
     /*----------------------------------
     |            INITIALIZE             |
     ------------------------------------*/
     client = find_client_by_uuid(uuid);
-    returnval = 0;
+    returnval = RETURN_SUCCESS;
 
     /*-------------------------------------
     |            VERIFICATIONS             |
@@ -494,39 +475,22 @@ int send_data ( const char* uuid, const uint8_t command, const char * data, uint
     }
 
     /*-------------------------------------
-    |        CREATE MESSAGE TO SEND        |
-    --------------------------------------*/
-    if( data == NULL || data_sz == 0 )
-    {
-        temp = malloc(COMMAND_SZ);
-        memcpy(temp,&command,COMMAND_SZ);
-        data_sz = 0;
-    }
-    else
-    {
-        temp = malloc(data_sz+COMMAND_SZ);
-        memcpy(temp,&command,COMMAND_SZ);
-        memcpy( (temp+COMMAND_SZ), data, data_sz );        
-    }
-
-    /*-------------------------------------
     |             SEND MESSAGE             |
     --------------------------------------*/
-    n = socket_send_data(client->fd,temp,data_sz+COMMAND_SZ);
+    n = socket_send_data(client->fd, data, data_sz, command);
 
-    if( n < 1 ) /* Disconnect client if failed to send message */
+    /*-------------------------------------
+    |             VERIFICATION             |
+    --------------------------------------*/
+    if( n < 0 ) /* Disconnect client if failed to send message */
     {
         close_client_conn(client->fd);
+        returnval = RETURN_FAILED;
     }
     else /* Tally total bytes sent */
     {
         returnval = n;
     }
-
-    /*-------------------------------------
-    |               CLEANUP                |
-    --------------------------------------*/
-    free(temp);
 
     return returnval;
 
@@ -624,7 +588,7 @@ void* execute_thread(void* args)
         {
             printf("Server: Sending Ping to clients\n"); /* Info print */
 
-            send_data_all(COMMAND_PING, NULL, COMMAND_SZ);
+            send_data_all(COMMAND_PING, NULL, 0);
             lastPing = time(NULL);
         }
 

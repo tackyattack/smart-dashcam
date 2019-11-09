@@ -56,9 +56,10 @@ int send_uuid();
 int process_recv_msg(const int socket_fd);
 
 /**
- * Given a char* command, char* data array up to 2^16 in size, and its size,
- * this function will concatenate the command to the data array and
- * will send data array over socket to the client specific by the char* uuid.
+ * Given a command byte, char* data array up to 2^16 (MAX_MSG_SZ) in size, 
+ * and its array size this function will send the command and the data array
+ * and will send data array over socket to the server. The data parameter
+ * may be NULL and data_sz == 0 to send only the command byte with no data.
  * 
  * Note that data_sz should include the termination character if applicable.
  * 
@@ -66,9 +67,9 @@ int process_recv_msg(const int socket_fd);
  * 
  * Note that calls to this are thread safe.
  * 
- * Blocking Function
+ * Blocking Function: Blocks until all data is sent.
  * 
- * @Returns number of bytes sent or number <= 0 if there's an error.
+ * @Returns number of bytes sent or RETURN_FAILED if there's an error.
  */
 int send_data ( const uint8_t command, const char * data, uint data_sz );
 

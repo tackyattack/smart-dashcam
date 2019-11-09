@@ -63,28 +63,23 @@ typedef void (*socket_lib_srv_disconnected)(const char* uuid);
 int socket_server_init( char* port, socket_lib_srv_rx_msg rx_callback, socket_lib_srv_connected connect_callback, socket_lib_srv_disconnected discon_callback );
 
 /**
- * Sends data of size data_sz via the socket connection
- * to all clients.
- * 
- * @Returns total number of bytes sent (should be same as data_sz) or
- *          Else a number <= 0 if failed representing a flag from SOCKET_TX_RX_FLAGS in
- *          socket_commons excluding the success flag.
+ * Sends data array of size data_sz via the socket connection to all
+ * connected clients.
  *
- * Blocking Function
+ * Blocking Function: Blocks until all messages are sent.
  *
  * Thread Safe
  */
-int socket_server_send_data_all( const char* data, const unsigned int data_sz );
+void socket_server_send_data_all( const char* data, const unsigned int data_sz );
 
 /**
- * Sends data of size data_sz via the socket connection
+ * Sends data array of size data_sz via the socket connection
  * to a specific client specified by the given UUID.
  *
- * @Returns total number of bytes sent (should be same as data_sz) or
- *          Else a number <= 0 if failed representing a flag from SOCKET_TX_RX_FLAGS in 
- *          socket_commons excluding the success flag.
+ * @Returns total number of bytes sent (should be same as data_sz)
+ *          Else RETURN_FAILED
  *
- * Blocking Function
+ * Blocking Function: blocks until all data is sent.
  *
  * Thread Safe
  */
