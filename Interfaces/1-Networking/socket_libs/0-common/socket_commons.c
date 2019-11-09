@@ -551,8 +551,8 @@ socket_receive_data( const int socket_fd, struct socket_msg_struct** msg )
         {
             printf("%02x ", temp_msg->data[i]);
         } /* Print data */
-        printf("\n\n");
     }
+    printf("\n\n");
 
     return FLAG_SUCCESS;
 
