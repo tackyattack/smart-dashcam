@@ -198,6 +198,7 @@ int handle_conn_request()
     assert(new_client!=NULL);
     new_client->fd = new_client_fd;
     new_client->address = new_client_info.sin_addr;
+    new_client->recv_uuid = false;
     bzero(new_client->uuid , UUID_SZ); /* Client will send this later */
     new_client->next = NULL;
 
