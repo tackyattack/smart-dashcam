@@ -673,7 +673,7 @@ int socket_send_data ( const int socket_fd, const char * data, const uint16_t da
     ------------------------------------*/
     if ( total_bytes_to_send != total_bytes_sent )
     {
-        printf("ERROR: socket_commons: sent %u of %u bytes\n", total_bytes_sent, total_bytes_to_send);
+        printf("ERROR: socket_commons: sent %d of %u bytes\n", total_bytes_sent, total_bytes_to_send);
         perror("ERROR: socket_commons");
         return RETURN_FAILED;
     }

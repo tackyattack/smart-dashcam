@@ -193,12 +193,12 @@ int process_recv_msg(const int socket_fd)
         /* Print header received */
         printf("CLIENT: msg command received: 0x%02x with flag %d\n", msg->command, msg->recv_flag);
         /* Print data received */
-        fprintf(stderr, "CLIENT: received %d data bytes\n", msg->data_sz);
-        for (int i = 0; i < msg->data_sz; i++)
-        {
-            printf("%c", msg->data[i]);
-        }
-        printf("\n\n");
+        // fprintf(stderr, "CLIENT: received %d data bytes\n", msg->data_sz);
+        // for (int i = 0; i < msg->data_sz; i++)
+        // {
+        //     printf("%c", msg->data[i]);
+        // }
+        // printf("\n\n");
 
         /* Handle msg command */
         switch (msg->command)

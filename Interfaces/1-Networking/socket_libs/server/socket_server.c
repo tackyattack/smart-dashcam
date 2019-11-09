@@ -345,13 +345,15 @@ void process_recv_msg(int client_fd)
     ------------------------------------*/
     while ( msg != NULL )
     {
+        /* Print header received */
+        printf("SERVER: msg command received: 0x%02x with flag %d\n", msg->command, msg->recv_flag);
         /* Print data received */
-        fprintf(stderr, "SERVER: received %d bytes\n", msg->data_sz);
-        for (int i = 0; i < msg->data_sz; i++)
-        {
-            printf("%c", msg->data[i]);
-        }
-        printf("\n\n");
+        // fprintf(stderr, "SERVER: received %d bytes\n", msg->data_sz);
+        // for (int i = 0; i < msg->data_sz; i++)
+        // {
+        //     printf("%c", msg->data[i]);
+        // }
+        // printf("\n\n");
 
         /* Handle msg command */
         switch (msg->command)
