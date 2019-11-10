@@ -135,6 +135,11 @@ class MainModule:
         GPIO.setmode(GPIO.BOARD) # Use physical pin numbering
         GPIO.setup(TURN_SIGNAL_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
+        # set speaker to full volume
+        cmd = 'amixer set PCM -- 100%'
+        cmd = cmd.split()
+        subprocess.check_call(cmd)
+
         self.finder = Discover.DeviceFinder()
         if not self.finder.connect(timeout=5):
             print('Failed to start device discovery')
