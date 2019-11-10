@@ -49,6 +49,7 @@ if args.aux_unit:
     cmd = 'sudo ./Recording_Retrieval/Samba/sambapiZeroBash.sh'
     subprocess.check_call(cmd.split())
 
+
 print('\n\n ***** installing vlc, ffmpeg, and pip *****\n\n')
 cmd = 'sudo apt-get install vlc ffmpeg python-pip'
 subprocess.check_call(cmd.split())
@@ -65,3 +66,9 @@ if args.main_unit:
     print('\n\n ***** Setting up Recording Retrieval *****\n\n')
     cmd = 'sudo ./Recording_Retrieval/FTP/FTP_Pi3_Bash.sh'
     subprocess.check_call(cmd.split())
+
+# create recordings folder and give it permissions so script can write to it
+cmd = 'sudo mkdir -p /recordings'
+subprocess.check_call(cmd.split())
+cmd = 'sudo chmod 777 /recordings'
+subprocess.check_call(cmd.split())

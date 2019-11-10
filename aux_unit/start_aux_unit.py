@@ -5,7 +5,8 @@ import threading
 import sys
 
 script_path = os.path.dirname(os.path.abspath(__file__))
-record_path = os.path.join(script_path, 'recordings')
+#record_path = os.path.join(script_path, 'recordings')
+record_path = '/recordings'
 sys.path.append(os.path.join(script_path, '../main_module'))
 from dashRecording import DashcamRecorder
 from deviceDiscovery import Discover

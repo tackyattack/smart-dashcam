@@ -14,7 +14,11 @@ import Queue
 import RPi.GPIO as GPIO
 
 script_path = os.path.dirname(os.path.abspath(__file__))
-record_path = os.path.join(script_path, 'recordings')
+samba_scripts_path = os.path.join(script_path, '../Recording_Retrieval/Samba')
+#record_path = os.path.join(script_path, 'recordings')
+record_path = '/recordings'
+# this is where all the mounted aux units go
+record_mount_path = '/Recordings'
 sys.path.append(os.path.join(script_path, '../Lane_Detection/src/pilanes'))
 import LaneVision
 
@@ -191,13 +195,30 @@ class MainModule:
             print("no aux devices found")
             return
 
+        if os.path.isdir(record_mount_path):
+            # cleanup the mount folder, and take care of any stale files
+            try:
+                cmd = 'sudo umount {0}/*'.format(record_mount_path)
+                #cmd = cmd.split()
+                subprocess.check_call(cmd, shell=True)
+            except subprocess.CalledProcessError:
+                pass
+
+            try:
+                cmd = 'sudo rm -rf {0}'.format(record_mount_path)
+                cmd = cmd.split()
+                subprocess.check_call(cmd)
+            except subprocess.CalledProcessError:
+                pass
+
         for camera in cameras:
             # ('tcp://127.0.0.1:8080', 'Front')
             tcp_path = camera[0]
             camera_name = camera[1]
             uri = os.path.basename(tcp_path)
             aux_IP = uri.split(':')[0]
-            cmd = 'Recording_Retrieval/FTP/sambapi3_AUX_MOUNT_Bash.sh {0} {1}'.format(aux_IP, camera_name)
+            mount_script_path = os.path.join(samba_scripts_path, 'sambapi3_AUX_MOUNT_Bash.sh')
+            cmd = 'bash {0} {1} {2}'.format(mount_script_path, aux_IP, camera_name)
             cmd = cmd.split()
             print('Mounting {0}'.format(camera_name))
             try:

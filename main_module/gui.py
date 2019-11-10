@@ -296,9 +296,10 @@ class GUISettingsView(GUIView):
     def retrieval_mode_pressed(self):
         print('mount pressed')
         registered_callbacks['retrieval_mode']()
+        self.exit_callback()
 
     def exit_callback(self):
-        put_window_command(WINDOW_COMMAND_POP_VIEW, None)
+        put_window_command(WINDOW_COMMAND_POP_VIEW, window_pop_packet(view_instance=self))
 
 
 class GUIMainView(GUIView):
