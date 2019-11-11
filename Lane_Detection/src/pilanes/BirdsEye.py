@@ -17,18 +17,41 @@ class BirdsEyeMath:
         origin_y = origin_transformed[1][0]/origin_transformed[2][0]
         return origin_x, origin_y
 
-    def calculate_transformation_matrix(self, theta_angle, w, h, camera_pixel_altitude):
+    def calculate_transformation_matrix(self, theta_angle, w, h, focal_length_mm,
+                                        sensor_width_mm, sensor_height_mm, camera_altitude_mm):
         t = theta_angle*pi/180.0
         p = 0*pi/180.0
 
-        # focal_pixel = (focal_mm / sensor_width_mm) * image_width_in_pixels
-        fx = (35.0/22.3)*w
-        fy = (35.0/14.9)*h
+        physical_focal = focal_length_mm
 
+        # focal_pixel = (focal_mm / sensor_width_mm) * image_width_in_pixels
+        fx = (physical_focal/sensor_width_mm)*w
+        fy = (physical_focal/sensor_height_mm)*h
+
+        # describes how camera coordinates transform to world
+        C = np.array([[fx, 0, 0],
+                      [0, fy, 0],
+                      [0, 0, 1]
+                      ])
+
+        physical_height_mm = camera_altitude_mm
+        # how many image planes does it take to get up to the camera's actual height
+        num_image_planes_y = physical_height_mm/sensor_height_mm
+        # multiply by the pixel size of the image plane to get the camera's
+        # vertical position in pixel units
+        cam_pixel_y = fy*num_image_planes_y
+        # create the matrix that goes from world to camera coordinates
+        world_to_cam_mat = np.linalg.inv(C)
+        world_space_cam_pos_3 = np.array([[0],
+                              [cam_pixel_y],
+                              [1]])
+        # transform world coordinates into camera space
+        null, h_vert = self.world_to_camera(world_to_cam_mat, 0, cam_pixel_y)
+        print(h_vert)
         # height in pixels
         # this should always be larger than image height I think or else
         # bottom floats off
-        h_vert = camera_pixel_altitude
+
 
         # https://pdfs.semanticscholar.org/4964/9006f2d643c0fb613db4167f9e49462546dc.pdf
         # transform -> rotate -> projection
@@ -40,10 +63,7 @@ class BirdsEyeMath:
                       [0, 1, 0],
                       [0, 0, h_vert]
                       ])
-        C = np.array([[fx, 0, 0],
-                      [0, fy, 0],
-                      [0, 0, 1]
-                      ])
+
         # H = CRT
         H = np.dot(R, T)
         H = np.dot(C, H)
@@ -82,8 +102,10 @@ class BirdsEyeMath:
 
         return H_inv, origin_x, origin_y, scale_x, scale_y
 
-    def get_transformation_matrix(self, width, height, angle, camera_pixel_altitude):
-        H_inv, origin_x, origin_y, scale_x, scale_y = self.calculate_transformation_matrix(-1*angle, width, height, camera_pixel_altitude)
+    def get_transformation_matrix(self, width, height, angle, focal_length_mm,
+                                  sensor_width_mm, sensor_height_mm, camera_altitude_mm):
+        H_inv, origin_x, origin_y, scale_x, scale_y = self.calculate_transformation_matrix(-1*angle, width, height,
+                                                      focal_length_mm, sensor_width_mm, sensor_height_mm, camera_altitude_mm)
 
         X = np.array([[scale_x, 0, -width/2+origin_x],
                       [0, scale_y, -height/2+origin_y],

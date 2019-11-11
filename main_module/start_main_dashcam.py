@@ -74,9 +74,13 @@ class LaneDetectionProcess:
         self.camera = self.recorder.get_camera()
         self.recorder.start_recorder()
         self.lane_tracker = LaneVision.LaneTracker(camera=self.camera, bottom_y_boundry=0, top_y_boundry=250,
-                                              transform_angle=45.0, camera_pixel_altitude=250*0.5, debug_view=False,
-                                              debug_view_stage=1, log=DEBUG_PROGRAM,
-                                              screen_width=480, screen_height=320)
+                                                  transform_angle=45.0,
+                                                  focal_length_mm=35.0,
+                                                  sensor_width_mm=22.3, sensor_height_mm=14.9,
+                                                  camera_altitude_mm=2500,
+                                                  debug_view=True,
+                                                  debug_view_stage=1, log=DEBUG_PROGRAM,
+                                                  screen_width=480, screen_height=320)
 
         new_lane_alert = False
         while not self.terminate_event.is_set():

@@ -56,7 +56,9 @@ class LaneTracker():
     SHADER_PATH = os.path.join(root_path, 'ogl_cv/ogl_accelerator/shaders')
     print("loading shaders from: {0}".format(SHADER_PATH))
 
-    def __init__(self, camera, bottom_y_boundry, top_y_boundry, transform_angle, camera_pixel_altitude, debug_view, debug_view_stage, log, screen_width, screen_height):
+    def __init__(self, camera, bottom_y_boundry, top_y_boundry, transform_angle, focal_length_mm,
+                                  sensor_width_mm, sensor_height_mm, camera_altitude_mm, debug_view, debug_view_stage,
+                                  log, screen_width, screen_height):
         self.camera_instance = camera
         self.data_logging = log
         self.show_framebuffer = debug_view
@@ -74,8 +76,11 @@ class LaneTracker():
         self.transform_matrix = (ctypes.c_float*(3*3))()
         bm = bird.BirdsEyeMath()
         pixel_height = top_y_boundry - bottom_y_boundry
-        self.transform_matrix = bm.numpy_to_float_mat(bm.get_transformation_matrix(width=1024, height=pixel_height, angle=self.transform_angle,
-                                                                                   camera_pixel_altitude=camera_pixel_altitude), 3*3)
+        self.transform_matrix = bm.numpy_to_float_mat(bm.get_transformation_matrix(width=1024, height=pixel_height,
+                                                   angle=self.transform_angle,
+                                                   focal_length_mm=focal_length_mm,
+                                                   sensor_width_mm=sensor_width_mm, sensor_height_mm=sensor_height_mm,
+                                                   camera_altitude_mm=camera_altitude_mm), 3*3)
 
         self.kf_left = KalmanFilter(self.process_variance, self.estimated_measurement_variance)
         self.kf_right = KalmanFilter(self.process_variance, self.estimated_measurement_variance)
