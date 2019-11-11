@@ -68,9 +68,16 @@ if args.main_unit:
     subprocess.check_call(cmd.split())
 
 # create recordings folder and give it permissions so script can write to it
+# lowercase is local, uppercase is remote
+# however, on main unit, recordings go in uppercase since they need to be shared too through FTP
 cmd = 'sudo mkdir -p /recordings'
 subprocess.check_call(cmd.split())
 cmd = 'sudo chmod 777 /recordings'
+subprocess.check_call(cmd.split())
+
+cmd = 'sudo mkdir -p /Recordings'
+subprocess.check_call(cmd.split())
+cmd = 'sudo chmod 777 /Recordings'
 subprocess.check_call(cmd.split())
 
 # Setup main services

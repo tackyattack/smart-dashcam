@@ -16,7 +16,7 @@ import RPi.GPIO as GPIO
 script_path = os.path.dirname(os.path.abspath(__file__))
 samba_scripts_path = os.path.join(script_path, '../Recording_Retrieval/Samba')
 #record_path = os.path.join(script_path, 'recordings')
-record_path = '/recordings'
+record_path = '/Recordings/main_unit'
 # this is where all the mounted aux units go
 record_mount_path = '/Recordings'
 sys.path.append(os.path.join(script_path, '../Lane_Detection/src/pilanes'))
@@ -127,6 +127,10 @@ class LaneDetectionProcess:
             sleep(0.1)
 
 
+def get_immediate_subdirectories(a_dir):
+    return [name for name in os.listdir(a_dir)
+            if os.path.isdir(os.path.join(a_dir, name))]
+
 class MainModule:
 
     def __init__(self):
@@ -203,19 +207,25 @@ class MainModule:
 
         if os.path.isdir(record_mount_path):
             # cleanup the mount folder, and take care of any stale files
-            try:
-                cmd = 'sudo umount {0}/*'.format(record_mount_path)
-                #cmd = cmd.split()
-                subprocess.check_call(cmd, shell=True)
-            except subprocess.CalledProcessError:
-                pass
+            for dirpath in get_immediate_subdirectories(record_mount_path):
+                dirpath = os.path.join(record_mount_path, dirpath)
+                # don't delete this device's recordings, only the mounted
+                if not os.path.samefile(dirpath, record_path):
+                    print(dirpath)
+                    try:
+                        cmd = 'sudo umount {0}'.format(dirpath)
+                        #cmd = cmd.split()
+                        subprocess.check_call(cmd, shell=True)
+                    except subprocess.CalledProcessError:
+                        pass
 
-            try:
-                cmd = 'sudo rm -rf {0}'.format(record_mount_path)
-                cmd = cmd.split()
-                subprocess.check_call(cmd)
-            except subprocess.CalledProcessError:
-                pass
+                    try:
+                        cmd = 'rm -rf {0}'.format(dirpath)
+                        cmd = cmd.split()
+                        subprocess.check_call(cmd)
+                        pass
+                    except os.error:
+                        pass
 
         for camera in cameras:
             # ('tcp://127.0.0.1:8080', 'Front')
