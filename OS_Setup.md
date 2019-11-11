@@ -21,17 +21,18 @@
    ```sh
    sudo apt install python2.7 git build-essentials libdbus-1-dev libdbus-glib-1-dev uuid-dev
    ```
-7. Run setup script in smart-dashcam root directory on master branch
+7. Clone smart-dashcam into `/home/pi`
+8. Run setup script in smart-dashcam root directory on master branch
    ```sh
    ./setup.py --aux_unit
    ```
-8. Setup TCP Interface service and Wi-Fi
+9. Setup TCP Interface service and Wi-Fi
    1. Checkout branch dev/interfaces from repository and go into the *Interfaces* folder
    2. Setup, build, and setup pi for DBUS and socket libraries, and Wi-Fi with the following command:
       ```sh
       make setup build pi0_setup
       ```
-9. Reboot system
+10. Reboot system
 
 
 # Raspbian Setup Instructions for RPi 3
@@ -39,6 +40,7 @@
    ```sh
    sudo apt install python2.7 git build-essentials libdbus-1-dev libdbus-glib-1-dev uuid-dev
    ```
+1. Clone smart-dashcam into `/home/pi/`
 1. Run setup script in smart-dashcam root directory on master branch
    ```sh
    ./setup.py --main_unit
