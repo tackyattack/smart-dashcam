@@ -23,9 +23,9 @@ STREAM_WIDTH = 480
 STREAM_HEIGHT = 320
 
 # record interval in seconds
-record_interval = 10
+record_interval = 30
 # maximum size of recording folder in MB
-max_recording_folder_size_mb = 100
+max_recording_folder_size_mb = 1000
 
 # Streaming port
 stream_port = 8080

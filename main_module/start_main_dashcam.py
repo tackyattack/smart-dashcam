@@ -33,9 +33,9 @@ RECORD_HEIGHT = 922
 DEBUG_PROGRAM = False
 
 # record interval in seconds
-record_interval = 10
+record_interval = 30
 # maximum size of recording folder in MB
-max_recording_folder_size_mb = 100
+max_recording_folder_size_mb = 1000
 # how many of the most recent files to display
 max_files_to_display = 50
 

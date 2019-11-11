@@ -15,6 +15,7 @@ import subprocess
 import Queue
 import sys
 import ctypes
+import uuid
 
 
 # --- DEPRECATION: stdio stream since it's slow
@@ -32,6 +33,7 @@ import ctypes
 # omxplayer -o hdmi  rtsp://131.151.175.144:8554/
 
 root_path = os.path.dirname(os.path.realpath(__file__))
+temporary_video_path = os.path.join(root_path, 'temp_vid')
 stream_lib = ctypes.CDLL(os.path.join(root_path, 'Stream/dashcam_streamer/stream.so'))
 
 record_bytes_stream = stream_lib.record_bytes
@@ -81,7 +83,7 @@ def get_number_file(file):
 def get_sorted_video_paths(path):
     file_paths = []
     for file in os.listdir(path):
-        if file.endswith('.mp4') or file.endswith('.h264'):
+        if file.endswith('.mp4'):
             extracted_num = get_number_file(file)
             # store as tuples
             file_paths.append((extracted_num, os.path.join(path, file)))
@@ -146,9 +148,9 @@ class Recorder:
             close_server()
 
     def cleanup(self):
-        for file in os.listdir(self.record_path):
+        for file in os.listdir(temporary_video_path):
             if file.endswith('.h264'):
-                os.remove(os.path.join(self.record_path, file))
+                os.remove(os.path.join(temporary_video_path, file))
 
     # size in bytes
     def get_size(self, start_path = '.'):
@@ -171,11 +173,20 @@ class Recorder:
 
         return extracted_num + 1
 
+    def get_unique_temp_number(path):
+        files = os.listdir(temporary_video_path)
+        UID = uuid.uuid4().hex
+        # check for collision
+        while os.path.exists(os.path.join(temporary_video_path, UID+'.h264')):
+            UID = uuid.uuid4().hex
+        return UID
+
+
     def recording_thread_func(self):
         is_recording = False
         while not self.terminate_event.is_set():
-            record_name_path = os.path.join(self.record_path,
-                                       'dashcam_video_{0}.h264'.format(self.get_video_num()))
+            record_name_path = os.path.join(temporary_video_path,
+                                       '{0}.h264'.format(self.get_unique_temp_number()))
             self.current_recording_name = record_name_path
             is_recording = True
             self.camera.start_recording(record_name_path)
@@ -192,6 +203,27 @@ class Recorder:
         if(not self.silent):
             print("recording thread closed")
 
+    def renumber_files(self):
+        file_paths = []
+        file_paths = get_sorted_video_paths(self.record_path)
+        if len(file_paths) == 0:
+            return
+
+        cnt = 0
+        for file_path in file_paths:
+            file = os.path.basename(file_path)
+            if file.endswith('.mp4'):
+                # dashcam_video_0.ext
+                file_no_ext = os.path.splitext(file)[0]
+                file_name_no_number = '_'.join(file_no_ext.split('_')[:-1])
+                new_file_name       = file_name_no_number + '_{0}.mp4'.format(cnt)
+                cnt = cnt + 1
+                parent_folder = os.path.dirname(file_path)
+                new_file_path = os.path.join(parent_folder, new_file_name)
+                os.rename(file_path, new_file_path)
+
+
+
     def check_reduce(self):
         size_mb = self.get_size(self.record_path)/1000000
         if(size_mb > self.max_size_mb):
@@ -204,6 +236,8 @@ class Recorder:
             if(not self.silent):
                 print("removing: " + file_to_delete)
             os.remove(file_to_delete)
+            # if you removed one, go through list and renumber them so it doesn't keep growing
+            self.renumber_files()
 
     def wrapping_thread_func(self):
         while not self.terminate_event.is_set():
@@ -221,7 +255,9 @@ class Recorder:
 
                 if timeout > 0:
                     # 'xxx.h264'
-                    file_out_path = file_to_wrap_path[:-4] + 'mp4'
+                    #file_out_path = file_to_wrap_path[:-4] + 'mp4'
+                    file_out_path = os.path.join(self.record_path,
+                                                 'dashcam_video_{0}.mp4'.format(self.get_video_num()))
                     cmd_str = 'ffmpeg -framerate {0} -i {1} -c:v copy -f mp4 {2}'.format(self.framerate,
                                                                                          file_to_wrap_path,
                                                                                          file_out_path)
