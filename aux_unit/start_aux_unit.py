@@ -59,3 +59,6 @@ while(not exit_main):
     except KeyboardInterrupt:
         aux_module.terminate()
         exit_main = True
+    except:
+        aux_module.terminate()
+        raise
