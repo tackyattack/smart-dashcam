@@ -7,7 +7,7 @@ class BirdsEyeMath:
     def __init__(self):
         pass
 
-    def world_to_camera(self, H, x, y):
+    def dot_perspective_divide(self, H, x, y):
         origin = np.array([[x],
                           [y],
                           [1]])
@@ -28,7 +28,7 @@ class BirdsEyeMath:
         fx = (physical_focal/sensor_width_mm)*w
         fy = (physical_focal/sensor_height_mm)*h
 
-        # describes how camera coordinates transform to world
+        # describes how world coordinates transform to camera coordinates
         C = np.array([[fx, 0, 0],
                       [0, fy, 0],
                       [0, 0, 1]
@@ -40,13 +40,11 @@ class BirdsEyeMath:
         # multiply by the pixel size of the image plane to get the camera's
         # vertical position in pixel units
         cam_pixel_y = fy*num_image_planes_y
-        # create the matrix that goes from world to camera coordinates
-        world_to_cam_mat = np.linalg.inv(C)
-        world_space_cam_pos_3 = np.array([[0],
-                              [cam_pixel_y],
-                              [1]])
-        # transform world coordinates into camera space
-        null, h_vert = self.world_to_camera(world_to_cam_mat, 0, cam_pixel_y)
+        # create the matrix that goes from camera to world coordinates
+        cam_to_world_mat = np.linalg.inv(C)
+
+        # transform from camera space to world space
+        null, h_vert = self.dot_perspective_divide(cam_to_world_mat, 0, cam_pixel_y)
         print(h_vert)
         # height in pixels
         # this should always be larger than image height I think or else
@@ -69,8 +67,8 @@ class BirdsEyeMath:
         H = np.dot(C, H)
         H_inv = np.linalg.inv(H)
 
-        null, y_a = self.world_to_camera(H, 0, h/2)
-        x_a, null = self.world_to_camera(H, -w/2, h/2)
+        null, y_a = self.dot_perspective_divide(H, 0, h/2)
+        x_a, null = self.dot_perspective_divide(H, -w/2, h/2)
         print(x_a)
 
         origin_x = x_a
@@ -85,8 +83,8 @@ class BirdsEyeMath:
         # be enough to include dotted lane + a partial of the next so that framerate aliasing
         # doesn't cause fast lanes to become invisible.
         percent_height = 0.25
-        null, top = self.world_to_camera(H, 0, h/2)
-        null, bottom = self.world_to_camera(H, 0, -h/2*percent_height)
+        null, top = self.dot_perspective_divide(H, 0, h/2)
+        null, bottom = self.dot_perspective_divide(H, 0, -h/2*percent_height)
         scale_y = abs(top-bottom)/h
         # for now, it looks like not scaling is best
         # because parameters don't have to be as precise
@@ -95,8 +93,8 @@ class BirdsEyeMath:
 
 
         percent_width = 1
-        left, null = self.world_to_camera(H, -w/2, h/2)
-        right, null = self.world_to_camera(H, w/2, h/2)
+        left, null = self.dot_perspective_divide(H, -w/2, h/2)
+        right, null = self.dot_perspective_divide(H, w/2, h/2)
         scale_x = abs(left-right)/w*percent_width
         print(scale_x)
 
