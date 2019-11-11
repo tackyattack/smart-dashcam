@@ -78,7 +78,7 @@ class LaneDetectionProcess:
                                                   focal_length_mm=35.0,
                                                   sensor_width_mm=22.3, sensor_height_mm=14.9,
                                                   camera_altitude_mm=2500,
-                                                  debug_view=True,
+                                                  debug_view=False,
                                                   debug_view_stage=1, log=DEBUG_PROGRAM,
                                                   screen_width=480, screen_height=320)
 
