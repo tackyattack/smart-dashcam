@@ -35,7 +35,7 @@ class AuxModule:
 
     def __init__(self):
         self.finder = Discover.DeviceFinder(stream_port)
-        if not self.finder.connect(timeout=5):
+        if not self.finder.connect(timeout=0):
             print('Failed to start device discovery')
 
 

@@ -1,0 +1,13 @@
+[Unit]
+Description=Dashcam main unit runner
+After=network.target
+
+[Service]
+WorkingDirectory=/home/pi/smart-dashcam
+User=pi
+Type=simple
+ExecStart=/usr/bin/python2 /home/pi/smart-dashcam/main_module/start_main_dashcam.py
+StartLimitInterval=30
+
+[Install]
+WantedBy=multi-user.target

@@ -29,13 +29,18 @@ class DiscoverMixin(object):
 
     def connect(self, timeout):
         val = -1
+        wait_forever = False
+        if timeout == 0:
+            wait_forever = True
+            timeout = 1
         server_version = ctypes.POINTER(ctypes.c_char_p)()
         while((val != dbus_tcp_client.EXIT_SUCCESS) and self.running and (timeout>0)):
             val = dbus_tcp_client.tcp_dbus_client_init(self.id, server_version)
             if val == dbus_tcp_client.EXIT_FAILURE:
                 raise Exception('Failed to initialize client!')
             sleep(1)
-            timeout = timeout - 1
+            if not wait_forever:
+                timeout = timeout - 1
 
         if timeout == 0:
             self.terminate()

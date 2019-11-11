@@ -72,3 +72,15 @@ cmd = 'sudo mkdir -p /recordings'
 subprocess.check_call(cmd.split())
 cmd = 'sudo chmod 777 /recordings'
 subprocess.check_call(cmd.split())
+
+# Setup main services
+print('\n\n ***** Setting up main services *****\n\n')
+if args.main_unit:
+    build_path = os.path.join(root_path, 'setup_files/setup_main_service')
+    cmd = 'make pi3_setup'
+    run_cmd_in_path(cmd, build_path)
+
+if args.aux_unit:
+    build_path = os.path.join(root_path, 'setup_files/setup_aux_service')
+    cmd = 'make pi0_setup'
+    run_cmd_in_path(cmd, build_path)

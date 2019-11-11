@@ -70,7 +70,7 @@ class LaneDetectionProcess:
         #       is shared between the two
         self.recorder = DashcamRecorder.Recorder(record_path=record_path, record_width=RECORD_WIDTH,
                                                  record_height=RECORD_HEIGHT, recording_interval_s=record_interval,
-                                                 max_size_mb=max_recording_folder_size_mb, stream=True)
+                                                 max_size_mb=max_recording_folder_size_mb, stream=False)
         self.camera = self.recorder.get_camera()
         self.recorder.start_recorder()
         self.lane_tracker = LaneVision.LaneTracker(camera=self.camera, bottom_y_boundry=0, top_y_boundry=250,
@@ -130,6 +130,7 @@ class LaneDetectionProcess:
 class MainModule:
 
     def __init__(self):
+        os.environ['DISPLAY'] = ':0.0'
 
         GPIO.setwarnings(False) # Ignore warning for now
         GPIO.setmode(GPIO.BOARD) # Use physical pin numbering
@@ -141,7 +142,7 @@ class MainModule:
         subprocess.check_call(cmd)
 
         self.finder = Discover.DeviceFinder()
-        if not self.finder.connect(timeout=5):
+        if not self.finder.connect(timeout=0):
             print('Failed to start device discovery')
 
         self.dash_gui = gui.DashcamGUI(init_callback=self.gui_init, exit_callback=self.GUI_exit_callback)
@@ -259,7 +260,7 @@ class MainModule:
 
     def get_cameras_callback(self):
         cameras = self.finder.get_aux_devices(1)
-        cameras.append(('tcp://127.0.0.1:8080', 'Front'))
+        #cameras.append(('tcp://127.0.0.1:8080', 'Front'))
         print(cameras)
         return cameras
 
