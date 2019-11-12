@@ -4,6 +4,7 @@ from time import sleep
 import socket
 import os
 import signal
+import subprocess
 import dbus_tcp_client
 
 def create_cstring(py_str):
@@ -76,40 +77,72 @@ class DeviceFinder(DiscoverMixin):
     def __init__(self, stream_port=None):
         super(DeviceFinder, self).__init__()
         self.hostnames = set([])
+        self.IP_list = set([])
         self.stream_port = stream_port
 
     def get_hostname(self):
-        host_name = None
+        host_name = 'Unknown'
         try:
             host_name = socket.gethostname()
         except:
             print("unable to get hostname")
         return host_name
 
+    def get_my_ip(self):
+        cmd = r'''ip addr show wlan0 | grep "inet\b" | awk '{print $2}' | cut -d/ -f1'''
+        output = ''
+        try:
+            output = subprocess.check_output(cmd, shell=True)
+        except subprocess.CalledProcessError:
+            output = ''
+            pass
+        if not output:
+            return ''
+
+        valid_ip = ''
+        ip_list = output.splitlines()
+        for ip in ip_list:
+            # make sure it's not a local IP
+            if '127' not in ip.split('.')[0]:
+                valid_ip = ip
+
+        return valid_ip
+
+
     def tcp_rx_callback(self, tcp_clnt_uuid, data, data_sz):
         if 'discover' in data:
-            hostname_port_packet = 'me:' + self.get_hostname() + ':' + str(self.stream_port)
-            hostname_reply, sz = create_cstring(hostname_port_packet)
-            dbus_tcp_client.tcp_dbus_send_msg(self.id, dbus_tcp_client.null_ptr, hostname_reply, sz)
+            my_ip = self.get_my_ip()
+            hostname = self.get_hostname()
+            if my_ip:
+                IP_port_packet = 'me:'+ hostname + ':' + my_ip + ':' + str(self.stream_port)
+                IP_reply, sz = create_cstring(IP_port_packet)
+                dbus_tcp_client.tcp_dbus_send_msg(self.id, dbus_tcp_client.null_ptr, IP_reply, sz)
         if 'me:' in data:
-            hostname = data[3:]
-            self.hostnames.add(hostname)
+            IP_packet = data[3:]
+            self.IP_list.add(IP_packet)
 
     def request_hostnames(self):
         self.hostnames = set([])
         discover_request, sz = create_cstring('discover')
         dbus_tcp_client.tcp_dbus_send_msg(self.id, dbus_tcp_client.null_ptr, discover_request, sz)
 
+    def request_IP_hostnames(self):
+        self.IP_list = set([])
+        discover_request, sz = create_cstring('discover')
+        dbus_tcp_client.tcp_dbus_send_msg(self.id, dbus_tcp_client.null_ptr, discover_request, sz)
+
     def get_aux_devices(self, time_to_wait):
-        self.request_hostnames()
+        self.request_IP_hostnames()
         device_list = []
         sleep(time_to_wait)
-        for hostname_port in self.hostnames:
+        for hostnameIP_port in self.IP_list:
+            print(hostnameIP_port)
             # 'tcp://192.168.0.152:8080'
-            hostname = ''.join(hostname_port.split(':')[:-1])
-            port = hostname_port.split(':')[-1]
-            host_ip = socket.gethostbyname(hostname)
-            device = 'tcp://' + host_ip + ':' + port
+            # hostname:ip:port
+            hostname = ''.join(hostnameIP_port.split(':')[0])
+            IP       = ''.join(hostnameIP_port.split(':')[1])
+            port     = ''.join(hostnameIP_port.split(':')[2])
+            device = 'tcp://' + IP + ':' + port
             device_list.append((device, hostname))
         return device_list
 
