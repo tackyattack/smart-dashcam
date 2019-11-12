@@ -4,6 +4,7 @@
 
 #include "prv_socket_client.h"
 #include "pub_socket_client.h"
+#include "../../../debug_print_defines.h"
 
 
 /*-------------------------------------
@@ -71,7 +72,7 @@ void load_uuid()
     |         SAVE UUID TO UUID         |
     ------------------------------------*/
     memcpy(UUID,buffer,UUID_SZ); /* Copy data */
-    printf("Socket Client: UUID is %s\n",UUID);
+    info_print("CLIENT: UUID is %s\n",UUID);
 
     /*----------------------------------
     |             CLEAN-UP              |
@@ -82,7 +83,7 @@ void load_uuid()
 
 int send_uuid()
 {
-    printf("CLIENT: Send UUID to server\n");
+    info_print("CLIENT: Send UUID to server\n");
 
     /*----------------------------------
     |             VARIABLES             |
@@ -95,7 +96,7 @@ int send_uuid()
     sent_bytes = send_data(COMMAND_UUID, UUID, UUID_STR_LEN);   /* Send UUID with null termination to server to identify ourselves */
     if(sent_bytes != UUID_STR_LEN)
     {
-        printf("\nERROR: failed to send UUID correctly to server. Send %d bytes but expected %d bytes...\n\n", sent_bytes, UUID_STR_LEN);
+        err_print("\nERROR: CLIENT: failed to send UUID correctly to server. Send %d bytes but expected %d bytes...\n\n", sent_bytes, UUID_STR_LEN);
     }
 
     return sent_bytes;
@@ -122,12 +123,12 @@ int socket_client_init(char* server_addr, char *port, socket_lib_clnt_rx_msg rx_
     --------------------------------------*/
     if ( atoi(port) < 0 || atoi(port) > 65535 )
     {
-        printf("ERROR: invalid port number %s!",port);
+        err_print("ERROR: CLIENT: invalid port number %s!",port);
         return RETURN_FAILED;
     }
 
     /* Info print */
-    printf ("\nAttempt to open socket to server....\n");
+    info_print ("\nCLIENT: Attempt to open socket to server....\n");
 
     client_fd = socket_create_socket(port, DEFAULT_SOCKET_TYPE, server_addr, SOCKET_OWNER_IS_CLIENT);
 
@@ -175,13 +176,13 @@ int process_recv_msg(const int socket_fd)
     --------------------------------------*/
     if( recv_flag == FLAG_DISCONNECT )
     {
-        printf("Socket Client: Received disconnect/socket error. Disconnecting from server...\n");
+        info_print("CLIENT: Received disconnect/socket error. Disconnecting from server...\n");
         close_and_notify();
         return FLAG_DISCONNECT;
     }
     else if (recv_flag == FLAG_HEADER_ERROR)
     {
-        printf("Socket Client: Received invalid msg header...ignoring\n");
+        warning_print("CLIENT: Received invalid msg header...ignoring\n");
         return RETURN_FAILED;
     }
 
@@ -191,14 +192,14 @@ int process_recv_msg(const int socket_fd)
     while ( msg != NULL )
     {
         /* Print header received */
-        printf("CLIENT: msg command received: 0x%02x with flag %d\n", msg->command, msg->recv_flag);
+        // info_print("CLIENT: msg command received: 0x%02x with flag %d\n", msg->command, msg->recv_flag);
         /* Print data received */
-        // fprintf(stderr, "CLIENT: received %d data bytes\n", msg->data_sz);
+        // info_print("CLIENT: received %d data bytes\n", msg->data_sz);
         // for (int i = 0; i < msg->data_sz; i++)
         // {
-        //     printf("%c", msg->data[i]);
+        //     info_print("%c", msg->data[i]);
         // }
-        // printf("\n\n");
+        // info_print("\n\n");
 
         /* Handle msg command */
         switch (msg->command)
@@ -212,14 +213,14 @@ int process_recv_msg(const int socket_fd)
             |           CALL CALLBACK           |
             ------------------------------------*/
             /* Received message from client. Call callback with message and UUID */
-            printf("Socket Client: Call recv msg callback\n");
+            // info_print("CLIENT: Call recv msg callback\n");
             if(_rx_callback != NULL && msg->data_sz > 0)
             {
                 (*_rx_callback)( msg->data, msg->data_sz );
             }
             break;
         default:
-            printf("ERROR: socket client received message without valid COMMAND\n");
+            warning_print("CLIENT: received message without valid COMMAND\n");
 
             return_val = RETURN_FAILED;
             break;
@@ -275,21 +276,21 @@ void* execute_thread(void* args)
         if (n == -1)
         {
             /* Select() Error */
-            perror("ERROR IN SELECT OPERATION");
+            err_print("ERROR: CLIENT: ERROR IN SELECT OPERATION\n");
             close_and_notify();
             exit(EXIT_FAILURE);
         }
         else if (n == 0)
         {
             /* Timeout */
-            printf("\nServer ping timeout! Lost connection to server.....\n");
+            warning_print("\nCLIENT: Server ping timeout! Lost connection to server.....\n");
             close_and_notify();
             break;
         }
         else if (!FD_ISSET(client_fd, &working_fd_set))
         {
             /* No received messages but no timeout or error */
-            printf("\nUNKNOWN ERROR\n");
+            err_print("\nERROR: CLIENT: UNKNOWN ERROR\n");
             close_and_notify();
             exit(EXIT_FAILURE);
             break;
@@ -301,7 +302,7 @@ void* execute_thread(void* args)
         val = process_recv_msg(client_fd);
         if( val == FLAG_DISCONNECT )
         {
-            printf("CLIENT: Got disconnect flag....stopping thread execution\n");
+            info_print("CLIENT: Got disconnect flag....stopping thread execution\n");
             break;
         }
 
@@ -339,7 +340,7 @@ void socket_client_execute()
     
     if( 0 != pthread_detach(thread_id) )
     {
-        printf("\nFailed to create client execute thread!\n");
+        err_print("\nERROR: CLIENT: Failed to create client execute thread!\n");
         exit(EXIT_FAILURE);
     }
 
@@ -374,7 +375,7 @@ int send_data ( const uint8_t command, const char * data, uint data_sz )
     --------------------------------------*/
     if( n < 0 )
     {
-        printf("CLIENT: Failed to send data in send_data()...Closing socket\n");
+        info_print("CLIENT: Failed to send data in send_data()...Closing socket\n");
         /* Disconnect client if failed to send message */
         close_and_notify();
         returnval = RETURN_FAILED;
@@ -396,7 +397,7 @@ void socket_client_quit()
     ------------------------------------*/
     if ( RETURN_FAILED == close(client_fd) )
     {
-        printf("\nFailed: socket_client_quit() failed to close socket!\n");
+        err_print("\nERROR: CLIENT: socket_client_quit(): failed to close socket!\n");
     }
 
 } /* socket_client_quit() */

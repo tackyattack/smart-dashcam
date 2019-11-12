@@ -3,6 +3,7 @@
 --------------------------------------*/
 #include "pub_socket_server.h"
 #include "prv_socket_server.h"
+#include "../../../debug_print_defines.h"
 
 /*----------------------------------
 |         STATIC VARIABLES          |
@@ -30,7 +31,7 @@ pthread_mutex_t mutex_isExecuting_thread = PTHREAD_MUTEX_INITIALIZER;
 void  INThandler(int sig)
 {
     signal(sig, SIG_IGN);
-    printf("\nCtrl-C detected. Exiting....\n");
+    info_print("\nSERVER: Ctrl-C detected. Exiting....\n");
     close(server_socket_fd);
     exit(EXIT_SUCCESS);
 }
@@ -38,7 +39,7 @@ void  INThandler(int sig)
 void  PIPEhandler(int sig)
 {
     signal(sig, SIG_IGN);
-    printf("\nPIPE Error detected. A client must have disconnected....\n");
+    info_print("\nSERVER: PIPE Error detected. A client must have disconnected....\n");
     signal(SIGPIPE, PIPEhandler);
 }
 
@@ -118,7 +119,7 @@ int socket_server_init( char* port, socket_lib_srv_rx_msg rx_callback, socket_li
     --------------------------------------*/
     if ( atoi(port) < 0 || atoi(port) > 65535 )
     {
-        printf("ERROR: invalid port number %s!",port);
+        err_print("ERROR: invalid port number %s!",port);
         return RETURN_SUCCESS;
     }
 
@@ -137,7 +138,7 @@ int socket_server_init( char* port, socket_lib_srv_rx_msg rx_callback, socket_li
     /*----------------------------------
     |       CREATE SERVER SOCKET        |
     ------------------------------------*/
-    printf("Creating server on port %s\n", port); /* Info print */
+    info_print("SERVER: Creating server on port %s\n", port); /* Info print */
     socket_fd = socket_create_socket(port, DEFAULT_SOCKET_TYPE, (const char*)SERVER_ADDR, SOCKET_OWNER_IS_SERVER);
 
     /*----------------------------------
@@ -155,12 +156,11 @@ int socket_server_init( char* port, socket_lib_srv_rx_msg rx_callback, socket_li
     -------------------------------------------*/
     if ( listen(server_socket_fd, MAX_PENDING_CONNECTIONS) < 0 )
     {
-        fprintf (stderr, "errno = %d ", errno);
-        perror("Set server to listen for incoming connections");
+        err_print("ERROR: SERVER: errno = %d: attempt to listen for incoming connections\n", errno);
         exit(EXIT_FAILURE);
     }
 
-    printf("Created server on port %s\n", port); /* Info print */
+    info_print("SERVER: Created server on port %s\n", port); /* Info print */
 
     return server_socket_fd;
 }
@@ -186,8 +186,7 @@ int handle_conn_request()
     ------------------------------------*/
     if (new_client_fd < 0)
     {
-        fprintf (stderr, "errno = %d ", errno);
-        perror("Failed to accept connection request from client");
+        err_print("ERROR: SERVER: errno = %d: Failed to accept connection request from client!\n", errno);
         return RETURN_FAILED;
     }
 
@@ -220,7 +219,7 @@ int handle_conn_request()
     }
 
     /* Info print */
-    fprintf(stderr, "Server: connect from host %s.\n", inet_ntoa(new_client_info.sin_addr));
+    info_print("SERVER: Host %s connected!\n", inet_ntoa(new_client_info.sin_addr));
 
     return new_client_fd;
 } /* handle_conn_request() */
@@ -239,7 +238,7 @@ void close_client_conn(int client_fd)
     previous = NULL;
 
     /* Info print */
-    printf("Closing conenction to client.\n");
+    info_print("SERVER: Closing conenction to client.\n");
 
     /*----------------------------------
     |           CALL CALLBACK           |
@@ -331,13 +330,13 @@ void process_recv_msg(int client_fd)
     --------------------------------------*/
     if( recv_flag == FLAG_DISCONNECT )
     {
-        printf("Socket Server: Received client disconnect/socket error. Disconnecting client...\n");
+        info_print("SERVER: Received client disconnect/socket error. Disconnecting client...\n");
         close_client_conn(client_fd);
         return;
     }
     else if( recv_flag == FLAG_HEADER_ERROR )
     {
-        printf("Socket Client: Received invalid msg header...ignoring\n");
+        warning_print("SERVER: Received invalid msg header...ignoring\n");
         return;
     }
 
@@ -347,14 +346,14 @@ void process_recv_msg(int client_fd)
     while ( msg != NULL )
     {
         /* Print header received */
-        printf("SERVER: msg command received: 0x%02x with flag %d\n", msg->command, msg->recv_flag);
+        info_print("SERVER: msg command received: 0x%02x with flag %d\n", msg->command, msg->recv_flag);
         /* Print data received */
-        // fprintf(stderr, "SERVER: received %d bytes\n", msg->data_sz);
+        // info_print("SERVER: received %d bytes\n", msg->data_sz);
         // for (int i = 0; i < msg->data_sz; i++)
         // {
-        //     printf("%c", msg->data[i]);
+        //     info_print("%c", msg->data[i]);
         // }
-        // printf("\n\n");
+        // info_print("\n\n");
 
         /* Handle msg command */
         switch (msg->command)
@@ -362,7 +361,7 @@ void process_recv_msg(int client_fd)
         case COMMAND_UUID:
             if ( msg->data_sz != (ssize_t)(UUID_SZ) )
             {
-                printf("Socket Server: Received invalid UUID: %s!\n",client->uuid);
+                warning_print("SERVER: Received invalid UUID: %s!\n",client->uuid);
                 break;
             }
 
@@ -373,7 +372,7 @@ void process_recv_msg(int client_fd)
             {
                 /* New client sent us it's UUID for the first time. */
                 memcpy(client->uuid,msg->data,UUID_SZ);
-                printf("Socket Server: Setting client UUID for the first time. UUID is %s\n",client->uuid);
+                info_print("Socket Server: Setting client UUID for the first time. UUID is %s\n",client->uuid);
 
                 /*----------------------------------
                 |           CALL CALLBACK           |
@@ -397,7 +396,7 @@ void process_recv_msg(int client_fd)
             }
             break;
         default:
-            printf("ERROR: socket client received message without valid COMMAND\n");
+            err_print("ERROR: socket client received message without valid COMMAND\n");
             break;
         } /* end switch case on recv command */
 
@@ -574,8 +573,7 @@ void* execute_thread(void* args)
 
         if ( select_return < 0) /* select() returned flag indicating error/problem */
         {
-            fprintf (stderr, "errno = %d ", errno);
-            perror("select");
+            err_print("ERROR: SERVER: errno = %d: Select() in execute_thread()\n", errno);
             break;
         }
 
@@ -589,7 +587,7 @@ void* execute_thread(void* args)
         ------------------------------------*/
         if ( TIME_BETWEEN_PINGS <= (time(NULL)-lastPing) && client_infos != NULL)
         {
-            printf("Server: Sending Ping to clients\n"); /* Info print */
+            info_print("Server: Sending Ping to clients\n"); /* Info print */
 
             send_data_all(COMMAND_PING, NULL, 0);
             lastPing = time(NULL);
@@ -630,7 +628,7 @@ void socket_server_execute()
 
     if( 0 != pthread_detach(thread_id) )
     {
-        printf("\nFailed to create client execute thread!\n");
+        err_print("\nERROR: SERVER: Failed to create client execute thread!\n");
         exit(EXIT_FAILURE);
     }
 
@@ -660,7 +658,7 @@ void socket_server_quit()
     ------------------------------------*/
     if ( RETURN_FAILED == close(server_socket_fd) )
     {
-        printf("\nFailed: socket_server_quit() failed to close socket!\n");
+        err_print("\nERROR: SERVER: socket_server_quit(): failed to close socket!\n");
     }
 
     /*-------------------------------------

@@ -42,14 +42,14 @@ static pthread_mutex_t mutex_dbus_method_send_tcp_msg_callback = PTHREAD_MUTEX_I
  /* This callback is data received over TCP from the server */
 void tcp_recv_msg(const char *data, const unsigned int data_sz)
 {
-  	printf("\n****************recv_msg: callback activated.****************\n\n");
+  	// printf("\n****************recv_msg: callback activated.****************\n\n");
 
-    printf("Received %d data bytes as follows:\n\"",data_sz);
-    for (size_t i = 0; i < data_sz; i++)
-    {
-        printf("%c",data[i]);
-    }
-    printf("\"\n");
+    // printf("Received %d data bytes as follows:\n\"",data_sz);
+    // for (size_t i = 0; i < data_sz; i++)
+    // {
+    //     printf("%c",data[i]);
+    // }
+    // printf("\"\n");
 
     pthread_mutex_lock(&mutex_tcp_recv_msg);
     if ( 0 != tcp_dbus_srv_emit_msg_recv_signal(srv_id, "SERVER", data, data_sz) )
@@ -60,13 +60,13 @@ void tcp_recv_msg(const char *data, const unsigned int data_sz)
     }
     pthread_mutex_unlock(&mutex_tcp_recv_msg);
     
-  	printf("\n****************END---recv_msg---END****************\n\n");
+  	// printf("\n****************END---recv_msg---END****************\n\n");
 } /* tcp_recv_msg() */
 
 /* This callback notifies when we have been disconnected from the server */
 void tcp_disconnect()
 {
-  	printf("\n****************tcp_disconnect: callback activated.****************\n\n");
+  	// printf("\n****************tcp_disconnect: callback activated.****************\n\n");
 
     pthread_mutex_lock(&mutex_ignore_disconnect);
     if(ignore_disconnect == true)
@@ -83,7 +83,7 @@ void tcp_disconnect()
         exit(EXIT_FAILURE);
     }
     
-  	printf("\n****************END---tcp_disconnect---END****************\n\n");
+  	// printf("\n****************END---tcp_disconnect---END****************\n\n");
 } /* tcp_disconnect() */
 
 /** Note that data is freed after this callback is called. As such, if 
@@ -93,7 +93,7 @@ void tcp_disconnect()
  /* This is a DBUS callback to us with message data to be sent over tcp */
 bool dbus_method_send_tcp_msg_callback(const char* tcp_clnt_uuid, const char* data, unsigned int data_sz)
 {
-  	printf("\n****************dbus_method_send_tcp_msg_callback: callback activated.****************\n\n");
+  	// printf("\n****************dbus_method_send_tcp_msg_callback: callback activated.****************\n\n");
 
     if (tcp_clnt_uuid != NULL && tcp_clnt_uuid[0] != '\0')
     {
@@ -115,7 +115,7 @@ bool dbus_method_send_tcp_msg_callback(const char* tcp_clnt_uuid, const char* da
 
     return true;
 
-  	printf("\n****************END---dbus_method_send_tcp_msg_callback---END****************\n\n");
+  	// printf("\n****************END---dbus_method_send_tcp_msg_callback---END****************\n\n");
 } /* dbus_method_send_tcp_msg_callback() */
 
 

@@ -15,6 +15,7 @@
 #include "../pub_dbus.h"
 #include "pub_tcp_dbus_clnt.h"
 #include "prv_tcp_dbus_clnt.h"
+#include "../../debug_print_defines.h"
 
 
  /*-------------------------------------
@@ -39,17 +40,8 @@ int tcp_dbus_send_msg(dbus_clnt_id clnt_id, const char* tcp_clnt_uuid, char* dat
     |             VERIFICATION             |
     --------------------------------------*/
 
-    if( data == NULL || data_sz == 0)
-    {
-        printf("WARNING: Attempting to send_msg with NULL or empty data array!\n");
-        return EXIT_FAILURE;
-    }
-
-    if(tcp_clnt_uuid == NULL)
-    {
-        temp = malloc(1);
-        temp[0] = '\0';
-    }
+    g_assert(data != NULL);
+    g_assert(data_sz != 0);
 
 
     /*-------------------------------------
@@ -67,6 +59,8 @@ int tcp_dbus_send_msg(dbus_clnt_id clnt_id, const char* tcp_clnt_uuid, char* dat
     
     if(tcp_clnt_uuid == NULL)
     {
+        temp = malloc(1);
+        temp[0] = '\0';
         gvar = g_variant_new("(say)", temp, builder_data);  /* Generate final g_variant to send. G_Variant contains a string (the uuid), and an array of bytes (the data) */
     }
     else
@@ -82,7 +76,7 @@ int tcp_dbus_send_msg(dbus_clnt_id clnt_id, const char* tcp_clnt_uuid, char* dat
     |         SEND DATA OVER DBUS          |
     --------------------------------------*/
 
-    /* g_printf("tcp_dbus_send_msg(): %s\n\n",g_variant_get_type_string(gvar)); */
+    info_print("tcp_dbus_send_msg(): %s\n\n",g_variant_get_type_string(gvar));
     gvar = g_dbus_proxy_call_sync(dbus_config[clnt_id]->proxy, DBUS_TCP_SEND_MSG, gvar, G_DBUS_CALL_FLAGS_NONE, 1000, NULL, &error);
 
 
@@ -135,7 +129,7 @@ dbus_clnt_id tcp_dbus_client_create()
 
     if ( new_clnt_id == MAX_NUM_CLIENTS-1 && dbus_config[new_clnt_id] == NULL )
     {
-        printf("ERROR: attemping to create more than MAX_NUM_CLIENTS!!!");
+        err_print("ERROR: DBUS CLIENT: Attempted to create more than MAX_NUM_CLIENTS!!!");
         exit(EXIT_FAILURE);
     }
 
@@ -201,7 +195,7 @@ int tcp_dbus_client_init(dbus_clnt_id clnt_id, char const ** srv_version)
 
     if ( dbus_config[clnt_id]->conn != NULL )
     {
-        printf("WARNING: an attempt to to initialize the client was made but client has already been intialized.\n");
+        warning_print("DBUS CLIENT: WARNING: an attempt to to initialize the client was made but client has already been intialized.\n");
         return EXIT_FAILURE;
     }
 
@@ -217,11 +211,11 @@ int tcp_dbus_client_init(dbus_clnt_id clnt_id, char const ** srv_version)
 
     dbus_config[clnt_id]->proxy = g_dbus_proxy_new_sync(dbus_config[clnt_id]->conn,
                                     G_DBUS_PROXY_FLAGS_NONE,
-                                    NULL,				            /* GDBusInterfaceInfo */
+                                    NULL,				                    /* GDBusInterfaceInfo */
                                     dbus_config[clnt_id]->ServerName,		/* name */
                                     dbus_config[clnt_id]->ObjectPath,	    /* object path */
-                                    dbus_config[clnt_id]->Interface,	        /* interface */
-                                    NULL,				            /* GCancellable */
+                                    dbus_config[clnt_id]->Interface,	    /* interface */
+                                    NULL,				                    /* GCancellable */
                                     &error);
     g_assert_no_error(error);
 
@@ -242,12 +236,10 @@ int tcp_dbus_client_init(dbus_clnt_id clnt_id, char const ** srv_version)
     /* read the version property of the interface */
     variant = g_dbus_proxy_get_cached_property(dbus_config[clnt_id]->proxy, "Version");
 
-    // TODO FIXME  setup tcp_service to automatically be started if it's not running rather than us continueally attempting to connect
+    // TODO setup tcp_service to automatically be started if it's not running rather than us continueally attempting to connect
     if ( variant == NULL )
     {
-        printf("------FAILED: DBUS server is not running!------\n");
-        // g_assert(variant != NULL);
-        // tcp_dbus_client_disconnect(clnt_id);
+        err_print("------FAILED: DBUS CLIENT is not running!------\n");
         g_main_loop_unref (dbus_config[clnt_id]->loop);
         g_object_unref(dbus_config[clnt_id]->proxy);
         g_object_unref(dbus_config[clnt_id]->conn);
@@ -268,7 +260,7 @@ int tcp_dbus_client_init(dbus_clnt_id clnt_id, char const ** srv_version)
 
 void* GMainLoop_Thread(void *loop)
 {
-    printf("GMainLoop_Thread is executing...\n");
+    info_print("DBUS CLIENT: main thread is executing...\n");
 
 
     /*-------------------------------------
@@ -281,7 +273,7 @@ void* GMainLoop_Thread(void *loop)
      */
     g_main_loop_run( (GMainLoop*) loop );
 
-    printf("GMainLoop_Thread is exiting...\n");
+    info_print("DBUS CLIENT: main thread is exiting...\n");
 
     return NULL;
 } /* GMainLoop_Thread() */
@@ -301,12 +293,12 @@ int start_main_loop(dbus_clnt_id clnt_id)
 
     if ( EXIT_SUCCESS != pthread_create(&thread_id, NULL, GMainLoop_Thread, (void*)dbus_config[clnt_id]->loop) )
     {
-        printf("Failed to create subscriber thread!\n");
+        err_print("ERROR: DBUS CLIENT: Failed to create subscriber thread!\n");
         return (EXIT_FAILURE);
     }
     if ( EXIT_SUCCESS != pthread_detach(thread_id) )
     {
-        printf("Failed to detach subscriber thread!\n");
+        err_print("ERROR: DBUS CLIENT: Failed to detach subscriber thread!\n");
         return (EXIT_FAILURE);
     }
 
@@ -350,7 +342,7 @@ uint get_data_arry(GVariantIter **iter, char** data)
 
 void SubscriberCallback(GDBusConnection *conn, const gchar *sender_name, const gchar *object_path, const gchar *interface_name, const gchar *signal_name, GVariant *parameters,gpointer callback_data)
 {
-    // g_printf("\n****************SubscriberCallback: signal \"%s\" received.****************\n\n", signal_name);
+    info_print("\n****************DBUS CLIENT: SubscriberCallback: signal \"%s\" received.****************\n\n", signal_name);
     /* RESOURCES
     https://developer.gnome.org/glib/stable/gvariant-format-strings.html
     https://developer.gnome.org/glib/stable/glib-GVariant.html
@@ -380,7 +372,7 @@ void SubscriberCallback(GDBusConnection *conn, const gchar *sender_name, const g
     |        GET ITERATOR OVER DATA        |
     --------------------------------------*/
 
-    /* g_printf("\n%s\n",g_variant_get_type_string(parameters)); */
+    info_print("\n%s\n",g_variant_get_type_string(parameters));
 
     if( 0 == strcmp(signal_name, DBUS_TCP_RECV_SIGNAL) )
     {
@@ -438,7 +430,7 @@ int tcp_dbus_client_Subscribe2Recv(dbus_clnt_id clnt_id, char* signal, tcp_rx_si
             {
                 if ( dbus_config[clnt_id]->tcp_sbscr[i].isSubscribed == true )
                 {
-                    printf("WARNING: Attempted to subscribe to server when subscription already exists!\n");
+                    warning_print("DBUS CLIENT: WARNING: Attempted to subscribe to server when subscription already exists!\n");
                     return EXIT_FAILURE;
                 }
             }
@@ -483,7 +475,7 @@ int tcp_dbus_client_Subscribe2Recv(dbus_clnt_id clnt_id, char* signal, tcp_rx_si
 
     if (tcp_sbscr->isSubscribed == true )
     {
-        printf("WARNING: Attempted to subscribe to server when subscription already exists!\n");
+        warning_print("DBUS CLIENT: WARNING: Attempted to subscribe to server when subscription already exists!\n");
         return EXIT_FAILURE;
     }
 
@@ -492,7 +484,7 @@ int tcp_dbus_client_Subscribe2Recv(dbus_clnt_id clnt_id, char* signal, tcp_rx_si
     |         SUBSCRIBE TO SERVER          |
     --------------------------------------*/
 
-    printf("Adding signal %s subscription to main loop...\n", tcp_sbscr->SignalName);
+    // info_print("DBUS CLIENT: Adding signal %s subscription to main loop...\n", tcp_sbscr->SignalName);
     tcp_sbscr->subscription_id = g_dbus_connection_signal_subscribe( tcp_sbscr->dbus_config->conn,
                                                                      tcp_sbscr->dbus_config->ServerName,
                                                                      tcp_sbscr->dbus_config->Interface,
@@ -518,7 +510,7 @@ int tcp_dbus_client_Subscribe2Recv(dbus_clnt_id clnt_id, char* signal, tcp_rx_si
         /* If the g_main_loop is not running, start it */
         if (EXIT_FAILURE == start_main_loop(clnt_id))
         {
-            printf("FAILED: GMainLoop loop failed to start.");
+            err_print("ERROR: DBUS CLIENT: GMainLoop loop failed to start.\n");
             return EXIT_FAILURE;
         }
     } /* if() */
@@ -567,7 +559,7 @@ int tcp_dbus_client_UnsubscribeRecv(dbus_clnt_id clnt_id, char* signal)
     
     if ( i >= NUM_SIGNALS || dbus_config[clnt_id]->tcp_sbscr[i].isSubscribed == false )
     {
-        printf("WARNING: Attempted to unsubscribe from the server when subscription doesn't exist!\n");
+        warning_print("DBUS CLIENT: WARNING: Attempted to unsubscribe from the server when subscription doesn't exist!\n");
         return EXIT_FAILURE;
     }
 
@@ -633,7 +625,7 @@ void tcp_dbus_client_disconnect(dbus_clnt_id clnt_id)
     |         DISCONNECT PROCEDURE         |
     --------------------------------------*/
 
-    printf("Disconnect client and kill client thread\n");
+    info_print("DBUS CLIENT: Disconnect client and kill client thread\n");
     /* Not sure how many/which of these are needed */
     g_main_loop_quit(dbus_config[clnt_id]->loop);
     g_main_loop_unref (dbus_config[clnt_id]->loop);

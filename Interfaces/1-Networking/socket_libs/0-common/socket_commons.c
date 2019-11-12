@@ -4,6 +4,7 @@
 
 #include "pub_socket_commons.h"
 #include "prv_socket_commons.h"
+#include "../../../debug_print_defines.h"
 
 /*-------------------------------------
 |           STATIC VARIABLES           |
@@ -48,7 +49,7 @@ int hostname_to_ip(const char * hostname , char* ip)
     {
         /* Return the first ip addr found */
         strcpy(ip , inet_ntoa(*addr_list[i]) );
-        printf("socket_commons: Found IP address \"%s\" for hostname \"%s\"\n",ip,hostname);
+        info_print("socket_commons: Found IP address \"%s\" for hostname \"%s\"\n",ip,hostname);
 
         /* Return successfully */
         return 0;
@@ -100,7 +101,7 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
     ------------------------------------*/
     if ((flags = fcntl(sock, F_GETFL, NULL)) < 0)
     {
-        fprintf(stderr, "ERROR: socket_commons: fcntl(..., F_GETFL) (%s)\n", strerror(errno));
+        err_print("ERROR: socket_commons: fcntl(..., F_GETFL) (%s)\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
 
@@ -108,7 +109,7 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
 
     if (fcntl(sock, F_SETFL, flags) < 0)
     {
-        fprintf(stderr, "ERROR: socket_commons: fcntl(..., F_SETFL) (%s)\n", strerror(errno));
+        err_print("ERROR: socket_commons: fcntl(..., F_SETFL) (%s)\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
 
@@ -121,7 +122,7 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
     {
         if (errno == EINPROGRESS)
         {
-            /* fprintf(stderr, "EINPROGRESS in connect() - selecting\n"); */
+            /* info_print("EINPROGRESS in connect() - selecting\n"); */
             do
             {
                 /*----------------------------------
@@ -132,14 +133,13 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
                 FD_ZERO(&myset);
                 FD_SET(sock, &myset);
 
-
                 /*----------------------------------
                 |       GET CONNECTION STATUS       |
                 ------------------------------------*/
                 res = select(sock + 1, NULL, &myset, NULL, &tv);
                 if (res < 0 && errno != EINTR)
                 {
-                    fprintf(stderr, "ERROR: socket_commons: failed connecting %d - %s\n", errno, strerror(errno));
+                    err_print("ERROR: socket_commons: failed connecting %d - %s\n", errno, strerror(errno));
                     exit(EXIT_FAILURE);
                 }
                 else if (res > 0)
@@ -148,14 +148,14 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
                     lon = sizeof(int);
                     if (getsockopt(sock, SOL_SOCKET, SO_ERROR, (void *)(&valopt), &lon) < 0)
                     {
-                        fprintf(stderr, "ERROR: socket_commons: failed in getsockopt() %d - %s\n", errno, strerror(errno));
+                        err_print("ERROR: socket_commons: failed in getsockopt() %d - %s\n", errno, strerror(errno));
                         exit(EXIT_FAILURE);
                     }
 
                     /* Check the value returned... */
                     if (valopt)
                     {
-                        fprintf(stderr, "ERROR: socket_commons: failed in delayed connection() %d - %s\n", valopt, strerror(valopt));
+                        err_print("ERROR: socket_commons: failed in delayed connection() %d - %s\n", valopt, strerror(valopt));
                         returnval = RETURN_FAILED;
                         break;
                     }
@@ -163,7 +163,7 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
                 }
                 else
                 {
-                    fprintf(stderr, "WARNING: socket_commons: Timed out while attempting to connect to server!\n");
+                    info_print("WARNING: socket_commons: Timed out while attempting to connect to server!\n");
                     returnval = RETURN_FAILED;
                     break;
                 }
@@ -171,18 +171,17 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
         }
         else
         {
-            fprintf(stderr, "ERROR: socket_commons: failed connecting %d - %s\n", errno, strerror(errno));
+            err_print("ERROR: socket_commons: failed connecting %d - %s\n", errno, strerror(errno));
             exit(EXIT_FAILURE);
         }
     }
-
 
     /*----------------------------------
     |         SET BLOCKING MODE         |
     ------------------------------------*/
     if ((flags = fcntl(sock, F_GETFL, NULL)) < 0)
     {
-        fprintf(stderr, "ERROR: socket_commons: failed fcntl(..., F_GETFL) (%s)\n", strerror(errno));
+        err_print("ERROR: socket_commons: failed fcntl(..., F_GETFL) (%s)\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
 
@@ -190,7 +189,7 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
     
     if (fcntl(sock, F_SETFL, flags) < 0)
     {
-        fprintf(stderr, "ERROR: socket_commons: failed fcntl(..., F_SETFL) (%s)\n", strerror(errno));
+        err_print("ERROR: socket_commons: failed fcntl(..., F_SETFL) (%s)\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
 
@@ -205,7 +204,6 @@ int server_bind(struct addrinfo *address_info_set)
     int server_fd;
     int opt = 1;
     struct addrinfo *i;
-
 
     /*----------------------------------
     |          ATTEMPT TO BIND          |
@@ -233,13 +231,12 @@ int server_bind(struct addrinfo *address_info_set)
         close(server_fd);
     } /* for loop */
 
-
     /*----------------------------------
     |           VERIFICATION            |
     ------------------------------------*/
     if (i == NULL)
     {
-        fprintf(stderr, "ERROR: socket_commons: Could not bind\n");
+        err_print("ERROR: socket_commons: Could not bind\n");
         return RETURN_FAILED;
     }
 
@@ -253,7 +250,6 @@ int client_connect(struct addrinfo *address_info_set)
     ------------------------------------*/
     int client_fd;
     struct addrinfo *i;
-
 
     /*----------------------------------
     |         ATTEMPT TO CONNECT        |
@@ -273,13 +269,12 @@ int client_connect(struct addrinfo *address_info_set)
         close(client_fd);
     } /* for loop */
 
-
     /*----------------------------------
     |           VERIFY SUCCESS          |
     ------------------------------------*/
     if (i == NULL)
     {
-        fprintf(stderr, "ERROR: socket_commons: Could not open socket\n");
+        err_print("ERROR: socket_commons: Could not open socket\n");
         return RETURN_FAILED;
     }
 
@@ -298,7 +293,6 @@ int socket_create_socket( char* port, enum SOCKET_TYPES socket_type,  const char
     struct addrinfo hints;
     struct addrinfo *name;
     char ip[MAX_HOSTNAME_SZ];
-
 
     /*----------------------------------
     |          INITIALIZATIONS          |
@@ -330,18 +324,16 @@ int socket_create_socket( char* port, enum SOCKET_TYPES socket_type,  const char
         hints.ai_flags = 0;
     }
 
-
     /*----------------------------------
     |       GET NETWORK ADDR INFO       |
     ------------------------------------*/
     int err = getaddrinfo(addr,port,&hints, &name);
     if ( err != 0 )
     {
-        fprintf(stderr, "%s: %s\n", addr, gai_strerror(err));
+        err_print("%s: %s\n", addr, gai_strerror(err));
         perror("WARNING: socket_commons: host/client address not valid");
         return RETURN_FAILED;
     }
-
    
     /*----------------------------------
     |   GET SOCKET_FD AND BIND/CONNECT  |
@@ -354,7 +346,6 @@ int socket_create_socket( char* port, enum SOCKET_TYPES socket_type,  const char
     {
         socket_fd = client_connect( name );
     }
-
 
     /*----------------------------------
     |            FREE MEMORY            |
@@ -428,19 +419,18 @@ socket_receive_data( const int socket_fd, struct socket_msg_struct** msg )
     if ( bytes_read < 0 )
     {
         /* Read error. */
-        fprintf(stderr, "errno = %d ", errno);
-        perror("ERROR: socket_commons: failed to recv data");
+        err_print("ERROR: socket_commons: failed to recv data. errno = %d ", errno);
         return FLAG_DISCONNECT;
     }
     else if ( bytes_read == 0 )
     {
-        printf("socket_commons: Received 0 bytes...\n");
+        info_print("socket_commons: Received 0 bytes...\n");
         /* Received disconect */
         return FLAG_DISCONNECT;
     }
     else if ( bytes_read < (ssize_t)MSG_HEADER_SZ ) /* Check that received enough bytes to comprise the msg header */
     {
-        printf("socket_commons: Received too few header bytes. Received %d bytes of %u bytes expected...\n", (int32_t)bytes_read, (uint32_t)MSG_HEADER_SZ);
+        warning_print("socket_commons: Received too few header bytes. Received %d bytes of %u bytes expected...\n", (int32_t)bytes_read, (uint32_t)MSG_HEADER_SZ);
         /* Soft error: didn't receive minumum number of bytes expected */
         return FLAG_HEADER_ERROR;
     }
@@ -453,7 +443,7 @@ socket_receive_data( const int socket_fd, struct socket_msg_struct** msg )
 
     if( header_checksum != crc16( (const unsigned char*)&header, MSG_HEADER_SZ ) )
     {
-        printf("socket_commons: Header checksum invalid!\n");
+        warning_print("socket_commons: Header checksum invalid!\n");
         return FLAG_HEADER_ERROR;
     } /* end if msg header checksum is invalid */
 
@@ -503,13 +493,12 @@ socket_receive_data( const int socket_fd, struct socket_msg_struct** msg )
             free(temp_msg);
             temp_msg = NULL;
             /* Read error. */
-            fprintf(stderr, "errno = %d ", errno);
-            perror("ERROR: socket_commons: failed to recv data");
+            err_print("ERROR: socket_commons: failed to recv data. errno = %d\n", errno);
             return FLAG_DISCONNECT;
         }
         else if ( bytes_read == 0 )
         {
-            printf("socket_commons: Received 0 bytes...\n");
+            info_print("socket_commons: Received 0 bytes...\n");
             free(temp_msg->data);
             free(temp_msg);
             temp_msg = NULL;
@@ -532,27 +521,27 @@ socket_receive_data( const int socket_fd, struct socket_msg_struct** msg )
     /* Info print */
     if(temp_msg == NULL || temp_msg->data_sz != 0)
     {
-        printf("socket_commons: Received %u bytes of data: ", (uint16_t)MSG_HEADER_SZ);
+        info_print("socket_commons: Received %u bytes of data: ", (uint16_t)MSG_HEADER_SZ);
         for (int i = 0; i < (int)MSG_HEADER_SZ; i++)
         {
-            printf("%02x ", ((char*)&header)[i]);
+            info_print("%02x ", ((char*)&header)[i]);
         } /* print header */
     }
     else
     {
-        printf("socket_commons: Received %u bytes of data: ", temp_msg->data_sz + (uint16_t)MSG_HEADER_SZ);
-        printf("0x");
+        info_print("socket_commons: Received %u bytes of data: ", temp_msg->data_sz + (uint16_t)MSG_HEADER_SZ);
+        info_print("0x");
         for (int i = 0; i < (int)MSG_HEADER_SZ; i++)
         {
-            printf("%02x ", ((char*)&header)[i]);
+            info_print("%02x ", ((char*)&header)[i]);
         } /* print header */
-        printf("0x");
+        info_print("0x");
         for (int i = 0; i < temp_msg->data_sz; i++)
         {
-            printf("%02x ", temp_msg->data[i]);
+            info_print("%02x ", temp_msg->data[i]);
         } /* Print data */
     }
-    printf("\n\n");
+    info_print("\n\n");
 
     return FLAG_SUCCESS;
 
@@ -606,13 +595,13 @@ int socket_send_data ( const int socket_fd, const char * data, const uint16_t da
     if( bytes_sent < 1 )
     {
         pthread_mutex_unlock(&mutex_sendData);
-        perror("ERROR: socket_commons: Failed to send header. Disconnect...");
+        // perror("ERROR: socket_commons: Failed to send header. Disconnect...");
         return FLAG_DISCONNECT;
     }
     else if ( bytes_sent != MSG_HEADER_SZ )
     {
         pthread_mutex_unlock(&mutex_sendData);
-        perror("ERROR: socket_commons: Failed to send all header bytes.");
+        // perror("ERROR: socket_commons: Failed to send all header bytes.");
         return RETURN_FAILED;
     }
 
@@ -637,12 +626,12 @@ int socket_send_data ( const int socket_fd, const char * data, const uint16_t da
         /* Verify bytes were sent */
         if( bytes_sent < 1 )
         {
-            perror("ERROR: socket_commons: Failed to send data. Disconnect...");
+            // perror("ERROR: socket_commons: Failed to send data. Disconnect...");
             return FLAG_DISCONNECT;
         }
         else if ( bytes_sent != data_sz )
         {
-            perror("ERROR: socket_commons: Failed to send all data bytes.");
+            // perror("ERROR: socket_commons: Failed to send all data bytes.");
             return RETURN_FAILED;
         }
 
@@ -655,26 +644,25 @@ int socket_send_data ( const int socket_fd, const char * data, const uint16_t da
     }
 
     /* Info print */
-    printf("socket_commons: Sent %d bytes of data: ", total_bytes_sent);
-    printf("0x");
+    info_print("socket_commons: Sent %d bytes of data: ", total_bytes_sent);
+    info_print("0x");
     for (int i = 0; i < (int)MSG_HEADER_SZ; i++)
     {
-        printf("%02x ", ((char*)&header)[i]);
+        info_print("%02x ", ((char*)&header)[i]);
     } /* print header */
-    printf("0x");
+    info_print("0x");
     for (int i = 0; i < data_sz; i++)
     {
-        printf("%02x ", data[i]);
+        info_print("%02x ", data[i]);
     } /* Print data */
-    printf("\n\n");
+    info_print("\n\n");
 
     /*----------------------------------
     |        VERIFY DATA WAS SENT       |
     ------------------------------------*/
     if ( total_bytes_to_send != total_bytes_sent )
     {
-        printf("ERROR: socket_commons: sent %d of %u bytes\n", total_bytes_sent, total_bytes_to_send);
-        perror("ERROR: socket_commons");
+        err_print("ERROR: socket_commons: sent %d of %u bytes\n", total_bytes_sent, total_bytes_to_send);
         return RETURN_FAILED;
     }
 

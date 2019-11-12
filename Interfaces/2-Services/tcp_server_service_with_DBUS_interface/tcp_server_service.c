@@ -64,7 +64,7 @@ void tcp_client_connect(const char* uuid)
 {
   	// printf("\n****************client_connect: callback activated.****************\n\n");
 
-    // printf("Client connected -> UUID: %s\n", uuid);
+    printf("Client connected -> UUID: %s\n", uuid);
     pthread_mutex_lock(&mutex_connect);
     if ( 0 != tcp_dbus_srv_emit_connect_signal(srv_id, uuid) )
     {
@@ -82,7 +82,7 @@ void tcp_client_disconnect(const char* uuid)
 {
   	// printf("\n****************client_disconnect: callback activated.****************\n\n");
 
-    // printf("Client disconnected -> UUID: %s\n", uuid);
+    printf("Client disconnected -> UUID: %s\n", uuid);
     pthread_mutex_lock(&mutex_disconnect);
     if ( 0 != tcp_dbus_srv_emit_disconnect_signal(srv_id, uuid) )
     {

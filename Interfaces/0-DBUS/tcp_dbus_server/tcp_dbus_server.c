@@ -3,6 +3,8 @@
 --------------------------------------*/
 
 #include "prv_tcp_dbus_srv.h"
+#include "../../debug_print_defines.h"
+
 
 /**
  * This implements 'Get' method of DBUS_INTERFACE_PROPERTIES so a
@@ -88,7 +90,7 @@ dbus_srv_id tcp_dbus_srv_create()
 
     if ( new_srv_id == MAX_NUM_SERVERS || SRV_CONFIGS_ARRY[new_srv_id] != NULL )
     {
-        printf("ERROR: attemping to create more than MAX_NUM_SERVERS!!!");
+        err_print("ERROR: DBUS SERVER: attemping to create more than MAX_NUM_SERVERS!!!");
         exit(EXIT_FAILURE);
     }
 
@@ -142,7 +144,7 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
     DBusError err;
     bool quit = false;
 
-    fprintf(stderr, "Got D-Bus request: %s.%s on %s\n",
+    info_print("DBUS SERVER: Got D-Bus message handler request: %s.%s on %s\n",
                     dbus_message_get_interface(message),
                     dbus_message_get_member(message),
                     dbus_message_get_path(message));
@@ -222,7 +224,7 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
 
         if ( DBUS_TYPE_STRING != dbus_message_iter_get_arg_type(&iter) )
         {
-            printf("DBUS Server method %s expected argument type string but received something else!\n",DBUS_TCP_SEND_MSG);
+            info_print("DBUS SERVER: method %s expected argument type string but received something else!\n",DBUS_TCP_SEND_MSG);
             goto fail;
         }
 
@@ -243,12 +245,12 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
 
         if( DBUS_TYPE_ARRAY != dbus_message_iter_get_arg_type(&iter) || DBUS_TYPE_BYTE != dbus_message_iter_get_arg_type(&subiter) )
         {
-            printf("ERROR: method %s() was given incorrect arguments. Expected DBUS_TYPE_ARRAY of DBUS_TYPE_BYTE -> \"(ay)\"", DBUS_TCP_SEND_MSG);
+            err_print("ERROR: DBUS SERVER: method %s() was given incorrect arguments. Expected DBUS_TYPE_ARRAY of DBUS_TYPE_BYTE -> \"(ay)\"", DBUS_TCP_SEND_MSG);
             return EXIT_FAILURE;
         }
 
-        // printf( "\n\nArg 1 Type: %c\n", dbus_message_iter_get_arg_type(&iter) );
-        // printf( "Arg 1 SubType: %c\n\n", dbus_message_iter_get_arg_type(&subiter) );
+        // info_print("\n\n DBUS SERVER: Arg 1 Type: %c\n", dbus_message_iter_get_arg_type(&iter) );
+        // info_print("DBUS SERVER: Arg 1 SubType: %c\n\n", dbus_message_iter_get_arg_type(&subiter) );
 
     #if (0) /* This method is more efficient using dbus_message_iter_get_fixed_array()
                 However, this method does not work for some reason. Only a few random bytes
@@ -262,7 +264,7 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
 
         if(dbus_type_is_fixed(dbus_message_iter_get_arg_type(&subiter)) == true)
         {
-            printf("dbus message array elements are of fixed type\n");
+            info_print("DBUS SERVER: dbus message array elements are of fixed type\n");
             dbus_message_iter_get_fixed_array(&subiter, &data, &data_sz);
         }
 
@@ -271,12 +273,12 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
         |      PRINT ARRAY OF DATA BYTES       |
         --------------------------------------*/
 
-        printf("\n****************tcp_dbus_server.c: send_msg function****************\n\n");
+        info_print("\nDBUS SERVER: ****************tcp_dbus_server.c: send_msg function****************\n\n");
 
-        printf("Received %d bytes. Data as follows:\n\"",data_sz);
+        info_print("Received %d bytes. Data as follows:\n\"",data_sz);
         for (i = 0; i < data_sz; i++)
         {
-            printf("%c",data[i]);
+            info_print("%c",data[i]);
             i+=1;
         }
 
@@ -289,8 +291,8 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
         char data[data_sz];
         bzero(data,data_sz);
 
-        // printf("\n****************tcp_dbus_server.c: send_msg function****************\n\n");
-        // printf("Received %d bytes. Data as follows:\n\"",data_sz);
+        info_print("\n****************tcp_dbus_server.c: send_msg function****************\n\n");
+        info_print("DBUS SERVER: Received %d bytes. Data as follows:\n\"",data_sz);
         
 
         /*-------------------------------------
@@ -300,7 +302,7 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
         do
         {
             dbus_message_iter_get_basic(&subiter, &data[i]);
-            // printf("%c",data[i]);
+            info_print("%c",data[i]);
             i+=1;
         }while (dbus_message_iter_next(&subiter) == true &&  i < data_sz);
 
@@ -315,8 +317,8 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
             return_val = (*(((struct dbus_srv_config*)config)->callback))(uuid, data, data_sz);
         }
 
-        // printf("\"\n");
-        // printf("\n****************END---tcp_dbus_server.c: send_msg function---END****************\n\n");
+        info_print("\"\n");
+        info_print("\n****************END---tcp_dbus_server.c: send_msg function---END****************\n\n");
 
 
         /*-------------------------------------
@@ -336,7 +338,7 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
         return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
     }
 
-fail:
+fail: /* Go here if any of the if statements above have a failure */
     if (dbus_error_is_set(&err))
     {
         if (reply)
@@ -367,7 +369,7 @@ fail:
 
     if (quit)
     {
-        fprintf(stderr, "Message Handler received quit command!\n");
+        err_print("DBUS SERVER: Message Handler received quit command!\n");
         g_main_loop_quit( ((struct dbus_srv_config*)config)->loop );
     }
 
@@ -376,11 +378,11 @@ fail:
 
 void* server_thread(void *config)
 {
-    printf("Starting dbus tiny server v%s\n", srv_sftw_version);
+    info_print("DBUS SERVER: Starting dbus server v%s\n", srv_sftw_version);
     /* Start the glib event loop */
     g_main_loop_run( ((struct dbus_srv_config *)config)->loop );
     
-    printf("Server thread exiting....\n");
+    info_print("DBUS SERVER: Server thread exiting....\n");
     return NULL;
 }  /* server_thread() */
 
@@ -410,7 +412,7 @@ int tcp_dbus_srv_init(dbus_srv_id srv_id, dbus_srv__tcp_send_msg_callback callba
 
     if ( config == NULL )
     {
-        printf("WARNING, called tcp_dbus_srv_init for server id %d but server has not been created for that id!\n", srv_id);
+        warning_print("DBUS SERVER: WARNING: called tcp_dbus_srv_init for server id %d but server has not been created for that id!\n", srv_id);
         return EXIT_FAILURE;
     }
 
@@ -420,7 +422,7 @@ int tcp_dbus_srv_init(dbus_srv_id srv_id, dbus_srv__tcp_send_msg_callback callba
 
     if ( config->conn != NULL )
     {
-        printf("WARNING, called tcp_dbus_srv_init for server id %d but server was already initialized!\n", srv_id);
+        warning_print("DBUS SERVER: WARNING: called tcp_dbus_srv_init for server id %d but server was already initialized!\n", srv_id);
         return EXIT_FAILURE;
     }
 
@@ -441,7 +443,7 @@ int tcp_dbus_srv_init(dbus_srv_id srv_id, dbus_srv__tcp_send_msg_callback callba
     config->conn = dbus_bus_get(DBUS_BUS_SYSTEM, &err);
     if (config->conn == NULL)
     {
-        fprintf(stderr, "Failed to get a system DBus connection: %s\n", err.message);
+        err_print("ERROR: DBUS SERVER: Failed to get a system DBus connection: %s\n", err.message);
         dbus_error_free(&err);
         return EXIT_FAILURE;
     }
@@ -454,7 +456,7 @@ int tcp_dbus_srv_init(dbus_srv_id srv_id, dbus_srv__tcp_send_msg_callback callba
     val = dbus_bus_name_has_owner(config->conn, DBUS_TCP_SERVER_NAME, &err);
     if ( val == true )
     {
-        fprintf(stderr, "-----Failed to request name \"%s\" on bus. The dbus name is taken by another process!-----\n\n", DBUS_TCP_SERVER_NAME);
+        err_print("ERROR: DBUS SERVER: -----Failed to request name \"%s\" on bus. The dbus name is taken by another process!-----\n\n", DBUS_TCP_SERVER_NAME);
         dbus_error_free(&err);
         return DBUS_SRV_NAME_UNAVAILABLE;
     }
@@ -467,7 +469,7 @@ int tcp_dbus_srv_init(dbus_srv_id srv_id, dbus_srv__tcp_send_msg_callback callba
     val = dbus_bus_request_name(config->conn, DBUS_TCP_SERVER_NAME, DBUS_NAME_FLAG_REPLACE_EXISTING , &err);
     if (val != DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER)
     {
-        fprintf(stderr, "-----Note: This service is required to be run as root-----\nFailed to request name on bus: %s. Be sure to execute as root\n\n", err.message);
+        err_print("ERROR: DBUS SERVER:-----Note: This service is required to be run as root-----\nFailed to request name on bus: %s. Be sure to execute as root\n\n", err.message);
         dbus_error_free(&err);
         return EXIT_FAILURE;
     }
@@ -480,7 +482,7 @@ int tcp_dbus_srv_init(dbus_srv_id srv_id, dbus_srv__tcp_send_msg_callback callba
     val = dbus_connection_register_object_path(config->conn, DBUS_TCP_OPATH, &server_vtable, (void*)config);
     if (!val)
     {
-        fprintf(stderr, "Failed to register object path for '%s'\n", DBUS_TCP_OPATH);
+        err_print("ERROR: DBUS SERVER: Failed to register object path for '%s'\n", DBUS_TCP_OPATH);
         dbus_error_free(&err);
         return EXIT_FAILURE;
     }
@@ -526,7 +528,7 @@ int tcp_dbus_srv_execute(dbus_srv_id srv_id)
 
     if ( config == NULL )
     {
-        printf("WARNING, called tcp_dbus_srv_execute for server id %d but server has not been created nor initialized for that id!\n", srv_id);
+        warning_print("DBUS SERVER: WARNING: called tcp_dbus_srv_execute for server id %d but server has not been created nor initialized for that id!\n", srv_id);
         return EXIT_FAILURE;
     }
 
@@ -537,7 +539,7 @@ int tcp_dbus_srv_execute(dbus_srv_id srv_id)
 
     if ( config->conn == NULL || config->loop == NULL )
     {
-        printf("ERROR: Failed to execute server. Server %d has not been created/initialized!\nExiting.....\n", srv_id);
+        err_print("ERROR: DBUS SERVER: Failed to execute server thread. Server %d has not been created/initialized!\nExiting.....\n", srv_id);
         return (EXIT_FAILURE);
     }
 
@@ -548,7 +550,7 @@ int tcp_dbus_srv_execute(dbus_srv_id srv_id)
 
     if ( EXIT_SUCCESS != pthread_create(&thread_id, NULL, server_thread, (void*)config) )
     {
-        printf("FAILED to create thread!");
+        err_print("ERROR: DBUS SERVER: Failed to create server thread!");
         return (EXIT_FAILURE);
     }
 
@@ -557,10 +559,10 @@ int tcp_dbus_srv_execute(dbus_srv_id srv_id)
     |         DETACH SERVER THREAD         |
     --------------------------------------*/
 
-    printf("Detach server thread!\n");
+    info_print("DBUS SERVER: Detach server thread!\n");
     if ( EXIT_SUCCESS != pthread_detach(thread_id) )
     {
-        printf("FAILED to detach thread!");
+        err_print("ERROR: DBUS SERVER: Failed to detach server thread!");
         return (EXIT_FAILURE);
     }
 
@@ -599,7 +601,7 @@ void tcp_dbus_srv_kill(dbus_srv_id srv_id)
 
     if ( config == NULL || config->loop == NULL || config->conn == NULL )
     {
-        printf("WARNING, called tcp_dbus_srv_kill() for server id %d but server is not created/initialized!\n", srv_id);
+        warning_print("DBUS SERVER: WARNING: called tcp_dbus_srv_kill() for server id %d but server is not created/initialized!\n", srv_id);
         return;
     }
 
@@ -607,7 +609,7 @@ void tcp_dbus_srv_kill(dbus_srv_id srv_id)
     |             KILL SERVER              |
     --------------------------------------*/
 
-    printf("Kill server thread\n");
+    info_print("DBUS SERVER: Killing server thread\n");
     g_main_loop_quit(config->loop); /* Kill server (aka message handling thread/g_main_loop) */
     g_main_loop_unref (config->loop);
 
@@ -640,7 +642,7 @@ bool tcp_dbus_srv_emit_msg_recv_signal(dbus_srv_id srv_id, const char* tcp_clnt_
 
     if ( config == NULL || config->loop == NULL || config->conn == NULL )
     {
-        printf("WARNING, called tcp_dbus_srv_emit_msg_recv_signal() for server id %d but server is not created/initialized!\n", srv_id);
+        warning_print("DBUS SERVER: WARNING: called tcp_dbus_srv_emit_msg_recv_signal() for server id %d but server is not created/initialized!\n", srv_id);
         return EXIT_FAILURE;
     }
 
@@ -651,7 +653,7 @@ bool tcp_dbus_srv_emit_msg_recv_signal(dbus_srv_id srv_id, const char* tcp_clnt_
 
     if ( msg == NULL || msg_sz == 0 )
     {
-        printf("WARNING, called tcp_dbus_srv_emit_msg_recv_signal() for server id %d but  msg == NULL or msg_sz == 0!\n", srv_id);
+        warning_print("DBUS SERVER: WARNING: called tcp_dbus_srv_emit_msg_recv_signal() for server id %d but  msg == NULL or msg_sz == 0!\n", srv_id);
         return EXIT_FAILURE;
     }
 
@@ -726,7 +728,7 @@ bool tcp_dbus_srv_emit_connect_signal(dbus_srv_id srv_id, const char *tcp_clnt_u
 
     if ( config == NULL || config->loop == NULL || config->conn == NULL )
     {
-        printf("WARNING, called tcp_dbus_srv_emit_connect_signal() for server id %d but server is not created/initialized!\n", srv_id);
+        warning_print("DBUS SERVER: WARNING: called tcp_dbus_srv_emit_connect_signal() for server id %d but server is not created/initialized!\n", srv_id);
         return EXIT_FAILURE;
     }
 
@@ -737,7 +739,7 @@ bool tcp_dbus_srv_emit_connect_signal(dbus_srv_id srv_id, const char *tcp_clnt_u
 
     if ( tcp_clnt_uuid == NULL )
     {
-        printf("WARNING, called tcp_dbus_srv_emit_connect_signal() for server id %d but  tcp_clnt_uuid == NULL!\n", srv_id);
+        warning_print("DBUS SERVER: WARNING: called tcp_dbus_srv_emit_connect_signal() for server id %d but  tcp_clnt_uuid == NULL!\n", srv_id);
         return EXIT_FAILURE;
     }
 
@@ -811,7 +813,7 @@ bool tcp_dbus_srv_emit_disconnect_signal(dbus_srv_id srv_id, const char *tcp_cln
 
     if ( config == NULL || config->loop == NULL || config->conn == NULL )
     {
-        printf("WARNING, called tcp_dbus_srv_emit_disconnect_signal() for server id %d but server is not created/initialized!\n", srv_id);
+        warning_print("DBUS SERVER: WARNING: called tcp_dbus_srv_emit_disconnect_signal() for server id %d but server is not created/initialized!\n", srv_id);
         return EXIT_FAILURE;
     }
 
@@ -822,7 +824,7 @@ bool tcp_dbus_srv_emit_disconnect_signal(dbus_srv_id srv_id, const char *tcp_cln
 
     if ( tcp_clnt_uuid == NULL )
     {
-        printf("WARNING, called tcp_dbus_srv_emit_disconnect_signal() for server id %d but  tcp_clnt_uuid == NULL!\n", srv_id);
+        warning_print("DBUS SERVER: WARNING: called tcp_dbus_srv_emit_disconnect_signal() for server id %d but  tcp_clnt_uuid == NULL!\n", srv_id);
         return EXIT_FAILURE;
     }
 
