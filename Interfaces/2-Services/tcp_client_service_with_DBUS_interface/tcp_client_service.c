@@ -44,7 +44,7 @@ void tcp_recv_msg(const char *data, const unsigned int data_sz)
 {
   	// printf("\n****************SERVICE: recv_msg callback activated.****************\n\n");
 
-    // printf("Received %d data bytes as follows:\n\"",data_sz);
+    // printf("SERVICE: Received %d data bytes as follows:\n\"",data_sz);
     // for (size_t i = 0; i < data_sz; i++)
     // {
     //     printf("%c",data[i]);
