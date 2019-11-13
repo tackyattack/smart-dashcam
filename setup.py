@@ -41,10 +41,6 @@ cmd = 'sudo ./rebuild.sh'
 run_cmd_in_path(cmd, build_path)
 
 if args.aux_unit:
-    print('\n\n ***** installing dbus dependencies *****\n\n')
-    cmd = 'sudo apt install libdbus-1-dev libdbus-glib-1-dev'
-    subprocess.check_call(cmd.split())
-
     print('\n\n ***** Setting up Recording Retrieval *****\n\n')
     cmd = 'sudo ./Recording_Retrieval/Samba/sambapiZeroBash.sh'
     subprocess.check_call(cmd.split())
@@ -60,6 +56,26 @@ subprocess.check_call(cmd.split())
 if args.main_unit:
     cmd = 'pip install PySimpleGUI27 typing'
     subprocess.check_call(cmd.split())
+
+# Setup DBUS and Socket libraries on Main and Aux units
+print('\n\n ***** Installing DBUS and Socket libraries *****\n\n')
+build_path = os.path.join(root_path, 'Interfaces/')
+cmd = 'make clean-all setup build'
+run_cmd_in_path(cmd, build_path)
+
+# Setup Wi-Fi HOSTING on Main Unit and Setup System Services
+print('\n\n ***** Setup Dashcam Wireless Wi-Fi HOSTING and System Services *****\n\n')
+if args.main_unit:
+    build_path = os.path.join(root_path, 'Interfaces/')
+    cmd = 'make pi3_setup'
+    run_cmd_in_path(cmd, build_path)
+
+# Setup Wi-Fi Client on Aux Units and Setup System Services
+print('\n\n ***** Setup Dashcam Wireless Wi-Fi Connection and System Services*****\n\n')
+if args.aux_unit:
+    build_path = os.path.join(root_path, 'Interfaces/')
+    cmd = 'make pi0_setup'
+    run_cmd_in_path(cmd, build_path)
 
 # Setup Recording Retrieval
 if args.main_unit:
