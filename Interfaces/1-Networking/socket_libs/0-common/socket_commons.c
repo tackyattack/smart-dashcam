@@ -257,7 +257,7 @@ int client_connect(struct addrinfo *address_info_set)
     for (i = address_info_set; i != NULL; i = i->ai_next)
     {
         client_fd = socket(i->ai_family, i->ai_socktype, i->ai_protocol);
-        if (client_fd == -1)
+        if ( client_fd < 0 )
         {
             continue;
         }
@@ -267,14 +267,15 @@ int client_connect(struct addrinfo *address_info_set)
         }
 
         close(client_fd);
+        client_fd = -1;
     } /* for loop */
 
     /*----------------------------------
     |           VERIFY SUCCESS          |
     ------------------------------------*/
-    if (i == NULL)
+    if ( i == NULL || client_fd < 0 )
     {
-        err_print("ERROR: socket_commons: Could not open socket\n");
+        warning_print("socket_commons: Could not open socket to server\n");
         return RETURN_FAILED;
     }
 

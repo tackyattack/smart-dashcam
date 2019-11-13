@@ -20,8 +20,7 @@ static socket_lib_clnt_disconnected _discont_callback  = NULL;  /* Callback call
 /*-------------------------------------
 |           PRIVATE MUTEXES            |
 --------------------------------------*/
-
-pthread_mutex_t mutex_isExecuting_thread = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t mutex_isExecuting_thread = PTHREAD_MUTEX_INITIALIZER;
 
 
 /*-------------------------------------
