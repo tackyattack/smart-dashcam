@@ -40,10 +40,6 @@ build_path = os.path.join(root_path, 'main_module/dashRecording/Stream')
 cmd = 'sudo ./rebuild.sh'
 run_cmd_in_path(cmd, build_path)
 
-if args.aux_unit:
-    print('\n\n ***** Setting up Recording Retrieval *****\n\n')
-    cmd = 'sudo ./Recording_Retrieval/Samba/sambapiZeroBash.sh'
-    subprocess.check_call(cmd.split())
 
 
 print('\n\n ***** installing vlc, ffmpeg, and pip *****\n\n')
@@ -65,23 +61,30 @@ run_cmd_in_path(cmd, build_path)
 
 # Setup Wi-Fi HOSTING on Main Unit and Setup System Services
 print('\n\n ***** Setup Dashcam Wireless Wi-Fi HOSTING and System Services *****\n\n')
+
 if args.main_unit:
     build_path = os.path.join(root_path, 'Interfaces/')
     cmd = 'make pi3_setup'
     run_cmd_in_path(cmd, build_path)
 
 # Setup Wi-Fi Client on Aux Units and Setup System Services
-print('\n\n ***** Setup Dashcam Wireless Wi-Fi Connection and System Services*****\n\n')
 if args.aux_unit:
     build_path = os.path.join(root_path, 'Interfaces/')
     cmd = 'make pi0_setup'
     run_cmd_in_path(cmd, build_path)
 
+
+print('\n\n ***** Setting up Recording Retrieval *****\n\n')
 # Setup Recording Retrieval
 if args.main_unit:
-    print('\n\n ***** Setting up Recording Retrieval *****\n\n')
-    cmd = 'sudo ./Recording_Retrieval/FTP/FTP_Pi3_Bash.sh'
-    subprocess.check_call(cmd.split())
+    build_path = os.path.join(root_path, 'Recording_Retrieval/FTP')
+    cmd = 'sudo ./FTP_Pi3_Bash.sh'
+    run_cmd_in_path(cmd, build_path)
+
+if args.aux_unit:
+    build_path = os.path.join(root_path, 'Recording_Retrieval/Samba')
+    cmd = 'sudo ./sambapiZeroBash.sh'
+    run_cmd_in_path(cmd, build_path)
 
 # create recordings folder and give it permissions so script can write to it
 # lowercase is local, uppercase is remote
