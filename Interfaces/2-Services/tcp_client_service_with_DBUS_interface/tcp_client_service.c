@@ -42,7 +42,7 @@ static pthread_mutex_t mutex_dbus_method_send_tcp_msg_callback = PTHREAD_MUTEX_I
  /* This callback is data received over TCP from the server */
 void tcp_recv_msg(const char *data, const unsigned int data_sz)
 {
-  	// printf("\n****************recv_msg: callback activated.****************\n\n");
+  	// printf("\n****************SERVICE: recv_msg callback activated.****************\n\n");
 
     // printf("Received %d data bytes as follows:\n\"",data_sz);
     // for (size_t i = 0; i < data_sz; i++)
@@ -55,18 +55,18 @@ void tcp_recv_msg(const char *data, const unsigned int data_sz)
     if ( 0 != tcp_dbus_srv_emit_msg_recv_signal(srv_id, "SERVER", data, data_sz) )
     {
         pthread_mutex_unlock(&mutex_tcp_recv_msg);
-        printf("ERROR: emitting signal tcp_dbus_srv_emit_msg_recv_signal() FAILED!\n");
+        printf("ERROR: SERVICE: Failed to emit DBUS signal tcp_dbus_srv_emit_msg_recv_signal() FAILED!\n");
         exit(EXIT_FAILURE);
     }
     pthread_mutex_unlock(&mutex_tcp_recv_msg);
     
-  	// printf("\n****************END---recv_msg---END****************\n\n");
+  	// printf("\n****************END---SERVICE: recv_msg---END****************\n\n");
 } /* tcp_recv_msg() */
 
 /* This callback notifies when we have been disconnected from the server */
 void tcp_disconnect()
 {
-  	// printf("\n****************tcp_disconnect: callback activated.****************\n\n");
+  	// printf("\n****************SERVICE: tcp_disconnect callback activated.****************\n\n");
 
     pthread_mutex_lock(&mutex_ignore_disconnect);
     if(ignore_disconnect == true)
@@ -79,11 +79,11 @@ void tcp_disconnect()
     /* Emit DBUS signal signalling we have connected to server */
     if (0 != tcp_dbus_srv_emit_disconnect_signal(srv_id, "SERVER"))
     {
-        printf("ERROR: tcp_client_service: emitting signal tcp_dbus_srv_emit_disconnect_signal() FAILED!\n");
+        printf("ERROR: SERVICE: Failed to emit DBUS signal tcp_dbus_srv_emit_disconnect_signal()!\n");
         exit(EXIT_FAILURE);
     }
     
-  	// printf("\n****************END---tcp_disconnect---END****************\n\n");
+  	// printf("\n****************END---SERVICE: tcp_disconnect---END****************\n\n");
 } /* tcp_disconnect() */
 
 /** Note that data is freed after this callback is called. As such, if 
@@ -93,11 +93,11 @@ void tcp_disconnect()
  /* This is a DBUS callback to us with message data to be sent over tcp */
 bool dbus_method_send_tcp_msg_callback(const char* tcp_clnt_uuid, const char* data, unsigned int data_sz)
 {
-  	// printf("\n****************dbus_method_send_tcp_msg_callback: callback activated.****************\n\n");
+  	// printf("\n****************SERVICE: dbus_method_send_tcp_msg_callback callback activated.****************\n\n");
 
     if (tcp_clnt_uuid != NULL && tcp_clnt_uuid[0] != '\0')
     {
-        printf("Client ID should be null or == \\0. Current it is %s \n",tcp_clnt_uuid);
+        printf("SERVICE: Client ID should be null or == \\0. Currently it is %s \n",tcp_clnt_uuid);
     }
 
     if( socket_client_is_executing() == false )
@@ -115,7 +115,7 @@ bool dbus_method_send_tcp_msg_callback(const char* tcp_clnt_uuid, const char* da
 
     return true;
 
-  	// printf("\n****************END---dbus_method_send_tcp_msg_callback---END****************\n\n");
+  	// printf("\n****************END---SERVICE: dbus_method_send_tcp_msg_callback---END****************\n\n");
 } /* dbus_method_send_tcp_msg_callback() */
 
 bool dbus_method__is_connected_callback()
@@ -136,20 +136,20 @@ void check_parameters(int argc, char *argv[])
         Note that argc = 1 means no arguments */
     if (argc < 2)
     {
-        printf("WARNING, no arguments provided. Defaulting to ip/hostname %s and port number %s!\n", SERVER_ADDR, SERVER_PORT);
+        printf("SERVICE: WARNING: no arguments provided. Defaulting to ip/hostname %s and port number %s!\n", SERVER_ADDR, SERVER_PORT);
         host_port = SERVER_PORT;
         host_ip   = SERVER_ADDR;
     }
     else if (argc > 3)
     {
-        fprintf(stderr, "ERROR, too many arguments!\n 0, or 2 arguments expected. Expected ip/hostname and port number!\n");
+        fprintf(stderr, "ERROR: SERVICE: too many arguments!\n 0, or 2 arguments expected. Expected ip/hostname and port number!\n");
         exit(EXIT_FAILURE);
     }
     else /* 2 arguments, ip and port */
     {
         if ( atoi(argv[2]) < 0 || atoi(argv[2]) > 65535 )
         {
-            printf("ERROR: invalid port number %s!",argv[2]);
+            printf("ERROR: SERVICE: invalid port number %s!",argv[2]);
             exit(EXIT_FAILURE);
         }
         host_ip   = argv[1];
@@ -175,12 +175,12 @@ int main(int argc, char *argv[])
     srv_id = tcp_dbus_srv_create();
     if ( tcp_dbus_srv_init(srv_id, dbus_method_send_tcp_msg_callback) == EXIT_FAILURE )
     {
-        printf("Failed to initialize DBUS server!\nExiting.....\n");
+        printf("ERROR: SERVICE: Failed to initialize DBUS server!\nExiting.....\n");
         exit(EXIT_FAILURE);
     }
     if ( tcp_dbus_srv_execute(srv_id) == EXIT_FAILURE )
     {
-        printf("Failed to execute server!\nExiting.....\n");
+        printf("ERROR: SERVICE: Failed to execute DBUS server!\nExiting.....\n");
         exit(EXIT_FAILURE);
     }
 
@@ -191,7 +191,7 @@ int main(int argc, char *argv[])
     {
         if( socket_client_is_executing() == false && socket_client_init(host_ip, host_port, tcp_recv_msg, tcp_disconnect) == -1 )
         {
-            printf("Failed to initialize TCP server!\nRetrying.....\n\n");
+            printf("SERVICE: Failed to initialize TCP server!\nRetrying.....\n\n");
             usleep(200000);
             continue;
         }
@@ -199,7 +199,7 @@ int main(int argc, char *argv[])
         /* Emit DBUS signal signalling we have connected to server */
         if (0 != tcp_dbus_srv_emit_connect_signal(srv_id, "SERVER"))
         {
-            printf("ERROR: tcp_client_service: emitting signal tcp_dbus_srv_emit_connect_signal() FAILED!\n");
+            printf("ERROR: SERVICE: Failed to emit DBUS signal tcp_dbus_srv_emit_connect_signal()!\n");
             exit(EXIT_FAILURE);
         }
 
@@ -212,11 +212,11 @@ int main(int argc, char *argv[])
             usleep(200000);
         }
             
-        printf("\nFailed: lost tcp server connection!\n\n");
+        printf("\nSERVICE: Lost server connection!\n\n");
     }
 
 
-    printf("--------------------ERROR, TCP SERVER SERVICE IS EXITING UNEXPECTEDLY!!!--------------------");
+    printf("--------------------ERROR, TCP CLIENT SERVICE IS EXITING UNEXPECTEDLY!!!--------------------");
 
 
     /*-------------------------------------

@@ -71,7 +71,7 @@ void socket_print_addrinfo(const struct addrinfo *addr)
     ------------------------------------*/
     if (getnameinfo(addr->ai_addr, addr->ai_addrlen, hbuf, sizeof(hbuf), sbuf, sizeof(sbuf), NI_NUMERICHOST | NI_NUMERICSERV) == 0)
     {
-        printf("socket_commons: host=%s, serv=%s\n", hbuf, sbuf);
+        printf("socket_commons: connected to host '%s' on port '%s'\n", hbuf, sbuf);
     }
 
 } /* socket_print_addrinfo() */
@@ -139,7 +139,7 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
                 res = select(sock + 1, NULL, &myset, NULL, &tv);
                 if (res < 0 && errno != EINTR)
                 {
-                    err_print("ERROR: socket_commons: failed connecting %d - %s\n", errno, strerror(errno));
+                    err_print("ERROR: socket_commons: failed connecting err=%d - msg=%s\n", errno, strerror(errno));
                     exit(EXIT_FAILURE);
                 }
                 else if (res > 0)
@@ -148,14 +148,14 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
                     lon = sizeof(int);
                     if (getsockopt(sock, SOL_SOCKET, SO_ERROR, (void *)(&valopt), &lon) < 0)
                     {
-                        err_print("ERROR: socket_commons: failed in getsockopt() %d - %s\n", errno, strerror(errno));
+                        err_print("ERROR: socket_commons: failed in getsockopt() err=%d - msg= %s\n", errno, strerror(errno));
                         exit(EXIT_FAILURE);
                     }
 
                     /* Check the value returned... */
-                    if (valopt)
+                    if (valopt) /* If server is unavailable, this will trigger */
                     {
-                        err_print("ERROR: socket_commons: failed in delayed connection() %d - %s\n", valopt, strerror(valopt));
+                        info_print("socket_commons: Timed out in connection attempt to server. err=%d - msg=%s\n", valopt, strerror(valopt));
                         returnval = RETURN_FAILED;
                         break;
                     }
@@ -163,7 +163,7 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
                 }
                 else
                 {
-                    info_print("WARNING: socket_commons: Timed out while attempting to connect to server!\n");
+                    warning_print("WARNING: socket_commons: Timed out while attempting to connect to server!\n");
                     returnval = RETURN_FAILED;
                     break;
                 }
@@ -171,7 +171,7 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
         }
         else
         {
-            err_print("ERROR: socket_commons: failed connecting %d - %s\n", errno, strerror(errno));
+            err_print("ERROR: socket_commons: failed to initiate connection to server (not a timeout) err=%d - msg=%s\n", errno, strerror(errno));
             exit(EXIT_FAILURE);
         }
     }
@@ -420,7 +420,7 @@ socket_receive_data( const int socket_fd, struct socket_msg_struct** msg )
     if ( bytes_read < 0 )
     {
         /* Read error. */
-        err_print("ERROR: socket_commons: failed to recv data. errno = %d ", errno);
+        warning_print("socket_commons: WARNING: failed to recv data. Connection probably dropped. errno = %d\n", errno);
         return FLAG_DISCONNECT;
     }
     else if ( bytes_read == 0 )
@@ -494,7 +494,7 @@ socket_receive_data( const int socket_fd, struct socket_msg_struct** msg )
             free(temp_msg);
             temp_msg = NULL;
             /* Read error. */
-            err_print("ERROR: socket_commons: failed to recv data. errno = %d\n", errno);
+            warning_print("socket_commons: WARNING: failed to recv data. Connection probably dropped. errno = %d\n", errno);
             return FLAG_DISCONNECT;
         }
         else if ( bytes_read == 0 )

@@ -158,7 +158,7 @@ void remove_client(const char* uuid)
 // From the pub_socket_server.h
 // /* https://isocpp.org/wiki/faq/mixing-c-and-cpp */
 // typedef void (*socket_lib_srv_rx_msg)(const char* uuid, const char* data, const unsigned int data_sz);
-// typedef void (*socket_lib_srv_connected)(const char* uuid);
+// typedef void (*socket_lib_srv_connected)(const char* uuid, const char* ip_addr);
 // typedef void (*socket_lib_srv_disconnected)(const char* uuid);
 
 // /**
@@ -175,7 +175,7 @@ void remove_client(const char* uuid)
  /* This callback is data received over TCP and needs to be sent to DBUS clients */
 void tcp_recv_msg(const char* uuid, const char *data, const unsigned int data_sz)
 {
-  	// printf("\n****************recv_msg: callback activated.****************\n\n");
+  	// printf("\n****************SERVICE: recv_msg: callback activated.****************\n\n");
 
     // printf("Message from the following UUID: %s\n", uuid);
     // printf("Received %d data bytes as follows:\n\"",data_sz);
@@ -237,8 +237,8 @@ void tcp_client_disconnect(const char* uuid)
     }
     pthread_mutex_unlock(&mutex_disconnect);
 
-  	// printf("\n****************END---client_disconnect---END****************\n\n");
-} /* client_disconnect() */
+  	// printf("\n****************END---SERVICE: client_disconnect---END****************\n\n");
+} /* tcp_client_disconnect() */
 
 /** Note that data is freed after this callback is called. As such, if 
  * the data in data needs to be saved, a copy of the data must be made.
@@ -247,7 +247,7 @@ void tcp_client_disconnect(const char* uuid)
  /* This is a DBUS callback to us with message data to be sent over tcp */
 bool dbus_method_send_tcp_msg_callback(const char* tcp_clnt_uuid, const char* data, unsigned int data_sz)
 {
-  	// printf("\n****************tcp_msg_to_tx_callback: callback activated.****************\n\n");
+  	// printf("\n****************SERVICE: tcp_msg_to_tx_callback: callback activated.****************\n\n");
 
     // printf("Received %d bytes as follows:\n\"",data_sz);
     // for (size_t i = 0; i < data_sz; i++)
@@ -383,14 +383,14 @@ char* check_parameters(int argc, char *argv[])
         Note that argc = 1 means no arguments*/
     if (argc < 2)
     {
-        printf("WARNING, no port provided, defaulting to %s\n", "5555");
+        printf("SERVICE: WARNING: no port provided, defaulting to %s\n", "5555");
 
         /* No port number provided, use default */
         port = (char*)"5555";
     }
     else if (argc > 2)
     {
-        fprintf(stderr, "ERROR, too many arguments!\n 0 or 1 arguments expected. Expected port number!\n");
+        fprintf(stderr, "ERROR: SERVICE: too many arguments!\n 0 or 1 arguments expected. Expected port number!\n");
         exit(EXIT_FAILURE);
     }
     else /* 1 argument */
@@ -398,7 +398,7 @@ char* check_parameters(int argc, char *argv[])
         /* Test that argument is valid */
         if ( atoi(argv[1]) < 0 || atoi(argv[1]) > 65535 )
         {
-            printf("ERROR: invalid port number %s!",argv[1]);
+            printf("ERROR: SERVICE: invalid port number %s!",argv[1]);
             exit(EXIT_FAILURE);
         }
 
@@ -429,13 +429,13 @@ int main(int argc, char *argv[])
     srv_id = tcp_dbus_srv_create();
     if ( tcp_dbus_srv_init(srv_id, dbus_method_send_tcp_msg_callback) == EXIT_FAILURE )
     {
-        printf("Failed to initialize DBUS server!\nExiting.....\n");
+        printf("ERROR: SERVICE: Failed to initialize DBUS server!\nExiting.....\n");
         exit(EXIT_FAILURE);
     }
 
     if( 0 > socket_server_init(port, tcp_recv_msg, tcp_client_connect, tcp_client_disconnect) )
     {
-        printf("Failed to initialize TCP server!\nExiting.....\n");
+        printf("ERROR: SERVICE: Failed to initialize TCP server!\nExiting.....\n");
         exit(EXIT_FAILURE);
     }
 
@@ -444,7 +444,7 @@ int main(int argc, char *argv[])
     --------------------------------------*/
     if ( tcp_dbus_srv_execute(srv_id) == EXIT_FAILURE )
     {
-        printf("Failed to execute server!\nExiting.....\n");
+        printf("ERROR: SERVICE: Failed to execute DBUS server!\nExiting.....\n");
         exit(EXIT_FAILURE);
     }
 
@@ -454,7 +454,7 @@ int main(int argc, char *argv[])
 
     if(socket_server_is_executing() == false)
     {
-        printf("Failed: server not executing\n");
+        printf("ERROR: SERVICE: Failed check on server execution. Server not executing\nExiting.....\n");
         exit(EXIT_FAILURE);
     }
 
@@ -467,7 +467,7 @@ int main(int argc, char *argv[])
         sleep(1);
     }
 
-    printf("--------------------ERROR, TCP SERVER SERVICE IS EXITING UNEXPECTEDLY!!!--------------------");
+    printf("--------------------ERROR: SERVICE: TCP SERVER SERVICE IS EXITING UNEXPECTEDLY!!!--------------------");
 
 
     /*-------------------------------------

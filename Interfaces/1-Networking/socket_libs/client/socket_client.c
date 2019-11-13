@@ -1,7 +1,6 @@
 /*-------------------------------------
 |               INCLUDES               |
 --------------------------------------*/
-
 #include "prv_socket_client.h"
 #include "pub_socket_client.h"
 #include "../../../debug_print_defines.h"
@@ -10,12 +9,12 @@
 /*-------------------------------------
 |           STATIC VARIABLES           |
 --------------------------------------*/
-
 static int  client_fd                                  = -1;    /* Stores the socket_fd for our connection to the server */
 static char UUID[UUID_STR_LEN]                         = {0};   /* Stores our UUID including termination char */
 static bool isRunning                                  = false; /* Set true to execute the client execute thread */
 static socket_lib_clnt_rx_msg _rx_callback             = NULL;  /* Callback called when a message is received from the server */
 static socket_lib_clnt_disconnected _discont_callback  = NULL;  /* Callback called when we've disconnected from the server */
+
 
 /*-------------------------------------
 |           PRIVATE MUTEXES            |
@@ -26,6 +25,7 @@ static pthread_mutex_t mutex_isExecuting_thread = PTHREAD_MUTEX_INITIALIZER;
 /*-------------------------------------
 |         FUNCTION DEFINITIONS         |
 --------------------------------------*/
+
 
 void uuid_create()
 {
@@ -110,7 +110,7 @@ int socket_client_init(char* server_addr, char *port, socket_lib_clnt_rx_msg rx_
     _discont_callback   = discnt_callback;
 
     /*-------------------------------------
-    |       LOAD AND OR CREATE UUID        |
+    |          LOAD UUID IF NEEDED         |
     --------------------------------------*/
     if( UUID[0] == '\0' )
     {
@@ -275,7 +275,7 @@ void* execute_thread(void* args)
         if (n == -1)
         {
             /* Select() Error */
-            err_print("ERROR: CLIENT: ERROR IN SELECT OPERATION\n");
+            err_print("ERROR: CLIENT: ERROR IN SELECT() OPERATION\n");
             close_and_notify();
             exit(EXIT_FAILURE);
         }

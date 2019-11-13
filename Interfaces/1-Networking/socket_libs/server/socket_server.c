@@ -58,7 +58,6 @@ struct client_info* find_client_by_fd(const int socket)
     /*----------------------------------
     |          SEARCH FOR UUID          |
     ------------------------------------*/
-
     for(client=client_infos; client!=NULL; client=client->next)
     {
         if( client->fd == socket )
@@ -69,7 +68,7 @@ struct client_info* find_client_by_fd(const int socket)
     } /* for */
 
     return client;
-} /* find_client */
+} /* find_client_by_fd() */
 
 struct client_info* find_client_by_uuid(const char* uuid)
 {
@@ -96,7 +95,7 @@ struct client_info* find_client_by_uuid(const char* uuid)
     } /* for */
 
     return client;
-} /* find_client */
+} /* find_client_by_uuid() */
 
 int socket_server_init( char* port, socket_lib_srv_rx_msg rx_callback, socket_lib_srv_connected connect_callback, socket_lib_srv_disconnected discon_callback )
 {
@@ -125,7 +124,7 @@ int socket_server_init( char* port, socket_lib_srv_rx_msg rx_callback, socket_li
 
     if( server_socket_fd >= 0 )
     {
-        return -1;
+        return RETURN_FAILED;
     }
 
     /*----------------------------------
@@ -139,7 +138,7 @@ int socket_server_init( char* port, socket_lib_srv_rx_msg rx_callback, socket_li
     |       CREATE SERVER SOCKET        |
     ------------------------------------*/
     info_print("SERVER: Creating server on port %s\n", port); /* Info print */
-    socket_fd = socket_create_socket(port, DEFAULT_SOCKET_TYPE, (const char*)SERVER_ADDR, SOCKET_OWNER_IS_SERVER);
+    socket_fd = socket_create_socket( port, DEFAULT_SOCKET_TYPE, (const char*)SERVER_ADDR, SOCKET_OWNER_IS_SERVER );
 
     /*----------------------------------
     |       VERIFY SERVER CREATED       |

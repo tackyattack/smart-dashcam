@@ -19,9 +19,5 @@
 #include <dashcam_dbus/pub_tcp_dbus_srv.h>
 #include <dashcam_dbus/pub_dbus.h>
 
-/*-------------------------------------
-|    PRIVATE FUNCTION DECLARATIONS     |
---------------------------------------*/
-
 
 #endif /* TCP_CLIENT_SERVICE_H */
