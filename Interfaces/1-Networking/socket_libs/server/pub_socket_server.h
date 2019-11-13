@@ -29,7 +29,7 @@ extern "C" {
 
 /* https://isocpp.org/wiki/faq/mixing-c-and-cpp */
 typedef void (*socket_lib_srv_rx_msg)(const char* uuid, const char* data, const unsigned int data_sz);
-typedef void (*socket_lib_srv_connected)(const char* uuid);
+typedef void (*socket_lib_srv_connected)(const char* uuid, const char* addr);
 typedef void (*socket_lib_srv_disconnected)(const char* uuid);
 
 

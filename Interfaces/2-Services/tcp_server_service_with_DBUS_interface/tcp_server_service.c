@@ -4,6 +4,16 @@
 
 #include "tcp_server_service.h"
 
+/*-------------------------------------
+|           PRIVATE STRUCTS            |
+--------------------------------------*/
+struct clients_struct
+{
+    char* uuid;
+    char* ip_addr;
+    struct clients_struct* next;
+};
+
 
 /*-------------------------------------
 |           STATIC VARIABLES           |
@@ -13,6 +23,133 @@ static pthread_mutex_t mutex_tcp_recv_msg = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t mutex_connect = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t mutex_disconnect = PTHREAD_MUTEX_INITIALIZER;
 
+static struct clients_struct* clients = NULL; /* Linked list of all connected clients updated by connect and disconnect callbacks */
+static pthread_mutex_t mutex_clients_struct = PTHREAD_MUTEX_INITIALIZER; /* Mutex lock for thread safety for clients */
+
+/*-------------------------------------
+|       CLIENTS_STRUCT FUNCTIONS       |
+--------------------------------------*/
+void add_client( const char* uuid, const char* ip_addr )
+{
+    /*-------------------------------------
+    |              VARIABLES               |
+    --------------------------------------*/
+    struct clients_struct* new, *temp;
+    
+    /*-------------------------------------
+    |            VERIFICATIONS             |
+    --------------------------------------*/
+    if( uuid == NULL || ip_addr == NULL )
+    {
+        printf("SERVICE: WARNING: Client that connected has no uuid or ip address");
+        exit(EXIT_FAILURE);
+    }
+
+    /*-------------------------------------
+    |       ALLOCATE AND COPY MEMORY       |
+    --------------------------------------*/
+    new = malloc(sizeof(struct clients_struct));
+    new->uuid = malloc(strlen(uuid)+1);
+    new->ip_addr = malloc(strlen(ip_addr)+1);
+    new->next = NULL;
+
+    memcpy(new->uuid,uuid,strlen(uuid)+1);
+    memcpy(new->ip_addr,ip_addr,strlen(ip_addr)+1);
+
+    /*-------------------------------------
+    |    ADD NEW CLIENT TO LINKED LIST     |
+    --------------------------------------*/
+    pthread_mutex_lock(&mutex_clients_struct);
+
+    if(clients == NULL) /* If there are no clients yet */
+    {
+        clients = new;
+        pthread_mutex_unlock(&mutex_clients_struct);
+        return;
+    }
+
+    /* Iterate to the end of the linked list */
+    for ( temp = clients; temp->next != NULL; temp = temp->next ); /* Find last element in linked list of clients */
+
+    /* Add client to end of linked list */
+    temp->next = new;
+    
+    pthread_mutex_unlock(&mutex_clients_struct);
+} /* add_client() */
+
+/* Returns NULL if not found. Must lock and unlock mutex_clients_struct prior/after calling this function */
+struct clients_struct* get_client(const char* uuid)
+{
+    struct clients_struct* temp;
+
+    for ( temp = clients; (temp != NULL && strcmp(uuid,temp->uuid) != 0); temp = temp->next ); /* Find element in linked list of clients with matching uuid */
+
+    return temp;
+}
+
+void remove_client(const char* uuid)
+{
+    /*-------------------------------------
+    |              VARIABLES               |
+    --------------------------------------*/
+    struct clients_struct* crnt, *previous;
+
+    /*-------------------------------------
+    |            VERIFICATIONS             |
+    --------------------------------------*/
+    pthread_mutex_lock(&mutex_clients_struct);
+    if( clients == NULL || uuid == NULL )
+    {
+        pthread_mutex_unlock(&mutex_clients_struct);
+        return;
+    }
+
+    /*-------------------------------------
+    |           INITIALIZATIONS            |
+    --------------------------------------*/
+    previous = NULL;
+
+    /*-------------------------------------
+    |             FIND CLIENT              |
+    --------------------------------------*/
+    for ( crnt = clients; (crnt != NULL && strcmp(uuid,crnt->uuid) != 0); crnt = crnt->next ) /* Find element in linked list of clients with matching uuid */
+    {
+        printf("SERVICE: remove_client(): search for uuid %s. crnt uuid: %s\n",uuid, crnt->uuid);
+        previous = crnt;
+    }
+
+    /*-------------------------------------
+    |            VERIFICATIONS             |
+    --------------------------------------*/
+    if (crnt == NULL) /* client not found in list */
+    {
+        pthread_mutex_unlock(&mutex_clients_struct);
+        return;
+    }
+
+    /*-------------------------------------
+    |         REMOVE CLIENT STRUCT         |
+    --------------------------------------*/
+    if (previous == NULL) /* element is first item in list */
+    {
+        clients = clients->next;
+    }
+    else if (previous != NULL)
+    {
+        previous->next = crnt->next;
+    }
+
+    pthread_mutex_unlock(&mutex_clients_struct);
+
+    /*-------------------------------------
+    |               CLEANUP                |
+    --------------------------------------*/
+    free(crnt->uuid);
+    free(crnt->ip_addr);
+    free(crnt);
+    crnt = NULL;
+
+} /* remove_client() */
 
 /*-------------------------------------
 |          CALLBACK FUNCTIONS          |
@@ -51,37 +188,45 @@ void tcp_recv_msg(const char* uuid, const char *data, const unsigned int data_sz
     if ( 0 != tcp_dbus_srv_emit_msg_recv_signal(srv_id, uuid, data, data_sz) )
     {
         pthread_mutex_unlock(&mutex_tcp_recv_msg);
-        printf("ERROR: raising signal tcp_dbus_srv_emit_msg_recv_signal() FAILED!\n");
+        printf("SERVICE: ERROR: raising signal tcp_dbus_srv_emit_msg_recv_signal() FAILED!\n");
         exit(EXIT_FAILURE);
     }
     pthread_mutex_unlock(&mutex_tcp_recv_msg);
     
-  	// printf("\n****************END---recv_msg---END****************\n\n");
-} /* recv_msg() */
+  	// printf("\n****************END---SERVICE: recv_msg---END****************\n\n");
+} /* tcp_recv_msg() */
 
 /* This callback notifies when a tcp client connects */
-void tcp_client_connect(const char* uuid)
+void tcp_client_connect(const char* uuid, const char* ip_addr)
 {
-  	// printf("\n****************client_connect: callback activated.****************\n\n");
+  	// printf("\n****************SERVICE: client_connect: callback activated.****************\n\n");
 
-    printf("Client connected -> UUID: %s\n", uuid);
+    /* UPDATE OUR INTERNAL LIST OF CLIENTS */
+    add_client(uuid,ip_addr);
+
+    /* EMIT SIGNAL TO ALL SUBSCRIBERS THAT CLIENT HAS CONNECTED */
+    printf("Client connected -> UUID: %s\n\tIP address: %s\n", uuid, ip_addr);
     pthread_mutex_lock(&mutex_connect);
     if ( 0 != tcp_dbus_srv_emit_connect_signal(srv_id, uuid) )
     {
         pthread_mutex_unlock(&mutex_connect);
-        printf("ERROR: raising signal tcp_dbus_srv_emit_connect_signal() FAILED!\n");
+        printf("SERVICE: ERROR: raising signal tcp_dbus_srv_emit_connect_signal() FAILED!\n");
         exit(EXIT_FAILURE);
     }
     pthread_mutex_unlock(&mutex_connect);
 
-  	// printf("\n****************END---client_connect---END****************\n\n");
-} /* client_connect() */
+  	// printf("\n****************END---SERVICE: client_connect---END****************\n\n");
+} /* tcp_client_connect() */
 
 /* This callback notifies when a tcp client disconnects */
 void tcp_client_disconnect(const char* uuid)
 {
-  	// printf("\n****************client_disconnect: callback activated.****************\n\n");
+  	// printf("\n****************SERVICE: client_disconnect: callback activated.****************\n\n");
 
+    /* UPDATE OUR INTERNAL LIST OF CLIENTS */
+    remove_client(uuid);
+
+    /* EMIT SIGNAL TO ALL SUBSCRIBERS THAT CLIENT HAS CONNECTED */
     printf("Client disconnected -> UUID: %s\n", uuid);
     pthread_mutex_lock(&mutex_disconnect);
     if ( 0 != tcp_dbus_srv_emit_disconnect_signal(srv_id, uuid) )
@@ -124,10 +269,101 @@ bool dbus_method_send_tcp_msg_callback(const char* tcp_clnt_uuid, const char* da
     }
 
     return true;
-    
+
   	// printf("\n****************END---tcp_msg_to_tx_callback---END****************\n\n");
 } /* tcp_msg_to_tx_callback() */
 
+/**
+ * Given a pointer to a 2D array that is set NULL, will set the pointer to an array of client uuid's
+ * the size (or number of elements/clients) is returned. client_list is expected to be NULL and will
+ * be NULL if no clients are connected.
+
+ * Returns the number of clients connected (which is the number of clients in the 2D array client_list)
+ */
+uint16_t dbus_method__request_clients_callback( char*** client_list )
+{
+    /*-------------------------------------
+    |              VARIABLES               |
+    --------------------------------------*/
+    // char** clients;
+    struct clients_struct* iter;
+    uint16_t num_clients;
+
+    /*-------------------------------------
+    |       PARAMETER VERIFICATIONS        |
+    --------------------------------------*/
+    if( client_list != NULL )
+    {
+        printf("SERVICE: WARNING: dbus_method_request_clients_callback(): Someone request list of clients but gives a non null pointer parameter!\n");
+    }
+
+    /*-------------------------------------
+    |           INITIALIZATIONS            |
+    --------------------------------------*/
+    num_clients = 0;
+    client_list = NULL;
+
+    /*-------------------------------------
+    |            VERIFICATIONS             |
+    --------------------------------------*/
+    pthread_mutex_lock(&mutex_clients_struct);
+
+    if(clients == NULL) /* No clients connected */
+    {
+        pthread_mutex_unlock(&mutex_clients_struct);
+        return 0;
+    }
+
+    /*-------------------------------------
+    |           GET NUM CLIENTS            |
+    --------------------------------------*/
+    for ( iter = clients; (iter != NULL); iter = iter->next )
+    {
+        num_clients += 1;
+    }
+
+    /*-------------------------------------
+    |  ALLOCATE MEMORY AND COPY IP ADDRS   |
+    --------------------------------------*/
+    *client_list = malloc(num_clients);
+
+    num_clients = 0;
+    for ( iter = clients; (iter != NULL); iter = iter->next )
+    {
+        (*client_list)[num_clients] = malloc( strlen(iter->ip_addr)+1 );
+
+        memcpy( (*client_list)[num_clients], iter->ip_addr, strlen(iter->ip_addr)+1 );
+
+        num_clients += 1;
+    }
+
+    pthread_mutex_unlock(&mutex_clients_struct);
+
+    return num_clients;
+    // Keep internal list of connected clients and return copy of them
+    // implement dbus
+}
+
+//TODO implement dbus
+char* dbus_method__get_client_ip_callback( const char* clnt_uuid )
+{
+    /*-------------------------------------
+    |              VARIABLES               |
+    --------------------------------------*/
+    char* ip_addr;
+    struct clients_struct* client;
+
+    pthread_mutex_lock(&mutex_clients_struct);
+
+    client = get_client(clnt_uuid);
+
+    ip_addr = malloc( strlen(client->ip_addr) + 1 );
+    memcpy(ip_addr, client->ip_addr, strlen(client->ip_addr) + 1);
+
+    pthread_mutex_lock(&mutex_clients_struct);
+
+    return ip_addr;
+}
 
 /*--------------------------------------
 |     MAIN FUNCTIONS OF THE SERVICE     |

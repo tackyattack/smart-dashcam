@@ -379,7 +379,7 @@ void process_recv_msg(int client_fd)
                 ------------------------------------*/
                 if(_conn_callback != NULL)
                 {
-                    (*_conn_callback)( client->uuid );
+                    (*_conn_callback)( client->uuid, inet_ntoa(client->address) );
                 }
 
                 /* set bool indicating we've received this client's uuid */

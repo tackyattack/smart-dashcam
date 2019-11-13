@@ -118,6 +118,10 @@ bool dbus_method_send_tcp_msg_callback(const char* tcp_clnt_uuid, const char* da
   	// printf("\n****************END---dbus_method_send_tcp_msg_callback---END****************\n\n");
 } /* dbus_method_send_tcp_msg_callback() */
 
+bool dbus_method__is_connected_callback()
+{
+    return socket_client_is_executing();
+} /* dbus_method__is_connect_to_srv() */
 
 /*--------------------------------------
 |     MAIN FUNCTIONS OF THE SERVICE     |

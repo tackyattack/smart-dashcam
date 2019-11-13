@@ -34,11 +34,11 @@ void recv_msg(const char* uuid, const char *data, const unsigned int data_sz)
   	printf("\n****************END---recv_msg---END****************\n\n");
 } /* recv_msg() */
 
-void client_connect(const char* uuid)
+void client_connect(const char* uuid, const char* ip_addr)
 {
   	printf("\n****************client_connect: callback activated.****************\n\n");
 
-    printf("Client connected -> UUID: %s\n", uuid);
+    printf("Client connected -> UUID: %s\n\tIP address: %s\n", uuid, ip_addr);
 
   	printf("\n****************END---client_connect---END****************\n\n");
 } /* client_connect() */
