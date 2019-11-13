@@ -1,3 +1,9 @@
+# KDE Dolphin hidden file for directory settings
+*.directory
+
+# 2-Services id file
+**/device-id
+
 # Static common lib folder
 Interfaces/1-Networking/socket_libs/common/libs/
 
@@ -27,7 +33,7 @@ Interfaces/1-Networking/socket_libs/common/libs/
 *.pch
 
 # Compiled Dynamic libraries
-# *.so
+*.so
 *.dylib
 *.dll
 
@@ -69,7 +75,7 @@ __pycache__/
 *$py.class
 
 # C extensions
-# *.so
+*.so
 
 # Distribution / packaging
 .Python
@@ -190,9 +196,3 @@ dmypy.json
 
 #Mac folder tracking junk
 .DS_Store
-*.h264
-*.mp4
-*.png
-*.jpg
-*.jpeg
-*.bmp

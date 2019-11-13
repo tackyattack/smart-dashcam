@@ -1,0 +1,30 @@
+# This file contains variable definitions for make and is include in the makefiles in this and sub directories
+
+# Note that the directoy is /etc/dbus-1-/system.d/* for system serivice dbus entries
+#     and is /etc/dbus-1/session.d/* for user session dbus
+# System Directories
+SYS_DBUS_SRV_CONF_DIR=/etc/dbus-1/system.d/
+SYSTEM_GLOBAL_INC_DIR=/usr/include/
+SYSTEM_GLOBAL_LIB_DIR=/usr/lib/
+
+# Compilation flags
+CFLAGS_DBUS      = $(shell pkg-config --cflags --libs dbus-1)
+CFLAGS_DBUS_GLIB = $(shell pkg-config --cflags --libs dbus-glib-1)
+CFLAGS_GIO       = $(shell pkg-config --cflags --libs gio-2.0)
+
+
+# A note for GCC, orders of the parameters matter. The wrong order can cause no errors/warnings and the resulting compiled file
+#	to be incorrect/broken. Look up gcc parameter order. Supposedly, adding the -Wl,--start-group flag will fix this
+
+# Compiler_FLAGS:
+#	-g					Enables debugging symbols
+#	-Wall				Enables additional compiler warnings
+#	-Wextra				Further enables addionational compiler warnings not included by -Wall. Not used due to warnings about unused callback function parameters for SubscriberCallback(). Outside of my control
+#	-Werror				Treat warnings as errors
+#	-Wl,--start-group  	The wrong order of gcc parameters can cause no errors/warnings and the resulting compiled file
+#						  to be incorrect/broken. Supposedly, adding the -Wl,--start-group flag will fix this
+#	-fPIC				Produce position independent code. Used for creating libraries
+#	-std=gnu99			Sets what language standard is used. gnu99: GNU dialect of ISO C99
+#	-O3:				Optimization more for code size and execution time
+#	-DWARNING_PRINT		Refer to Interfaces/debug_print_defines.h. Controls library print statements
+GLOBAL_CFLAGS=-g -Wall -Werror -fPIC -std=gnu99 -Wl,--start-group -pthread -O3 -DWARNING_PRINT=1
