@@ -15,7 +15,7 @@ DBusHandlerResult server_get_properties_handler(const char *property, DBusConnec
     if (!strcmp(property, "Version")) 
     {
         dbus_message_append_args(reply, DBUS_TYPE_STRING, &srv_sftw_version, DBUS_TYPE_INVALID);
-    } 
+    }
     else
     {
         /* Unknown property */
@@ -191,7 +191,85 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
         dbus_message_unref(reply);
         return result;
     }
-    
+    else if (dbus_message_is_method_call(message, DBUS_TCP_IFACE, DBUS_TCP_GET_CLIENTS)) 
+    {
+		char *clients_str = NULL;
+        uint32_t n_bytes = 0;
+
+        assert( ((struct dbus_srv_config*)config)->get_clients_callback != NULL );
+
+        if( ((struct dbus_srv_config*)config)->get_clients_callback != NULL )
+        {
+            n_bytes = (*(((struct dbus_srv_config*)config)->get_clients_callback))(&clients_str);
+        }
+
+        if(n_bytes == 0 || clients_str == NULL) /* We have to return something that isn't NULL */
+        {
+            n_bytes = 1;
+            clients_str = malloc(1); //TODO mem leak
+            clients_str[0] = '\0';
+        }
+
+		if (!(reply = dbus_message_new_method_return(message)))
+		{
+            goto fail;
+        }
+
+        printf("DBUS SERVER: get_clients method: num bytes = %u, string of all clients is \"%s\"\n", n_bytes, clients_str);
+
+		if( false == dbus_message_append_args(reply, DBUS_TYPE_ARRAY, DBUS_TYPE_BYTE, &clients_str, n_bytes, DBUS_TYPE_INVALID) )
+        {
+            info_print("DBUS SERVER: method %s: failed to append arguments!\n",DBUS_TCP_GET_CLIENTS);
+            goto fail;
+        }
+	}
+    else if (dbus_message_is_method_call(message, DBUS_TCP_IFACE, DBUS_TCP_IS_CONNECTED)) 
+    {
+        bool status = false;
+
+        assert( ((struct dbus_srv_config*)config)->is_connected_callback != NULL );
+
+        if( ((struct dbus_srv_config*)config)->is_connected_callback != NULL )
+        {
+            status = (*(((struct dbus_srv_config*)config)->is_connected_callback))();
+        }
+
+		if (!(reply = dbus_message_new_method_return(message)))
+		{
+            goto fail;
+        }
+
+		dbus_message_append_args(reply, DBUS_TYPE_BOOLEAN, &status, DBUS_TYPE_INVALID);
+	}
+    else if (dbus_message_is_method_call(message, DBUS_TCP_IFACE, DBUS_TCP_GET_IP)) 
+    {
+		char *uuid, *ip = NULL;
+
+		if (!dbus_message_get_args(message, &err, DBUS_TYPE_STRING, &uuid, DBUS_TYPE_INVALID))
+		{
+            goto fail;
+        }
+
+        assert( ((struct dbus_srv_config*)config)->ip_callback != NULL );
+
+        if( ((struct dbus_srv_config*)config)->ip_callback != NULL )
+        {
+            ip = (*(((struct dbus_srv_config*)config)->ip_callback))(uuid);
+        }
+
+        if(ip == NULL) /* No IP was found, but we have to return a string */
+        {
+            ip = malloc(1); //TODO mem leak (ip)
+            *ip = '\0';
+        }
+
+		if (!(reply = dbus_message_new_method_return(message)))
+		{
+            goto fail;
+        }
+
+		dbus_message_append_args(reply, DBUS_TYPE_STRING, &ip, DBUS_TYPE_INVALID);
+	}
     else if (dbus_message_is_method_call(message, DBUS_TCP_IFACE, DBUS_TCP_SEND_MSG)) 
     {
         /*-------------------------------------
@@ -291,14 +369,14 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
         char data[data_sz];
         bzero(data,data_sz);
 
-        info_print("\n****************tcp_dbus_server.c: send_msg function****************\n\n");
+        info_print("\n****************DBUS SERVER: tcp_dbus_server.c: send_msg function****************\n\n");
         info_print("DBUS SERVER: Received %d bytes. Data as follows:\n\"",data_sz);
-        
+
 
         /*-------------------------------------
         |       GET ARRAY OF DATA BYTES        |
         --------------------------------------*/
-        
+
         do
         {
             dbus_message_iter_get_basic(&subiter, &data[i]);
@@ -312,9 +390,9 @@ DBusHandlerResult server_message_handler(DBusConnection *conn, DBusMessage *mess
         |   CALL USER CALLBACK WITH MSG DATA   |
         --------------------------------------*/
 
-        if( ((struct dbus_srv_config*)config)->callback != NULL )
+        if( ((struct dbus_srv_config*)config)->msg_callback != NULL )
         {
-            return_val = (*(((struct dbus_srv_config*)config)->callback))(uuid, data, data_sz);
+            return_val = (*(((struct dbus_srv_config*)config)->msg_callback))(uuid, data, data_sz);
         }
 
         info_print("\"\n");
@@ -378,7 +456,7 @@ fail: /* Go here if any of the if statements above have a failure */
 
 void* server_thread(void *config)
 {
-    info_print("DBUS SERVER: Starting dbus server v%s\n", srv_sftw_version);
+    info_print("DBUS SERVER: Starting DBUS server v%s\n", srv_sftw_version);
     /* Start the glib event loop */
     g_main_loop_run( ((struct dbus_srv_config *)config)->loop );
     
@@ -386,8 +464,19 @@ void* server_thread(void *config)
     return NULL;
 }  /* server_thread() */
 
-int tcp_dbus_srv_init(dbus_srv_id srv_id, dbus_srv__tcp_send_msg_callback callback)
+int tcp_dbus_srv_init(dbus_srv_id srv_id, 
+                      dbus_srv__tcp_send_msg_callback msg_callback, 
+                      dbus_srv__tcp_get_connected_clients get_clients_callback, 
+                      dbus_srv__tcp_get_clnt_ip ip_callback, 
+                      dbus_srv__tcp_connected_to_tcp_srv is_connected_callback)
 {
+    /*-------------------------------------
+    |       PARAMETER VERIFICATIONS        |
+    --------------------------------------*/
+
+    assert(msg_callback != NULL);
+
+
     /*-------------------------------------
     |              VARIABLES               |
     --------------------------------------*/
@@ -431,7 +520,10 @@ int tcp_dbus_srv_init(dbus_srv_id srv_id, dbus_srv__tcp_send_msg_callback callba
     |        SET SEND_MSG CALLBACK         |
     --------------------------------------*/
 
-    config->callback = callback;
+    config->msg_callback = msg_callback;
+    config->get_clients_callback = get_clients_callback;
+    config->ip_callback = ip_callback;
+    config->is_connected_callback = is_connected_callback;
 
 
     /*-------------------------------------

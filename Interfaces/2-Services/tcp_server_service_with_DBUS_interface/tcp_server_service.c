@@ -280,14 +280,14 @@ bool dbus_method_send_tcp_msg_callback(const char* tcp_clnt_uuid, const char* da
 
  * Returns the number of clients connected (which is the number of clients in the 2D array client_list)
  */
-uint16_t dbus_method__request_clients_callback( char*** client_list )
+uint32_t dbus_method__request_clients_callback( char** client_list )
 {
     /*-------------------------------------
     |              VARIABLES               |
     --------------------------------------*/
-    // char** clients;
+    static char* clients_str; /* statics are pseudo workaround for some mem leaks */
+    static uint16_t num_bytes;
     struct clients_struct* iter;
-    uint16_t num_clients;
 
     /*-------------------------------------
     |       PARAMETER VERIFICATIONS        |
@@ -298,9 +298,18 @@ uint16_t dbus_method__request_clients_callback( char*** client_list )
     }
 
     /*-------------------------------------
+    |     FREE PREVIOUS ARRY IF NEEDED     |
+    --------------------------------------*/
+    if(clients_str != NULL) /* //FIXME A pseudo workaround for mem leaks. This can still break because each debus call happens from a new thread! */
+    {
+        free(clients_str);
+        clients_str = NULL;
+    }
+
+    /*-------------------------------------
     |           INITIALIZATIONS            |
     --------------------------------------*/
-    num_clients = 0;
+    num_bytes = 0;
     client_list = NULL;
 
     /*-------------------------------------
@@ -315,43 +324,48 @@ uint16_t dbus_method__request_clients_callback( char*** client_list )
     }
 
     /*-------------------------------------
-    |           GET NUM CLIENTS            |
+    |            GET NUM BYTES             |
     --------------------------------------*/
     for ( iter = clients; (iter != NULL); iter = iter->next )
     {
-        num_clients += 1;
+        num_bytes += strlen(iter->uuid) + 1;
     }
 
     /*-------------------------------------
     |  ALLOCATE MEMORY AND COPY IP ADDRS   |
     --------------------------------------*/
-    *client_list = malloc(num_clients);
+    clients_str = malloc(num_bytes);
+    num_bytes = 0;
 
-    num_clients = 0;
     for ( iter = clients; (iter != NULL); iter = iter->next )
     {
-        (*client_list)[num_clients] = malloc( strlen(iter->ip_addr)+1 );
+        memcpy( &clients_str[num_bytes], iter->ip_addr, strlen(iter->ip_addr)+1 );
 
-        memcpy( (*client_list)[num_clients], iter->ip_addr, strlen(iter->ip_addr)+1 );
-
-        num_clients += 1;
+        num_bytes += strlen(iter->uuid) + 1;
     }
 
     pthread_mutex_unlock(&mutex_clients_struct);
 
-    return num_clients;
+    *client_list = clients_str;
+
+    return num_bytes;
     // Keep internal list of connected clients and return copy of them
     // implement dbus
 }
 
-//TODO implement dbus
 char* dbus_method__get_client_ip_callback( const char* clnt_uuid )
 {
     /*-------------------------------------
     |              VARIABLES               |
     --------------------------------------*/
-    char* ip_addr;
+    static char* ip_addr = NULL;
     struct clients_struct* client;
+
+    if(ip_addr != NULL) /* //FIXME A pseudo work around for mem leaks. This can still break because each debus call happens from a new thread! */
+    {
+        free(ip_addr);
+        ip_addr = NULL;
+    }
 
     pthread_mutex_lock(&mutex_clients_struct);
 
@@ -427,7 +441,7 @@ int main(int argc, char *argv[])
     |         INITIALIZE SERVERS         |
     ------------------------------------*/
     srv_id = tcp_dbus_srv_create();
-    if ( tcp_dbus_srv_init(srv_id, dbus_method_send_tcp_msg_callback) == EXIT_FAILURE )
+    if ( tcp_dbus_srv_init(srv_id, dbus_method_send_tcp_msg_callback, dbus_method__request_clients_callback, dbus_method__get_client_ip_callback, NULL) == EXIT_FAILURE )
     {
         printf("ERROR: SERVICE: Failed to initialize DBUS server!\nExiting.....\n");
         exit(EXIT_FAILURE);

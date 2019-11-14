@@ -43,6 +43,59 @@ bool tcp_msg_to_tx_callback(const char* tcp_clnt_uuid, const char* data, unsigne
   	printf("\n****************END---tcp_msg_to_tx_callback---END****************\n\n");
 } /* tcp_msg_to_tx_callback() */
 
+uint32_t dbus_method__request_clients_callback( char** client_list )
+{
+    static char clients[] = "client_uuid client_uuid client_uuid"; /* Statics used as workaround to mem leak because we can't free the data given in client_list */
+    static uint8_t count = -1;
+    count++;
+
+    /* Alternate returning either NULL and 0, or fake 3 clients */
+    if(count%2 == 0)
+    {
+        *client_list = NULL;
+        return 0;
+    }
+    else
+    {
+        *client_list = &clients[0];
+        return strlen(clients)+1;
+    }
+} /* dbus_method__request_clients_callback() */
+
+char* dbus_method__get_client_ip_callback( const char* clnt_uuid )
+{
+    static char fake_clnt_ip[] = "client_ip_addr"; /* Statics used as workaround to mem leak because we can't free the data given in clnt_uuid */
+    static uint8_t count = -1;
+    count++;
+
+    assert(clnt_uuid != NULL);
+
+    /* Alternate returning either NULL and 0, or fake 3 clients */
+    if(count%2 == 0)
+    {
+        return NULL;
+    }
+    else
+    {
+        return fake_clnt_ip;
+    }
+} /* dbus_method__get_client_ip_callback() */
+
+bool dbus_method__is_tcp__connected_to_tcp_srv_callback()
+{
+    static uint8_t count = -1;
+    count++;
+
+    /* Alternate returning either NULL and 0, or fake 3 clients */
+    if(count%2 == 0)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
 
 /*-------------------------------------
 |     MAIN FUNCTION OF THE SERVICE     |
@@ -55,11 +108,9 @@ int main(void)
     --------------------------------------*/
     dbus_srv_id srv_id;
 
-    
     /*-------------------------------------
     |            CREATE SERVER             |
     --------------------------------------*/
-
     srv_id = tcp_dbus_srv_create();
 
     printf("DBUS Server service v%s\n", srv_sftw_version);
@@ -68,7 +119,7 @@ int main(void)
     |           START THE SERVER           |
     --------------------------------------*/
 
-    if ( tcp_dbus_srv_init(srv_id, tcp_msg_to_tx_callback) == EXIT_FAILURE )
+    if ( tcp_dbus_srv_init(srv_id, tcp_msg_to_tx_callback, dbus_method__request_clients_callback, dbus_method__get_client_ip_callback, dbus_method__is_tcp__connected_to_tcp_srv_callback) == EXIT_FAILURE )
     {
         printf("Failed to initialize server!\nExiting.....\n");
         exit(EXIT_FAILURE);

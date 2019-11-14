@@ -11,6 +11,7 @@ extern "C" {
 
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 
 /*-------------------------------------
@@ -79,6 +80,35 @@ typedef uint8_t dbus_clnt_id;
  */
 int tcp_dbus_send_msg(dbus_clnt_id clnt_id, const char* tcp_clnt_uuid, char* data, uint data_sz);
 
+/**
+ * FOR TCP SERVER DEVICE USE ONLY (DASHCAM MAIN UNIT)
+ *
+ * Given a pointer to an array of strings that is NULL...
+ * 
+ * @Returns number of clients and modifies given pointer to point to
+ *          an array of client UUID strings.
+ *          NOTE: returned 2D arry pointed to by clients_arry_ptr must
+ *                be freed by the caller of this function.
+ */
+uint16_t tcp_dbus_get_connected_clients(dbus_clnt_id clnt_id, char*** clients_arry_ptr);
+
+/**
+ * FOR TCP SERVER DEVICE USE ONLY (DASHCAM MAIN UNIT)
+ *
+ * Given a pointer to a client's UUID...
+ * 
+ * @Returns that client's IP address or NULL if UUID isn't valid
+ *          NOTE: returned string must be freed by caller of this function
+ */
+char* tcp_dbus_get_client_ip(dbus_clnt_id clnt_id, const char* clnt_uuid);
+
+/**
+ * FOR TCP CLIENT DEVICES USE ONLY (DASHCAM AUX DEVICES)
+ * 
+ * @Returns True is currently connected to TCP Server, 
+ *          else: false
+ */
+bool tcp_dbus_connected_to_tcp_srv(dbus_clnt_id clnt_id);
 
 /*-------------------------------------
 |     PUBLIC FUNCTION DECLARATIONS     |

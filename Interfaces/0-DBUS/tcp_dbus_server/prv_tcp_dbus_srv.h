@@ -9,6 +9,7 @@
 #include "../pub_dbus.h"
 #include <stdbool.h>
 #include <stdio.h>
+#include <assert.h>
 #include <dbus/dbus.h>
 #include <gio/gio.h>                 /* GDBusProxy and GMainLoop */
 #include <dbus/dbus-glib-lowlevel.h> /* for glib main loop */
@@ -23,9 +24,12 @@
     represents a configuration set.*/
 struct dbus_srv_config
 {
-    DBusConnection *conn;                       /* DBUS bus connection */
-    GMainLoop *loop;                            /* Loop that executes server */
-    dbus_srv__tcp_send_msg_callback callback;   /* Callback for method DBUS_TCP_SEND_MSG */
+    DBusConnection *conn;                                       /* DBUS bus connection */
+    GMainLoop *loop;                                            /* Loop that executes server */
+    dbus_srv__tcp_send_msg_callback msg_callback;               /* Callback for method DBUS_TCP_SEND_MSG */
+    dbus_srv__tcp_get_connected_clients get_clients_callback;   /* Callback for method DBUS_TCP_GET_CLIENTS */
+    dbus_srv__tcp_get_clnt_ip ip_callback;                      /* Callback for method DBUS_TCP_GET_IP */
+    dbus_srv__tcp_connected_to_tcp_srv is_connected_callback;   /* Callback for method DBUS_TCP_IS_CONNECTED */
 };
 
 
@@ -36,7 +40,7 @@ struct dbus_srv_config
 /* Contains the dbus_srv_config struct for every server created with tcp_dbus_srv_create() */
 static struct dbus_srv_config *SRV_CONFIGS_ARRY[MAX_NUM_SERVERS] = {0};
 
-/*
+/**
  * This is the XML string describing the interfaces, methods and
  * signals implemented by our 'Server' object. It's used by the
  * 'Introspect' method of 'org.freedesktop.DBus.Introspectable'
@@ -48,13 +52,17 @@ static struct dbus_srv_config *SRV_CONFIGS_ARRY[MAX_NUM_SERVERS] = {0};
  *    - org.freedesktop.DBus.Properties
  *    - com.dashcam.tcp_iface
  *
- * 'com.dashcam.tcp_iface' offers 1 method(s) and 3 signal(s):
+ * 'com.dashcam.tcp_iface' offers 4 method(s) and 3 signal(s):
  *
- *    	- TCP_SEND_MSG(): 	    Sends array of data given as the second parameter to the client tcp_clnt_uuid specified in the first parameter. Returns true if successful or false if failed to send.
- * 	  	- TCP_RECV_SIGNAL:	    Signal is emitted when data is received over TCP. Emitten signal contains the client's tcp_clnt_uuid we're receiving data from and
- * 							    	the Data array of data. All subscribers will get this notification via callback.
- * 		-TCP_CONNECT_SIGNAL:    A signal is emitted when tcp client connects with clients tcp_clnt_uuid. All subscribers will get this notification via callback.
- * 		-TCP_DISCONNECT_SIGNAL: A signal is emitted when tcp client disconnects with clients tcp_clnt_uuid. All subscribers will get this notification via callback.
+ *    	- TCP_SEND_MSG(): 	        Sends array of data given as the second parameter to the client tcp_clnt_uuid specified in the first parameter. Returns true if successful or false if failed to send.
+ *    	- TCP_SEND_GET_CLIENTS():   FOR TCP SERVER ONLY (DASHCAM MAIN UNIT). Given a pointer to a char** that is NULL, returns the number of connected clients and modifies given pointer to point to an array of client UUID strings
+ *    	- TCP_SEND_GET_IP():        FOR TCP SERVER ONLY (DASHCAM MAIN UNIT). Given a char* parameter that is a connected client's UUID, returns a char* string that is that client's IP address.
+ *    	- TCP_SEND_IS_CONNECTED():  FOR TCP CLIENTS ONLY (DASHCAM AUX UNITS). Returns true if currently connected to the/a server, else false. 
+ *
+ * 	  	- TCP_RECV_SIGNAL:	        Signal is emitted when data is received over TCP. Emitten signal contains the client's tcp_clnt_uuid we're receiving data from and
+ * 							    	    the Data array of data. All subscribers will get this notification via callback.
+ * 		-TCP_CONNECT_SIGNAL:        A signal is emitted when tcp client connects with clients tcp_clnt_uuid. All subscribers will get this notification via callback.
+ * 		-TCP_DISCONNECT_SIGNAL:     A signal is emitted when tcp client disconnects with clients tcp_clnt_uuid. All subscribers will get this notification via callback.
  */
 static const char *server_introspection_xml =
     DBUS_INTROSPECT_1_0_XML_DOCTYPE_DECL_NODE
@@ -86,16 +94,28 @@ static const char *server_introspection_xml =
     "      <arg name='string' direction='in' type=\"(ay)\" />\n"
     "      <arg type='b' direction='out' />\n"
     "    </method>\n"
-    
+
+    "    <method name='"DBUS_TCP_GET_CLIENTS"'>\n"
+    "      <arg type=\"(ay)\" direction='out' />\n"
+    "    </method>\n"
+
+    "    <method name='"DBUS_TCP_GET_IP"'>\n"
+    "      <arg type=\"(s)\" direction='out' />\n"
+    "    </method>\n"
+
+    "    <method name='"DBUS_TCP_IS_CONNECTED"'>\n"
+    "      <arg type='b' direction='out' />\n"
+    "    </method>\n"
+
     "    <signal name='" DBUS_TCP_RECV_SIGNAL "'>\n"
     "    </signal>"
-    
+
     "    <signal name='" DBUS_TCP_DISCONNECT_SIGNAL "'>\n"
     "    </signal>"
-    
+
     "    <signal name='" DBUS_TCP_CONNECT_SIGNAL "'>\n"
     "    </signal>"
-    
+
     "  </interface>\n"
 
     "</node>\n";

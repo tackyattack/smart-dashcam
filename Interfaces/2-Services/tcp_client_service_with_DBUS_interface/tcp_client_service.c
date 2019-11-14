@@ -173,7 +173,7 @@ int main(int argc, char *argv[])
     |          START DBUS SERVER           |
     --------------------------------------*/
     srv_id = tcp_dbus_srv_create();
-    if ( tcp_dbus_srv_init(srv_id, dbus_method_send_tcp_msg_callback) == EXIT_FAILURE )
+    if ( tcp_dbus_srv_init(srv_id, dbus_method_send_tcp_msg_callback, NULL, NULL, dbus_method__is_connected_callback) == EXIT_FAILURE )
     {
         printf("ERROR: SERVICE: Failed to initialize DBUS server!\nExiting.....\n");
         exit(EXIT_FAILURE);

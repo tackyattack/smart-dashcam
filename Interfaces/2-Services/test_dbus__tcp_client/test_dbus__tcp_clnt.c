@@ -165,29 +165,85 @@ int main(void)
     }
 
     printf("Subscribe to DBUS_TCP_RECV_SIGNAL signal\n");
-    if ( EXIT_FAILURE == tcp_dbus_client_Subscribe2Recv(id,DBUS_TCP_RECV_SIGNAL,&tcp_rx_data_callback) )
+    if ( EXIT_FAILURE != tcp_dbus_client_Subscribe2Recv(id,DBUS_TCP_RECV_SIGNAL,&tcp_rx_data_callback) )
     {
         printf("Failed to subscribe to DBUS_TCP_RECV_SIGNAL signal!\n \tEXPECTED THIS\n");
+        exit(EXIT_FAILURE);
     }
     printf("Subscribe to DBUS_TCP_CONNECT_SIGNAL signal\n");
     if ( EXIT_FAILURE == tcp_dbus_client_Subscribe2Recv(id,DBUS_TCP_CONNECT_SIGNAL,&tcp_clnt_connect_callback) )
     {
         printf("Failed to subscribe to DBUS_TCP_CONNECT_SIGNAL signal!\nExiting.....\n");
-        EXIT_FAILURE;
+        exit(EXIT_FAILURE);
     }
     printf("Subscribe to DBUS_TCP_DISCONNECT_SIGNAL signal\n");
     if ( EXIT_FAILURE == tcp_dbus_client_Subscribe2Recv(id,DBUS_TCP_DISCONNECT_SIGNAL,&tcp_clnt_disconnect_callback) )
     {
         printf("Failed to subscribe to DBUS_TCP_DISCONNECT_SIGNAL signal!\nExiting.....\n");
-        EXIT_FAILURE;
+        exit(EXIT_FAILURE);
     }
 
+
+    printf("\n\nTest methods\n\n");
+
+
+    printf("Method 1\n");
+    /* Test is_connected functionality for tcp clients */
+    if ( true != tcp_dbus_connected_to_tcp_srv(id) )
+    {
+        printf("tcp_dbus_connected_to_tcp_srv failed: expected true but got false!\nExiting.....\n");
+        exit(EXIT_FAILURE);
+    }
+    printf("Method 2\n");
+    if ( false != tcp_dbus_connected_to_tcp_srv(id) )
+    {
+        printf("tcp_dbus_connected_to_tcp_srv failed: expected false but got true!\nExiting.....\n");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Method 3\n");
+    /* Test functionality for getting a client's IP address from it's UUID */
+    if ( NULL != tcp_dbus_get_client_ip(id, "client_uuid") )
+    {
+        printf("tcp_dbus_get_client_ip failed: expected NULL!\nExiting.....\n");
+        exit(EXIT_FAILURE);
+    }
+    printf("Method 4\n");
+    if ( 0 != strcmp ( "client_ip_addr", tcp_dbus_get_client_ip(id, "client_uuid")) )
+    {
+        printf("tcp_dbus_get_client_ip failed: expected \"client_ip_addr\"!\nExiting.....\n");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Method 5\n");
+    char **test = NULL;
+    uint16_t num = 0;
+    num = tcp_dbus_get_connected_clients(id,&test);
+    /* Test functionality for getting a client's IP address from it's UUID */
+    if ( test != NULL || num != 0 )
+    {
+        printf("tcp_dbus_get_connected_clients failed! Expected NULL and 0, but got num = %u.\nExiting.....\n", num);
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Method 6\n");
+    test = NULL;
+    num = 0;
+    num = tcp_dbus_get_connected_clients(id,&test);
+    if ( num != 3 || test == NULL || 0 != strcmp("client_uuid", test[0]) || 0 != strcmp("client_uuid", test[1]) || 0 != strcmp("client_uuid", test[2]) )
+    {
+        printf("tcp_dbus_get_connected_clients failed!\nExiting.....\n");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Loop test send_msg method\n");
     for (size_t i = 0; i < 5; i++)
     {
         sleep(1);
         /* Test server methods */
         printf("Call send TCP message method (tcp_dbus_send_msg())\n");
         tcp_dbus_send_msg( id,"fakeuuid",msg, msg_sz );
+
     }
 
     printf("Unsubscribe from signals\n");

@@ -48,6 +48,9 @@ typedef uint8_t dbus_srv_id;
  * implemented by whomever is setting up this dbus server and will call the appropiate tcp/socket server
  * function to send the message over the socket */
 typedef bool (*dbus_srv__tcp_send_msg_callback)(const char* tcp_clnt_uuid, const char* data, unsigned int data_sz);
+typedef uint32_t (*dbus_srv__tcp_get_connected_clients)(char** clients_str_ptr);
+typedef char* (*dbus_srv__tcp_get_clnt_ip)(const char* tcp_clnt_uuid);
+typedef bool (*dbus_srv__tcp_connected_to_tcp_srv)();
 
 
 /*-------------------------------------
@@ -73,15 +76,19 @@ dbus_srv_id tcp_dbus_srv_create();
 
 /**
  * Initializes a DBUS server for a given dbus_srv_id 
- * give by tcp_dbus_srv_create() and optionally NULL callback
+ * given by tcp_dbus_srv_create() and not optionally NULL callbacks
  * Each dbus_srv_id represents a unique and independent server.
- * callback parameter is a function pointer to the user callback
- * that will be called when the send_msg() method is called by a 
- * tcp dbus client.
+ * callback parameters are function pointers to the user callbacks
+ * that will be called when the appropiate DBUS methods have been
+ * called by a tcp dbus client.
  * 
  * Non-blocking
  */
-int tcp_dbus_srv_init(dbus_srv_id srv_id, dbus_srv__tcp_send_msg_callback callback);
+int tcp_dbus_srv_init(dbus_srv_id srv_id, 
+                      dbus_srv__tcp_send_msg_callback msg_callback, 
+                      dbus_srv__tcp_get_connected_clients get_clients_callback, 
+                      dbus_srv__tcp_get_clnt_ip ip_callback, 
+                      dbus_srv__tcp_connected_to_tcp_srv is_connected_callback);
 
 /**
  * This function, given a dbus_srv_id that has 

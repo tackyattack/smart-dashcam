@@ -18,10 +18,10 @@
 #include "../../debug_print_defines.h"
 
 
- /*-------------------------------------
- |    DEFINITIONS OF DBUS FUNCTIONS     |
- |      IMPLEMENTED BY THE SERVER       |
- -------------------------------------*/
+/*-------------------------------------
+|    DEFINITIONS OF DBUS FUNCTIONS     |
+|      IMPLEMENTED BY THE SERVER       |
+--------------------------------------*/
 
 int tcp_dbus_send_msg(dbus_clnt_id clnt_id, const char* tcp_clnt_uuid, char* data, uint data_sz)
 {
@@ -56,7 +56,7 @@ int tcp_dbus_send_msg(dbus_clnt_id clnt_id, const char* tcp_clnt_uuid, char* dat
     {
         g_variant_builder_add(builder_data, "y", data[i]); /* Added uuid string to builder */
     }
-    
+
     if(tcp_clnt_uuid == NULL)
     {
         temp = malloc(1);
@@ -67,7 +67,7 @@ int tcp_dbus_send_msg(dbus_clnt_id clnt_id, const char* tcp_clnt_uuid, char* dat
     {
         gvar = g_variant_new("(say)", tcp_clnt_uuid, builder_data);  /* Generate final g_variant to send. G_Variant contains a string (the uuid), and an array of bytes (the data) */
     }
-    
+
 
     g_variant_builder_unref(builder_data);   /* cleanup */
 
@@ -76,7 +76,7 @@ int tcp_dbus_send_msg(dbus_clnt_id clnt_id, const char* tcp_clnt_uuid, char* dat
     |         SEND DATA OVER DBUS          |
     --------------------------------------*/
 
-    info_print("tcp_dbus_send_msg(): %s\n\n",g_variant_get_type_string(gvar));
+    info_print("DBUS CLIENT: tcp_dbus_send_msg(): %s\n\n",g_variant_get_type_string(gvar));
     gvar = g_dbus_proxy_call_sync(dbus_config[clnt_id]->proxy, DBUS_TCP_SEND_MSG, gvar, G_DBUS_CALL_FLAGS_NONE, 1000, NULL, &error);
 
 
@@ -102,6 +102,184 @@ int tcp_dbus_send_msg(dbus_clnt_id clnt_id, const char* tcp_clnt_uuid, char* dat
 
     return send_status;
 } /* tcp_dbus_send_msg() */
+
+uint16_t tcp_dbus_get_connected_clients( dbus_clnt_id clnt_id, char*** clients_arry_ptr )
+{
+    /*-------------------------------------
+    |              VARIABLES               |
+    --------------------------------------*/
+
+    GVariantIter *iter;
+    char* arry = NULL;
+    GVariant *gvar;
+    GError *error = NULL;
+    uint32_t n_bytes = 0;
+    uint16_t n_clients = 0;
+
+
+    /*-------------------------------------
+    |             VERIFICATION             |
+    --------------------------------------*/
+
+    g_assert(*clients_arry_ptr == NULL);
+
+
+    /*-------------------------------------
+    |         SEND DATA OVER DBUS          |
+    --------------------------------------*/
+
+    info_print("DBUS CLIENT: tcp_dbus_get_connected_clients(): Request array of clients\n\n");
+    gvar = g_dbus_proxy_call_sync(dbus_config[clnt_id]->proxy, DBUS_TCP_GET_CLIENTS, NULL, G_DBUS_CALL_FLAGS_NONE, 1000, NULL, &error);
+
+
+    /*-------------------------------------
+    |            VERIFY RESULTS            |
+    --------------------------------------*/
+
+    g_assert_no_error(error);
+
+
+    /*--------------------------------------------
+    |  GET SERIALIZED BYTE ARRY OF CLIENT UUID'S  |
+    ---------------------------------------------*/
+
+    info_print("DBUS CLIENT: tcp_dbus_get_connected_clients(): Parameter returned types are %s\n",g_variant_get_type_string(gvar)); /* Print types returned in gvariant */
+
+    g_variant_get(gvar, "(ay)", &iter); /* 1st parameter should be type 'ay' (arry of bytes) and is the serialized list of client UUIDs. These are contained in a tuple "()" */
+    n_bytes = get_data_arry(&iter, &arry); /* Utility function to get array and number of bytes in the array */
+
+
+    if(n_bytes == 1 || arry[0] == '\0')
+    {
+        free(arry);
+        *clients_arry_ptr = NULL;
+        n_bytes = 0;
+        n_clients = 0;
+    }
+    else
+    {
+        /* Determine the number of clients */
+        for (size_t i = 0; i < n_bytes; i++)
+        {
+            if(arry[i] == '\0' || arry[i] == ' ')
+            {
+                n_clients++;
+            }
+        }
+
+        /* Allocate memory */
+        *clients_arry_ptr = malloc(n_clients*sizeof(char*));
+
+        /* assignment of memory */
+        uint16_t j = 0;
+        char* temp = &arry[0];
+        for ( size_t i = 0; i < n_bytes; i++ )
+        {
+            if( arry[i] == '\0' || arry[i] == ' ' )
+            {
+                arry[i] = '\0'; /* Ensure null termination */
+                (*clients_arry_ptr)[j] = temp; /* Set pointer to part of the serialized string of client ID's separated by [space] or '\0' */
+
+                if( i+1 < n_bytes )
+                {
+                    j++;
+                    temp = &arry[i+1];
+                }
+            }
+        }/* for */
+    }
+
+    g_variant_iter_free(iter);
+    g_variant_unref(gvar);
+
+    return (uint16_t)n_clients;
+} /* tcp_dbus_send_msg() */
+
+char* tcp_dbus_get_client_ip( dbus_clnt_id clnt_id, const char* clnt_uuid )
+{
+    /*-------------------------------------
+    |              VARIABLES               |
+    --------------------------------------*/
+
+    char* clnt_ip;
+    GVariant *gvar;
+    GError *error = NULL;
+
+
+    /*-------------------------------------
+    |             VERIFICATION             |
+    --------------------------------------*/
+
+    g_assert(clnt_uuid != NULL);
+
+
+    /*-------------------------------------
+    |         SEND DATA OVER DBUS          |
+    --------------------------------------*/
+
+    info_print("DBUS CLIENT: tcp_dbus_get_client_ip(): Request client %s ip address.\n\n", clnt_uuid);
+    gvar = g_dbus_proxy_call_sync(dbus_config[clnt_id]->proxy, DBUS_TCP_GET_IP, g_variant_new ("(s)",clnt_uuid), G_DBUS_CALL_FLAGS_NONE, 1000, NULL, &error);
+
+
+    /*-------------------------------------
+    |            VERIFY RESULTS            |
+    --------------------------------------*/
+
+    g_assert_no_error(error);
+
+
+    /*--------------------------------------------
+    |  RECEIVE RESPONSE INDICATING IF SUCCESSFUL  |
+    ---------------------------------------------*/
+
+    g_variant_get(gvar, "(s)", &clnt_ip);
+    g_variant_unref(gvar);
+
+    /* If no ip found/invalid client UUID was given */
+    if ( clnt_ip[0] == '\0' )
+    {
+        // free(clnt_ip);
+        return NULL;
+    }
+
+    return clnt_ip;
+} /* tcp_dbus_get_client_ip() */
+
+bool tcp_dbus_connected_to_tcp_srv( dbus_clnt_id clnt_id )
+{
+    /*-------------------------------------
+    |              VARIABLES               |
+    --------------------------------------*/
+
+    bool return_val;
+    GVariant *gvar;
+    GError *error = NULL;
+
+
+    /*-------------------------------------
+    |         SEND DATA OVER DBUS          |
+    --------------------------------------*/
+
+    info_print("DBUS CLIENT: tcp_dbus_connected_to_tcp_srv(): Sending request to DBUS server\n\n");
+    gvar = g_dbus_proxy_call_sync(dbus_config[clnt_id]->proxy, DBUS_TCP_IS_CONNECTED, NULL, G_DBUS_CALL_FLAGS_NONE, 1000, NULL, &error);
+
+
+    /*-------------------------------------
+    |            VERIFY RESULTS            |
+    --------------------------------------*/
+
+    g_assert_no_error(error);
+
+
+    /*--------------------------------------------
+    |  RECEIVE RESPONSE INDICATING IF SUCCESSFUL  |
+    ---------------------------------------------*/
+
+    g_variant_get(gvar, "(b)", &return_val);
+    g_variant_unref(gvar);
+
+    return return_val;
+} /* tcp_dbus_connected_to_tcp_srv() */
 
 
 /*-------------------------------------
@@ -266,7 +444,7 @@ void* GMainLoop_Thread(void *loop)
     /*-------------------------------------
     |   EXECUTE G_MAIN_LOOP INDEFINITELY   |
     --------------------------------------*/
- 
+
     /*
      * The only way to break the loop is to call
      * g_main_loop_quit(dbus_config[clnt_id]->loop) from any thread
@@ -285,8 +463,8 @@ int start_main_loop(dbus_clnt_id clnt_id)
     --------------------------------------*/
 
     pthread_t thread_id;
-    
-    
+
+
     /*------------------------------------
     |       SPAWN G_MAIN_LOOP THREAD      |
     -------------------------------------*/
@@ -329,7 +507,7 @@ uint get_data_arry(GVariantIter **iter, char** data)
 
     arry_sz = g_variant_iter_n_children(*iter);
     *data    = malloc(arry_sz);
-    
+
     while (g_variant_iter_loop(*iter, "y", &c))
     {
         // g_print("\t%c\n", c);
@@ -357,7 +535,6 @@ void SubscriberCallback(GDBusConnection *conn, const gchar *sender_name, const g
     const gchar *uuid;
     char* data;
     uint data_sz;
-
 
 
     /*-------------------------------------
@@ -404,7 +581,6 @@ void SubscriberCallback(GDBusConnection *conn, const gchar *sender_name, const g
 
 } /* SubscriberCallback */
 
-
 int tcp_dbus_client_Subscribe2Recv(dbus_clnt_id clnt_id, char* signal, tcp_rx_signal_callback callback)
 {
     /*-------------------------------------
@@ -439,7 +615,6 @@ int tcp_dbus_client_Subscribe2Recv(dbus_clnt_id clnt_id, char* signal, tcp_rx_si
         {
             tcp_sbscr = &dbus_config[clnt_id]->tcp_sbscr[i]; /* get the appropiate tcp_sbscr instance for clnt_id */
         }
-        
     }
 
 
@@ -618,7 +793,6 @@ void tcp_dbus_client_disconnect(dbus_clnt_id clnt_id)
     {
         tcp_dbus_client_UnsubscribeRecv(clnt_id,dbus_config[clnt_id]->tcp_sbscr[i].SignalName);
     }
-    
 
 
     /*-------------------------------------
