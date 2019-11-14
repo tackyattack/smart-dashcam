@@ -59,16 +59,16 @@ build_path = os.path.join(root_path, 'Interfaces/')
 cmd = 'sudo make clean-all setup build'
 run_cmd_in_path(cmd, build_path)
 
-print('\n\n ***** Setup Dashcam Wireless Wi-Fi and System Services *****\n\n')
+print('\n\n ***** Setting up Dashcam Wireless Wi-Fi and TCP System Services *****\n\n')
 
 if args.main_unit:
-    # Setup Wi-Fi HOSTING on Main Unit and Setup System Services
+    # Setup Wi-Fi HOSTING on Main Unit and Setup TCP System Services
     build_path = os.path.join(root_path, 'Interfaces/')
     cmd = 'sudo make pi3_setup'
     run_cmd_in_path(cmd, build_path)
 
 if args.aux_unit:
-    # Setup Wi-Fi Client on Aux Units and Setup System Services
+    # Setup Wi-Fi Client on Aux Units and Setup TCP System Services
     build_path = os.path.join(root_path, 'Interfaces/')
     cmd = 'sudo make pi0_setup'
     run_cmd_in_path(cmd, build_path)
@@ -98,5 +98,17 @@ cmd = 'sudo mkdir -p /Recordings'
 subprocess.check_call(cmd.split())
 cmd = 'sudo chmod 777 /Recordings'
 subprocess.check_call(cmd.split())
+
+# Setup main services
+print('\n\n ***** Setting up main services *****\n\n')
+if args.main_unit:
+    build_path = os.path.join(root_path, 'setup_files/setup_main_service')
+    cmd = 'make pi3_setup'
+    run_cmd_in_path(cmd, build_path)
+
+if args.aux_unit:
+    build_path = os.path.join(root_path, 'setup_files/setup_aux_service')
+    cmd = 'make pi0_setup'
+    run_cmd_in_path(cmd, build_path)
 
 print('\n\n\n ***** System Setup Complete! *****\n\n')
