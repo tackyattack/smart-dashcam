@@ -70,7 +70,7 @@ class DiscoverMixin(object):
         self.running = False
         if self.dbus_connected:
             dbus_tcp_client.tcp_dbus_client_UnsubscribeRecv(self.id, dbus_tcp_client.DBUS_TCP_RECV_SIGNAL)
-            dbus_tcp_client.tcp_dbus_client_disconnect(self.id);
+            dbus_tcp_client.tcp_dbus_client_disconnect(self.id)
             dbus_tcp_client.tcp_dbus_client_delete(self.id)
 
 class DeviceFinder(DiscoverMixin):
