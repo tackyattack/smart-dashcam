@@ -169,6 +169,11 @@ int connect_timeout(int sock, struct sockaddr *addr, socklen_t addrlen, uint32_t
                 }
             } while (1);
         }
+        else if ( errno == ENETUNREACH ) /* Network unreachable */
+        {
+            warning_print("socket_commons: WARNING: Network Unreachable in connect()!\n");
+            returnval = RETURN_FAILED;
+        }
         else
         {
             err_print("ERROR: socket_commons: failed to initiate connection to server (not a timeout) err=%d - msg=%s\n", errno, strerror(errno));
