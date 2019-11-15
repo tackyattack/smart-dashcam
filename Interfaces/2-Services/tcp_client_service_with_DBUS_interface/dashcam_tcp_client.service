@@ -1,13 +1,13 @@
 [Unit]
 Description=Dashcam TCP Client service
 After=network.target
+StartLimitIntervalSec=30
 
 [Service]
 User=root
 Type=simple
 ExecStart=/usr/bin/dashcam_tcp_client
 Restart=on-failure
-StartLimitIntervalSec=30
 
 [Install]
 WantedBy=multi-user.target
