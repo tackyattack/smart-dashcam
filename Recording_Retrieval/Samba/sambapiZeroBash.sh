@@ -2,7 +2,7 @@
 
 # Install Samba
 sudo apt-get update
-sudo apt-get install samba samba-client samba-common
+sudo apt-get install samba samba-client samba-common -y
 
 sudo mkdir -p Backups
 

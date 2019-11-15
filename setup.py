@@ -41,34 +41,43 @@ cmd = 'sudo ./rebuild.sh'
 run_cmd_in_path(cmd, build_path)
 
 
-
-print('\n\n ***** installing vlc, ffmpeg, and pip *****\n\n')
-cmd = 'sudo apt-get install vlc ffmpeg python-pip'
+print('\n\n ***** Update System Repository Cache *****\n\n')
+cmd = 'sudo apt-get update'
 subprocess.check_call(cmd.split())
 
-print('\n\n ***** installing python libraries *****\n\n')
+print('\n\n ***** Installing Dependencies *****\n\n')
+cmd = 'sudo apt-get install vlc ffmpeg python-pip libdbus-1-dev libdbus-glib-1-dev uuid-dev -y'
+subprocess.check_call(cmd.split())
+
+print('\n\n ***** Installing Python Libraries *****\n\n')
 cmd = 'pip install picamera'
 subprocess.check_call(cmd.split())
 if args.main_unit:
     cmd = 'pip install PySimpleGUI27 typing'
     subprocess.check_call(cmd.split())
 
+
 # Setup DBUS and Socket libraries on Main and Aux units
-print('\n\n ***** Installing DBUS and Socket libraries *****\n\n')
+print('\n\n ***** Installing DBUS and Socket Libraries *****\n\n')
+
+# Dependencies: libdbus-1-dev libdbus-glib-1-dev uuid-dev
 build_path = os.path.join(root_path, 'Interfaces/')
 cmd = 'sudo make clean-all setup build'
 run_cmd_in_path(cmd, build_path)
+
 
 print('\n\n ***** Setting up Dashcam Wireless Wi-Fi and TCP System Services *****\n\n')
 
 if args.main_unit:
     # Setup Wi-Fi HOSTING on Main Unit and Setup TCP System Services
+        # Dependencies: Interfaces/0-DBUS Interfaces/1-Networking libraries be installed by running Interfaces/ make clean-all setup build
     build_path = os.path.join(root_path, 'Interfaces/')
     cmd = 'sudo make pi3_setup'
     run_cmd_in_path(cmd, build_path)
 
 if args.aux_unit:
     # Setup Wi-Fi Client on Aux Units and Setup TCP System Services
+        # Dependencies: Interfaces/0-DBUS Interfaces/1-Networking libraries be installed by running Interfaces/ make clean-all setup build
     build_path = os.path.join(root_path, 'Interfaces/')
     cmd = 'sudo make pi0_setup'
     run_cmd_in_path(cmd, build_path)

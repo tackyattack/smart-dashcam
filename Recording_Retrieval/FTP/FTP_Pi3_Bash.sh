@@ -2,7 +2,7 @@
 
 # Install Proftpd
 sudo apt-get update
-sudo apt-get install proftpd
+sudo apt-get install proftpd -y
 
 sudo mkdir -p Backups
 

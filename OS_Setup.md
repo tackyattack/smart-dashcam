@@ -28,22 +28,27 @@
    * Add the line `PasswordAuthentication yes`
    * Add the line `PermitRootLogin yes`
 6. Install dependencies (add any needed software packages to the list below): copy and paste the command(s) below:
-   ```sh
-   sudo apt update
-   sudo apt install python2.7 git build-essentials libdbus-1-dev libdbus-glib-1-dev uuid-dev
-   ```
+      ```sh
+      sudo apt update
+      sudo apt install python2.7 git build-essentials
+      ```
 7. Clone smart-dashcam into `/home/pi`
-   ```sh
-   cd ~ && git clone https://git-classes.mst.edu/hhbkv6/smart-dashcam.git
-   ```
-8. Run setup script in smart-dashcam root directory on master branch.
-   ```sh
-   cd ~/smart-dashcam && ./setup.py --aux_unit
-   ```
-9. Reboot system
-   ```sh
-   sudo reboot
-   ```
+      ```sh
+      cd ~ && git clone https://git-classes.mst.edu/hhbkv6/smart-dashcam.git
+      ```
+8.  Disable IPv6 on the wireless interface:
+      ```sh
+      sudo bash -c 'echo "net.ipv6.conf.wlan0.disable_ipv6 = 1" >> /etc/sysctl.conf'
+      sudo sysctl -p
+      ```
+9. Run setup script in smart-dashcam root directory on master branch.
+      ```sh
+      cd ~/smart-dashcam && ./setup.py --aux_unit
+      ```
+10. Reboot system
+      ```sh
+      sudo reboot
+      ```
 
 
 # Raspbian Setup Instructions for RPi 3
@@ -69,36 +74,36 @@
    * Add the line `PermitRootLogin yes`
 
 1. Install dependencies (add any needed software packages to the list below): copy and paste the commands below:
-   ```sh
-   sudo apt update
-   sudo apt install python2.7 git build-essentials libdbus-1-dev libdbus-glib-1-dev uuid-dev
-   ```
+      ```sh
+      sudo apt update
+      sudo apt install python2.7 git build-essentials
+      ```
 1. Disable IPv6 on the hosted Wi-Fi network interface with the following command:
       ```sh
       sudo bash -c 'echo "net.ipv6.conf.wlan0.disable_ipv6 = 1" >> /etc/sysctl.conf'
       sudo sysctl -p
       ```
 1. Clone smart-dashcam into `/home/pi`
-   ```sh
-   cd ~ && git clone https://git-classes.mst.edu/hhbkv6/smart-dashcam.git
-   ```
+      ```sh
+      cd ~ && git clone https://git-classes.mst.edu/hhbkv6/smart-dashcam.git
+      ```
 1. Run setup script in smart-dashcam root directory on master branch
-   ```sh
-   cd ~/smart-dashcam && ./setup.py --main_unit
-   ```
+      ```sh
+      cd ~/smart-dashcam && ./setup.py --main_unit
+      ```
 1. In /boot/config.txt, increase GPU memory
-   ```
-   gpu_mem=256
-   ```
+      ```
+      gpu_mem=256
+      ```
 1. Setup LCD by following Adafruit's [tutorial](https://learn.adafruit.com/adafruit-pitft-28-inch-resistive-touchscreen-display-raspberry-pi/easy-install-2) and script.
    1. Ensure that you choose HDMI mirror in the script to allow for OpenGL display.
    1. In /boot/config.txt, ensure that the dtoverlay is set properly. Your display may have a different
    driver so the display type may be different. Look at the [goodtft scripts](https://github.com/goodtft/LCD-show) for
    examples. Note: speed should be as high as possible without distorting colors. Mine was 24MHz.
-   ```
-   dtoverlay=tft35a:rotate=90,speed=24000000,fps=60
-   ```
+      ```
+      dtoverlay=tft35a:rotate=90,speed=24000000,fps=60
+      ```
 1. Reboot system
-   ```sh
-   sudo reboot
-   ```
+      ```sh
+      sudo reboot
+      ```
