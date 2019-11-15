@@ -27,6 +27,10 @@
    * Modify the line that specifies the port to use. Each RPi/aux unit should have a different port number.
    * Add the line `PasswordAuthentication yes`
    * Add the line `PermitRootLogin yes`
+   * Add the line `TCPKeepAlive yes`
+   * Add the line `ClientAliveInterval 30`
+   * Add the line `ClientAliveCountMax 99999`
+
 6. Install dependencies (add any needed software packages to the list below): copy and paste the command(s) below:
       ```sh
       sudo apt update
@@ -72,6 +76,9 @@
    * Modify the line that specifies the port to use. Each RPi/aux unit should have a different port number.
    * Add the line `PasswordAuthentication yes`
    * Add the line `PermitRootLogin yes`
+   * Add the line `TCPKeepAlive yes`
+   * Add the line `ClientAliveInterval 30`
+   * Add the line `ClientAliveCountMax 99999`
 
 1. Install dependencies (add any needed software packages to the list below): copy and paste the commands below:
       ```sh
