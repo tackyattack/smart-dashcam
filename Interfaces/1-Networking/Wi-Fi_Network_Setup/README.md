@@ -18,3 +18,18 @@ Execute the PI_HOST_WIFI_NETWORK_DISABLE.sh script to revert back to non Wi-Fi h
 
 ## Uninstall/Removal
 To disable and remove all aspects of the Wi-Fi hosting setup, simply execute PI_HOST_WIFI_NETWORK_DISABLE.sh followed by PI_HOST_WIFI_NETWORK_UNINSTALL.sh.
+
+# Raspberry Pi Wi-Fi Network Client Scripts
+
+These scripts are used to setup a Wi-Fi network connection via a Raspberry Pi to the network created and hosted from above. At the time this was written, rPi Zero W and rPi 3 B+ are tested to work with these scripts.
+
+Start by configuring the Wi-Fi network, then setup. Note that you must configure the network before running the setup script to match the hosted network.
+
+## Configuration
+To configure the Wi-Fi network settings such as ssid and password, modify the PI_WIFI_CLIENT_SETUP.sh script. Any changes made here will require reinstallation to reflect the changes.
+
+## Installation
+Execute PI_WIFI_CLIENT_SETUP.sh to install/setup the rPi WPA Supplicant to connect to the network. The rPi may need to reboot to see changes.
+
+## Uninstall/Removal
+To revert the Wi-Fi client back to it's pre-installation state, simply execute PI_WIFI_CLIENT_REVERT.sh.
