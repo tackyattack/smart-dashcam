@@ -4,6 +4,8 @@
   - If a network device is attached for which Linux does not have a driver, it seems that this screws with Linux such that it has random networking problems such as not being able to change Wi-Fi networks.
   - It seems easiest to change Wi-Fi networks by altering the /etc/wpa_supplicant/wpa_supplicant.conf file such that the network you want to connect to is listed first followed by rebooting the system
   - You can't use a hostname as the server address in the socket client library due to RPi OS bug that is out of my control or ability to fix.
+  - You can't use underscores in hostnames
+
 
 # Raspbian Setup Instructions for RPi Zero W
 
@@ -18,7 +20,8 @@
       sudo raspi-config
       ```
    * [development only]  Enable SSH
-   * [optional] Set hostname to *dashcam_aux0* where the '0' is replaced with a device number that should be unique but in reality this doesn't matter as hostnames are broken on Raspbian.
+   * [optional] Set hostname to *dashcam-aux0* where the '0' is replaced with a device number that should be unique but in reality this doesn't matter as hostnames are broken on Raspbian.
+   * Enable the Camera
 
 5. [development only] Type 
       ```sh 
@@ -36,14 +39,14 @@
       sudo apt update
       sudo apt install python2.7 git build-essentials
       ```
-7. Clone smart-dashcam into `/home/pi`
-      ```sh
-      cd ~ && git clone https://git-classes.mst.edu/hhbkv6/smart-dashcam.git
-      ```
-8.  Disable IPv6 on the wireless interface:
+7.  Disable IPv6 on the wireless interface:
       ```sh
       sudo bash -c 'echo "net.ipv6.conf.wlan0.disable_ipv6 = 1" >> /etc/sysctl.conf'
       sudo sysctl -p
+      ```
+8. Clone smart-dashcam into `/home/pi`
+      ```sh
+      cd ~ && git clone https://git-classes.mst.edu/hhbkv6/smart-dashcam.git
       ```
 9. Run setup script in smart-dashcam root directory on master branch.
       ```sh
@@ -67,7 +70,8 @@
       sudo raspi-config
       ```
    * [development only]  Enable SSH
-   * [optional] Set hostname to *dashcam_aux0* where the '0' is replaced with a device number that should be unique but in reality this doesn't matter as hostnames are broken on Raspbian.
+   * [optional] Set hostname to *dashcam-main*
+   * Enable the Camera
 
 1. [development only] Type 
       ```sh 
@@ -90,6 +94,10 @@
       sudo bash -c 'echo "net.ipv6.conf.wlan0.disable_ipv6 = 1" >> /etc/sysctl.conf'
       sudo sysctl -p
       ```
+1. In /boot/config.txt, increase GPU memory
+      ```
+      gpu_mem=256
+      ```
 1. Clone smart-dashcam into `/home/pi`
       ```sh
       cd ~ && git clone https://git-classes.mst.edu/hhbkv6/smart-dashcam.git
@@ -97,10 +105,6 @@
 1. Run setup script in smart-dashcam root directory on master branch
       ```sh
       cd ~/smart-dashcam && ./setup.py --main_unit
-      ```
-1. In /boot/config.txt, increase GPU memory
-      ```
-      gpu_mem=256
       ```
 1. Setup LCD by following Adafruit's [tutorial](https://learn.adafruit.com/adafruit-pitft-28-inch-resistive-touchscreen-display-raspberry-pi/easy-install-2) and script.
    1. Ensure that you choose HDMI mirror in the script to allow for OpenGL display.
