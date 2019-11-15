@@ -32,17 +32,15 @@
 build: $(SUB_DIRS)
     # Make scripts executable
     sudo chmod +x *.sh
-    @echo "Built all services\n\n"
+    @echo "Built Wi-Fi code\n\n"
 
 pi3_setup:
     sudo ./PI_HOST_WIFI_NETWORK_INSTALL.sh
     sudo ./PI_HOST_WIFI_NETWORK_ENABLE.sh
-    @echo "\n\n\n\nTHE SYSTEM NEEDS TO REBOOT\n\n\n\n"
     @echo "Setup system for Raspberry Pi 3!\n\n"
 
 pi0_setup:
-    sudo mv /etc/wpa_supplicant/wpa_supplicant.conf backups/
-    sudo cp wpa_supplicant.conf /etc/wpa_supplicant/wpa_supplicant.conf
+    sudo ./PI_WIFI_CLIENT_SETUP.sh
     @echo "Setup system for Raspberry Pi 0!\n\n"
 
 # make setup will go through the setup process needed to compile/run code
@@ -93,4 +91,4 @@ clean-all:
     #     do                                      \
     #       $(MAKE) --directory=$$dir clean-all;  \
     # done
- 
+    @echo "\n\n NOTE: To revert Wi-Fi Hosting back, you must run the Interfaces/1-Networking/Wi-Fi_Network_hosting/PI_HOST_WIFI_NETWORK_UNINSTALL.sh script!\n\n\n"

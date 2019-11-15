@@ -2,8 +2,8 @@
 exe*
 
 # Directories
-backups/**
-WorkingConfigs/**
+OriginalBackups/**
+GeneratedConfigs/**
 
 # Other
 device-id
