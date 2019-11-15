@@ -19,5 +19,5 @@ network={
 " > /etc/wpa_supplicant/wpa_supplicant.conf'
 
 # Reset wpa and reload configuration
-sudo wpa_supplicant -B -iwlan0 -c/etc/wpa_supplicant/wpa_supplicant.conf
+#sudo wpa_supplicant -B -iwlan0 -c/etc/wpa_supplicant/wpa_supplicant.conf
 sudo wpa_cli -iwlan0 reconfigure
