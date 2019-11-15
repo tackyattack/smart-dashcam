@@ -13,10 +13,11 @@ update_config=1
 country=US
 
 network={
-        ssid="DashcamWireless"
-        psk="dashcamwireless"
+        ssid=\"DashcamWireless\"
+        psk=\"dashcamwireless\"
 }
-" >> /etc/wpa_supplicant/wpa_supplicant.conf'
+" > /etc/wpa_supplicant/wpa_supplicant.conf'
 
-# Reset wpa to reload configuration
+# Reset wpa and reload configuration
+sudo wpa_supplicant -B -iwlan0 -c/etc/wpa_supplicant/wpa_supplicant.conf
 sudo wpa_cli -iwlan0 reconfigure
